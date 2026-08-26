@@ -32,7 +32,17 @@ defmodule CharterAgreementSigner.DependencyDirectionTest do
   test "lib contains no filesystem, environment, network, or clock access" do
     for {path, source} <- lib_sources() do
       refute source =~ ~r/\bFile\./, "#{path} touches the filesystem"
-      refute source =~ ~r/\bSystem\./, "#{path} touches the system environment or clock"
+
+      if telemetry_module?(path) do
+        # The telemetry seam's ONE sanctioned clock read: the monotonic
+        # duration measurement. Everything else System-shaped stays banned
+        # there too — the negative lookahead admits exactly this function.
+        refute source =~ ~r/\bSystem\.(?!monotonic_time\b)/,
+               "#{path} touches the system environment or a non-monotonic clock"
+      else
+        refute source =~ ~r/\bSystem\./, "#{path} touches the system environment or clock"
+      end
+
       refute source =~ ~r/\bPort\./, "#{path} opens a port"
 
       refute source =~ ~r/:os\.|:net\.|:httpc|:ssl|:gen_tcp|:gen_udp/,
@@ -43,6 +53,35 @@ defmodule CharterAgreementSigner.DependencyDirectionTest do
     end
   end
 
+  defp telemetry_module?(path), do: Path.basename(path) == "telemetry.ex"
+
+  # The library-side protocol double-pin (the BARA ADR-0010 discipline): the
+  # shipped requirement must name EXACTLY the locked version's tested line —
+  # a three-part "~> 0.1.0" pin admitting only 0.1.x, per CAP's own dependent
+  # guidance (CAP's package semver carries no compatibility promise, so the
+  # dependent pins conservatively and bumps deliberately). A silent
+  # `mix deps.update` or a loosened requirement reds here.
+  @protocol_requirement "~> 0.1.0"
+  @protocol_locked_version "0.1.0"
+
+  test "the protocol dependency is double-pinned to the tested release line" do
+    mix_source = File.read!(Path.join(@repo_root, "mix.exs"))
+
+    assert mix_source =~ "{:charter_agreement_protocol, \"#{@protocol_requirement}\"}",
+           "the CAP requirement must be exactly \"#{@protocol_requirement}\" — a two-part " <>
+             "\"~> 0.1\" admits every future pre-1.0 CAP that no gate has tested"
+
+    refute mix_source =~ "{:charter_agreement_protocol, \"~> 0.1\"},",
+           "the two-part pin must not appear alongside the three-part form"
+
+    lock_source = File.read!(Path.join(@repo_root, "mix.lock"))
+
+    assert lock_source =~
+             ~r/"charter_agreement_protocol":\s*\{:hex,\s*:charter_agreement_protocol,\s*"#{@protocol_locked_version}"/,
+           "the locked CAP version must be exactly #{@protocol_locked_version} — the " <>
+             "requirement vouches for no span the lock has not tested"
+  end
+
   test "the only runtime dependency in mix.exs is the protocol package" do
     mix_source = File.read!(Path.join(@repo_root, "mix.exs"))
 
@@ -51,22 +90,24 @@ defmodule CharterAgreementSigner.DependencyDirectionTest do
       |> Enum.map(&Enum.at(&1, 1))
       |> Enum.uniq()
 
-    # :credo/:dialyxir/:ex_doc/:mix_audit/:sbom are dev/test-only in the
-    # declared dep list; this textual scan is the coarse first layer — the
-    # package census gate in scripts/check_package.exs pins the shipped
-    # metadata exactly.
+    # :telemetry is the one sanctioned runtime seam beyond the protocol
+    # package (ADR-0003); :credo/:dialyxir/:ex_doc/:mix_audit/:sbom are
+    # dev/test-only in the declared dep list; this textual scan is the coarse
+    # first layer — the package census gate in scripts/check_package.exs pins
+    # the shipped metadata exactly.
     assert "charter_agreement_protocol" in runtime_deps
 
     for dep <- runtime_deps do
       assert dep in [
                "charter_agreement_protocol",
+               "telemetry",
                "credo",
                "dialyxir",
                "ex_doc",
                "mix_audit",
                "sbom"
              ],
-             "unexpected dependency :#{dep} — the wall allows only the protocol package at runtime"
+             "unexpected dependency :#{dep} — the wall allows only the protocol package and telemetry at runtime"
     end
   end
 

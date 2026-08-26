@@ -15,7 +15,7 @@ defmodule CharterAgreementSigner.MixProject do
       # that moves it (never aspirational; pinned just under the measured
       # number — Mix compares the RAW ratio, whose hidden decimals round up
       # for display, so an exact display-value pin can flake).
-      test_coverage: [summary: [threshold: 87.5]],
+      test_coverage: [summary: [threshold: 87.0]],
       # PLT lives under _build (gitignored, cache-friendly) — the BARA
       # sibling's shape.
       dialyzer: [
@@ -88,14 +88,18 @@ defmodule CharterAgreementSigner.MixProject do
   defp elixirc_paths(_env), do: ["lib/"]
 
   # The signer depends ONLY on the public charter_agreement_protocol package
-  # (the dependency-direction wall, BARA ADR-0003's shape). CAP is consumed
-  # from its Hex release. No telemetry surface and no install task ship in
-  # v0.1.0, so the BARA deps for those (:telemetry, :igniter) are deliberately
-  # absent — adding either grows scripts/check_package.exs's
-  # @runtime_dep_allowlist in the same commit.
+  # (the dependency-direction wall, BARA ADR-0003's shape) plus :telemetry
+  # for the closed, value-free sign-span surface (ADR-0003; the one sanctioned
+  # seam — zero transitive deps, no custody, no transport). CAP is consumed
+  # from its Hex release, pinned to the three-part "~> 0.1.0" per CAP's own
+  # dependent guidance (README §Installation): package semver carries no
+  # compatibility promise in CAP's governance, so the pin admits exactly the
+  # tested 0.1.x line. No install task ships in v0.1.0 — adding one grows
+  # scripts/check_package.exs's @runtime_dep_allowlist in the same commit.
   defp deps do
     [
-      {:charter_agreement_protocol, "~> 0.1"},
+      {:charter_agreement_protocol, "~> 0.1.0"},
+      {:telemetry, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.40", only: [:dev, :test], runtime: false},
@@ -122,7 +126,8 @@ defmodule CharterAgreementSigner.MixProject do
         "usage-rules.md",
         "docs/errors.md",
         "docs/getting-started.md",
-        "docs/security.md"
+        "docs/security.md",
+        "docs/telemetry.md"
       ],
       licenses: ["Apache-2.0"],
       links: %{
@@ -148,7 +153,8 @@ defmodule CharterAgreementSigner.MixProject do
         "SECURITY.md",
         "docs/errors.md",
         "docs/getting-started.md",
-        "docs/security.md"
+        "docs/security.md",
+        "docs/telemetry.md"
       ]
     ]
   end

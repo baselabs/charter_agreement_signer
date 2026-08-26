@@ -38,7 +38,9 @@ defmodule CharterAgreementSigner.PackageCheck do
                     "docs/errors.md",
                     "docs/getting-started.md",
                     "docs/security.md",
+                    "docs/telemetry.md",
                     "lib/charter_agreement_signer.ex",
+                    "lib/charter_agreement_signer/telemetry.ex",
                     "mix.exs"
                   ])
 
@@ -282,7 +284,7 @@ defmodule CharterAgreementSigner.PackageCheck do
   # runtime dependency to mix.exs reds the census here (an intentional addition
   # updates this set in the same commit). Requirement VALUES stay live-derived
   # so version bumps never drift.
-  @runtime_dep_allowlist MapSet.new([:charter_agreement_protocol])
+  @runtime_dep_allowlist MapSet.new([:charter_agreement_protocol, :telemetry])
 
   defp prod_requirements!(config) do
     config

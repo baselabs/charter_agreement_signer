@@ -50,6 +50,7 @@ defmodule CharterAgreementSigner do
 
   alias CharterAgreementProtocol, as: CAP
   alias CharterAgreementProtocol.{ArtifactSet, Error, Limits, SigningInput}
+  alias CharterAgreementSigner.Telemetry
 
   @typedoc "A caller-supplied key handle: a module implementing the callbacks plus its ref."
   @type key_handle :: {module(), term()}
@@ -122,6 +123,10 @@ defmodule CharterAgreementSigner do
   @spec sign_descriptor(map(), key_handle(), opts()) ::
           {:ok, %{descriptor: binary()}} | {:error, sign_error()}
   def sign_descriptor(claims, key_handle, opts \\ %{}) do
+    Telemetry.sign_span(:descriptor, fn -> do_sign_descriptor(claims, key_handle, opts) end)
+  end
+
+  defp do_sign_descriptor(claims, key_handle, opts) do
     with {:ok, {kid, public_key}} <- resolve_key_identity(key_handle),
          {:ok, opts} <- normalize_opts(opts),
          {:ok, limits} <- resolve_limits(opts) do
@@ -149,6 +154,10 @@ defmodule CharterAgreementSigner do
   @spec sign_receipt(map(), key_handle(), CAP.ChainFacts.t() | CAP.CharterRevision.t(), opts()) ::
           {:ok, %{receipt: binary()}} | {:error, sign_error()}
   def sign_receipt(claims, key_handle, context, opts \\ %{}) do
+    Telemetry.sign_span(:receipt, fn -> do_sign_receipt(claims, key_handle, context, opts) end)
+  end
+
+  defp do_sign_receipt(claims, key_handle, context, opts) do
     with {:ok, {kid, public_key}} <- resolve_key_identity(key_handle),
          {:ok, opts} <- normalize_opts(opts),
          {:ok, limits} <- resolve_limits(opts) do
@@ -179,6 +188,10 @@ defmodule CharterAgreementSigner do
   @spec sign_acceptance(map(), key_handle(), ArtifactSet.t(), opts()) ::
           {:ok, %{acceptance: binary()}} | {:error, sign_error()}
   def sign_acceptance(claims, key_handle, set, opts \\ %{}) do
+    Telemetry.sign_span(:acceptance, fn -> do_sign_acceptance(claims, key_handle, set, opts) end)
+  end
+
+  defp do_sign_acceptance(claims, key_handle, set, opts) do
     with {:ok, {kid, public_key}} <- resolve_key_identity(key_handle),
          {:ok, opts} <- normalize_opts(opts),
          {:ok, limits} <- resolve_limits(opts) do
@@ -208,6 +221,10 @@ defmodule CharterAgreementSigner do
   @spec sign_termination(map(), key_handle(), ArtifactSet.t(), opts()) ::
           {:ok, %{termination: binary()}} | {:error, sign_error()}
   def sign_termination(claims, key_handle, set, opts \\ %{}) do
+    Telemetry.sign_span(:termination, fn -> do_sign_termination(claims, key_handle, set, opts) end)
+  end
+
+  defp do_sign_termination(claims, key_handle, set, opts) do
     with {:ok, {kid, public_key}} <- resolve_key_identity(key_handle),
          {:ok, opts} <- normalize_opts(opts),
          {:ok, limits} <- resolve_limits(opts) do
