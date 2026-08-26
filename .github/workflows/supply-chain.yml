@@ -1,0 +1,100 @@
+name: Supply chain
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supply-chain-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build release package evidence
+    runs-on: ubuntu-latest
+    # Deliberately NO id-token/attestations here: this job compiles and runs
+    # third-party packages' code — it must not hold OIDC identity. The
+    # attest job below is the only one that can mint attestations, and it
+    # runs no project code.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.20.3"
+          otp-version: "29.0.3"
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Run the full gate battery
+        run: mix ci
+
+      # Artifact names derive from mix.exs @version — never hardcoded (a stale
+      # name after a version bump silently attests nothing).
+      - name: Derive artifact version
+        # Read @version straight from mix.exs — a `mix run` here boots :dev and
+        # its compile progress would pollute the captured value.
+        run: echo "VERSION=$(grep -m1 '@version "' mix.exs | sed 's/.*"\(.*\)".*/\1/')" >> "$GITHUB_ENV"
+
+      - name: Build exact release archive
+        run: |
+          mkdir -p artifacts
+          mix hex.build --output "artifacts/charter_agreement_signer-${VERSION}.tar"
+
+      - name: Record archive checksum
+        working-directory: artifacts
+        run: sha256sum "charter_agreement_signer-${VERSION}.tar" > SHA256SUMS
+
+      - name: Generate CycloneDX SBOM
+        run: |
+          mix sbom.cyclonedx --only prod --exclude-system-dependencies \
+            --classification library --schema 1.6 --format json \
+            --output artifacts/release.cdx.json --force
+
+      - name: Upload release evidence for attestation
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-${{ github.sha }}
+          path: |
+            artifacts/charter_agreement_signer-${{ env.VERSION }}.tar
+            artifacts/release.cdx.json
+            artifacts/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 30
+
+  attest:
+    name: Attest provenance and SBOM
+    needs: build
+    runs-on: ubuntu-latest
+    # The ONLY job with signing permissions (SLSA's build/attest split): the
+    # artifact-metadata permission is on actions/attest@v4's documented
+    # required set alongside id-token + attestations.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - name: Download release evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: release-evidence-${{ github.sha }}
+          path: artifacts
+
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: artifacts/charter_agreement_signer-*.tar
+
+      - name: Attest release SBOM
+        uses: actions/attest@v4
+        with:
+          subject-path: artifacts/charter_agreement_signer-*.tar
+          sbom-path: artifacts/release.cdx.json

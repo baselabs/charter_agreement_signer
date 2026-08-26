@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Gate battery (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
+    runs-on: ubuntu-latest
+
+    # Local parity: `mix ci` reproduces these steps step-for-step on the
+    # PINNED lane only (asdf .tool-versions — the local floor). The matrix is
+    # CI-side breadth across supported Elixir/OTP pairs; every cell runs the
+    # identical battery. Lanes are 1.20+ only: the protocol package's own
+    # floor (~> 1.20) governs every consumer.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - elixir: "1.20.2"
+            otp: "28.5.0.3"
+          - elixir: "1.20.3"
+            otp: "29.0.3"
+
+    env:
+      MIX_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
+
+      - name: Install deps
+        run: mix deps.get
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Compile (warnings as errors)
+        run: mix compile --warnings-as-errors
+
+      - name: Lint (credo)
+        run: mix credo --strict
+
+      - name: Test (includes the wrong-key gate and the refusal battery)
+        run: mix test
+
+      # The gate battery (parity with mix ci, which reproduces these steps
+      # step-for-step locally):
+      - name: Coverage floor
+        run: mix test --cover
+
+      - name: Dialyzer (PLT + analysis under :test so test/support is covered)
+        run: mix dialyzer
+
+      - name: Docs (warnings as errors)
+        run: mix docs --warnings-as-errors
+
+      - name: Audit dependencies (retirements)
+        run: mix hex.audit
+
+      - name: Audit dependencies (security advisories)
+        run: mix deps.audit
+
+      - name: Package boundary (build + unpack + consumer smoke)
+        run: mix run --no-start scripts/check_package.exs
+
+      - name: Release reproducibility (two independent builds agree)
+        run: mix run --no-start scripts/check_reproducible.exs
