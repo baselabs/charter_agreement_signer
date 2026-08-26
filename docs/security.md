@@ -28,11 +28,16 @@ The load-bearing control: after `sign/2` returns, the raw 64-byte signature
 is verified against the public key from the SAME atomic `key_identity/1`
 snapshot that sourced the header `kid`. A custody layer that signs with a
 different key than it advertises (rotation race, misconfigured slot, a
-compromised callback substituting its own key) produces `:signing_failed` —
+compromised callback substituting its key) produces `:signing_failed` —
 the artifact is never returned. The test suite proves this gate red-capable:
 the wrong-key test mints a structurally assemblable rogue signature (CAP's
 own assembler accepts it — the framing layer cannot know which key was
-intended) and shows the guard is the only rejection point.
+intended) and pins `:signing_failed` as the specific outcome. The guard is
+the only rejection point BEFORE assembly and the only producer of that
+error; the post-sign CAP verify is an independent second barrier, so a
+hypothetical guard removal degrades the descriptor path to
+`:verification_failed` — later and quieter — which is exactly why the gate
+test pins the error atom, not merely failure.
 
 ## What is deliberately NOT defended here
 

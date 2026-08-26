@@ -117,6 +117,19 @@ defmodule CharterAgreementSignerTest do
              )
   end
 
+  test "keyword-list options work and malformed options return the closed error" do
+    setup = ChainFixture.base()
+    handle = {RawKey, setup.issuer_handle}
+
+    assert {:ok, %{descriptor: _compact}} =
+             CharterAgreementSigner.sign_descriptor(setup.issuer.claims, handle, [])
+
+    for bad_opts <- [:atom, "string", {1, 2}, 42] do
+      assert {:error, {:invalid_input, :invalid_type}} =
+               CharterAgreementSigner.sign_descriptor(setup.issuer.claims, handle, bad_opts)
+    end
+  end
+
   defp header_kid(compact) do
     [protected_segment, _payload_segment, _signature] = String.split(compact, ".")
 

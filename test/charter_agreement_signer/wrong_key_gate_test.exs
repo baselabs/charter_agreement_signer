@@ -4,10 +4,14 @@ defmodule CharterAgreementSigner.WrongKeyGateTest do
   can never leave a sign path as `{:ok, _}`.
 
   Non-vacuity: the rogue signature is proven STRUCTURALLY ASSEMBLABLE via
-  CAP's own producer + assembler (nothing in the framing layer rejects it);
-  the ONLY thing standing between it and `{:ok, _}` is the shared tail's
-  verify_signature guard. Remove that guard and this suite goes red on the
-  first assertion below while the manual assembly still succeeds.
+  CAP's own producer + assembler (nothing in the framing layer rejects it).
+  The verify_signature guard is the only rejection point BEFORE assembly and
+  the only producer of `:signing_failed` — the post-sign verify is an
+  independent second barrier after it. Remove the guard alone and the
+  descriptor path degrades to `{:verification_failed}` (still not `{:ok,
+  _}`, but a quieter, later failure), while this suite goes red on the first
+  assertion below because it pins `:signing_failed` specifically — that pin
+  is what makes the guard's removal visible at the right layer.
   """
 
   use ExUnit.Case, async: true
@@ -47,7 +51,7 @@ defmodule CharterAgreementSigner.WrongKeyGateTest do
              CharterAgreementSigner.sign_acceptance(claims, {RogueKey, rogue_handle}, set)
   end
 
-  test "the rogue signature is structurally assemblable — the guard is the only rejection point",
+  test "the rogue signature is structurally assemblable — the guard is the only pre-assembly rejection point",
        %{setup: setup, rogue_private: rogue_private} do
     {:ok, input} =
       CAP.descriptor_signing_input(%{

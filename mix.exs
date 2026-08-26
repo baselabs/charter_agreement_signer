@@ -15,7 +15,7 @@ defmodule CharterAgreementSigner.MixProject do
       # that moves it (never aspirational; pinned just under the measured
       # number — Mix compares the RAW ratio, whose hidden decimals round up
       # for display, so an exact display-value pin can flake).
-      test_coverage: [summary: [threshold: 87.0]],
+      test_coverage: [summary: [threshold: 87.5]],
       # PLT lives under _build (gitignored, cache-friendly) — the BARA
       # sibling's shape.
       dialyzer: [

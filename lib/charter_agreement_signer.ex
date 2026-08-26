@@ -55,6 +55,13 @@ defmodule CharterAgreementSigner do
   @type key_handle :: {module(), term()}
 
   @typedoc """
+  Per-call options — a map or a keyword list. Any other shape is rejected as
+  `{:error, {:invalid_input, :invalid_type}}` (the closed-vocabulary posture:
+  a malformed opts argument is a returned error, never a raised exception).
+  """
+  @type opts :: map() | keyword()
+
+  @typedoc """
   The closed signer error vocabulary.
 
     * `:invalid_key_handle` — the handle is malformed, a callback crashed
@@ -101,6 +108,8 @@ defmodule CharterAgreementSigner do
 
   ## Options
 
+  Options may be given as a map or a keyword list.
+
     * `:predecessor` — `nil | CAP.DescriptorFacts.t()` (default `nil`):
       the verified predecessor's facts for a successor descriptor.
     * `:limits` — `CAP.Limits.t()` (default `CAP.Limits.default()`).
@@ -110,10 +119,11 @@ defmodule CharterAgreementSigner do
       {:ok, %{descriptor: compact}} =
         CharterAgreementSigner.sign_descriptor(claims, {MyCustody.Handle, ref})
   """
-  @spec sign_descriptor(map(), key_handle(), map()) ::
+  @spec sign_descriptor(map(), key_handle(), opts()) ::
           {:ok, %{descriptor: binary()}} | {:error, sign_error()}
   def sign_descriptor(claims, key_handle, opts \\ %{}) do
     with {:ok, {kid, public_key}} <- resolve_key_identity(key_handle),
+         {:ok, opts} <- normalize_opts(opts),
          {:ok, limits} <- resolve_limits(opts) do
       sign_common(:descriptor, claims, kid, key_handle, public_key, limits,
         context: Map.get(opts, :predecessor)
@@ -132,12 +142,15 @@ defmodule CharterAgreementSigner do
 
   ## Options
 
+  Options may be given as a map or a keyword list.
+
     * `:limits` — `CAP.Limits.t()` (default `CAP.Limits.default()`).
   """
-  @spec sign_receipt(map(), key_handle(), CAP.ChainFacts.t() | CAP.CharterRevision.t(), map()) ::
+  @spec sign_receipt(map(), key_handle(), CAP.ChainFacts.t() | CAP.CharterRevision.t(), opts()) ::
           {:ok, %{receipt: binary()}} | {:error, sign_error()}
   def sign_receipt(claims, key_handle, context, opts \\ %{}) do
     with {:ok, {kid, public_key}} <- resolve_key_identity(key_handle),
+         {:ok, opts} <- normalize_opts(opts),
          {:ok, limits} <- resolve_limits(opts) do
       sign_common(:receipt, claims, kid, key_handle, public_key, limits, context: context)
     end
@@ -159,12 +172,15 @@ defmodule CharterAgreementSigner do
 
   ## Options
 
+  Options may be given as a map or a keyword list.
+
     * `:limits` — `CAP.Limits.t()` (default `CAP.Limits.default()`).
   """
-  @spec sign_acceptance(map(), key_handle(), ArtifactSet.t(), map()) ::
+  @spec sign_acceptance(map(), key_handle(), ArtifactSet.t(), opts()) ::
           {:ok, %{acceptance: binary()}} | {:error, sign_error()}
   def sign_acceptance(claims, key_handle, set, opts \\ %{}) do
     with {:ok, {kid, public_key}} <- resolve_key_identity(key_handle),
+         {:ok, opts} <- normalize_opts(opts),
          {:ok, limits} <- resolve_limits(opts) do
       sign_common(:acceptance, claims, kid, key_handle, public_key, limits,
         context: {:set, set, claims}
@@ -185,12 +201,15 @@ defmodule CharterAgreementSigner do
 
   ## Options
 
+  Options may be given as a map or a keyword list.
+
     * `:limits` — `CAP.Limits.t()` (default `CAP.Limits.default()`).
   """
-  @spec sign_termination(map(), key_handle(), ArtifactSet.t(), map()) ::
+  @spec sign_termination(map(), key_handle(), ArtifactSet.t(), opts()) ::
           {:ok, %{termination: binary()}} | {:error, sign_error()}
   def sign_termination(claims, key_handle, set, opts \\ %{}) do
     with {:ok, {kid, public_key}} <- resolve_key_identity(key_handle),
+         {:ok, opts} <- normalize_opts(opts),
          {:ok, limits} <- resolve_limits(opts) do
       sign_common(:termination, claims, kid, key_handle, public_key, limits,
         context: {:set, set, claims}
@@ -365,6 +384,10 @@ defmodule CharterAgreementSigner do
       do: {:halt, {:ok, revision}},
       else: {:cont, acc}
   end
+
+  defp normalize_opts(opts) when is_map(opts), do: {:ok, opts}
+  defp normalize_opts(opts) when is_list(opts), do: {:ok, Map.new(opts)}
+  defp normalize_opts(_opts), do: {:error, {:invalid_input, :invalid_type}}
 
   defp resolve_limits(opts) do
     case Map.get(opts, :limits, Limits.default()) do
