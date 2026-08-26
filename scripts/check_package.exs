@@ -35,10 +35,13 @@ defmodule CharterAgreementSigner.PackageCheck do
                     "README.md",
                     "SECURITY.md",
                     "usage-rules.md",
+                    "docs/consumer-integration.md",
                     "docs/errors.md",
                     "docs/getting-started.md",
+                    "docs/recipes.md",
                     "docs/security.md",
                     "docs/telemetry.md",
+                    "docs/upgrading.md",
                     "lib/charter_agreement_signer.ex",
                     "lib/charter_agreement_signer/telemetry.ex",
                     "mix.exs"

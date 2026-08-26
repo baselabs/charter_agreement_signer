@@ -1,0 +1,94 @@
+<!-- Livebook -->
+
+# Charter signing round-trip
+
+Run cells top to bottom: two parties publish signed descriptors through
+`charter_agreement_signer`, verify them with the protocol package alone, and
+watch the wrong-key rejection fire. The custodies are seeded in-process
+DEMO-ONLY pairs.
+
+## Setup
+
+```elixir
+Mix.install([
+  {:charter_agreement_signer, path: __DIR__ |> Path.join("../..") |> Path.expand()}
+])
+```
+
+```elixir
+defmodule Demo.Keys do
+  @behaviour CharterAgreementSigner
+
+  def key(kid, seed) do
+    {public, private} = :crypto.generate_key(:eddsa, :ed25519, seed)
+    {kid, public, private}
+  end
+
+  @impl true
+  def sign(message, {_kid, _pub, priv}) when is_binary(message),
+    do: {:ok, :crypto.sign(:eddsa, :none, message, [priv, :ed25519])}
+
+  def sign(_, _), do: {:error, :invalid_handle}
+
+  @impl true
+  def key_identity({kid, pub, _priv}), do: {:ok, {kid, pub}}
+  def key_identity(_), do: {:error, :invalid_handle}
+end
+
+alias CharterAgreementProtocol, as: CAP
+alias CharterAgreementSigner, as: Signer
+
+issuer = Demo.Keys.key("issuer-demo", <<1::256>>)
+acceptor = Demo.Keys.key("acceptor-demo", <<2::256>>)
+```
+
+## 1. Both parties publish signed descriptors
+
+```elixir
+descriptor_claims = fn {kid, public, _priv} ->
+  %{
+    "protocol_revision" => 1,
+    "descriptor_number" => 1,
+    "verification_keys" => [
+      %{
+        "key_id" => kid,
+        "algorithm" => "Ed25519",
+        "public_key" => Base.url_encode64(public, padding: false),
+        "status" => "active"
+      }
+    ],
+    "attestation_hints" => [],
+    "extensions" => %{"critical" => %{}, "optional" => %{}},
+    "effective_from" => "2026-08-26T10:00:00Z"
+  }
+end
+
+{:ok, %{descriptor: issuer_descriptor}} =
+  Signer.sign_descriptor(descriptor_claims.(issuer), {Demo.Keys, issuer})
+
+{:ok, %{descriptor: acceptor_descriptor}} =
+  Signer.sign_descriptor(descriptor_claims.(acceptor), {Demo.Keys, acceptor})
+
+# The verifier's side needs ONLY the protocol package:
+{:ok, _facts} = CAP.verify_descriptor(issuer_descriptor, nil, CAP.Limits.default())
+{:ok, _facts} = CAP.verify_descriptor(acceptor_descriptor, nil, CAP.Limits.default())
+```
+
+## 2. The wrong-key rejection
+
+A custody that advertises key A but signs with key B never gets an artifact
+out — the guard fires before anything is returned:
+
+```elixir
+{_pub_b, priv_b} = :crypto.generate_key(:eddsa, :ed25519, <<9::256>>)
+rogue = put_elem(issuer, 2, priv_b)
+
+{:error, :signing_failed} =
+  Signer.sign_descriptor(descriptor_claims.(issuer), {Demo.Keys, rogue})
+```
+
+## 3. Where to go next
+
+Open `examples/charter_lifecycle` for the complete bilateral flow — genesis
+revision, dual acceptances, receipt, termination — and the library's
+`docs/getting-started.md` for the host-integration path.

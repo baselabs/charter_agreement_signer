@@ -74,7 +74,14 @@ defmodule CharterAgreementSigner.MixProject do
         "cmd env MIX_ENV=test mix run --no-start scripts/check_package.exs",
         # Two cache-isolated builds of the exact archive must agree byte for
         # byte (the release-candidate reproducibility gate).
-        "cmd env MIX_ENV=test mix run --no-start scripts/check_reproducible.exs"
+        "cmd env MIX_ENV=test mix run --no-start scripts/check_reproducible.exs",
+        # job: example (the workflow's working-directory: examples/charter_lifecycle)
+        "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix deps.get",
+        "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix hex.audit",
+        "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix format --check-formatted",
+        "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix compile --warnings-as-errors",
+        "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix credo --strict",
+        "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix test"
       ]
     ]
   end
@@ -124,10 +131,13 @@ defmodule CharterAgreementSigner.MixProject do
         "NOTICE",
         "SECURITY.md",
         "usage-rules.md",
+        "docs/consumer-integration.md",
         "docs/errors.md",
         "docs/getting-started.md",
+        "docs/recipes.md",
         "docs/security.md",
-        "docs/telemetry.md"
+        "docs/telemetry.md",
+        "docs/upgrading.md"
       ],
       licenses: ["Apache-2.0"],
       links: %{
@@ -151,10 +161,13 @@ defmodule CharterAgreementSigner.MixProject do
         "LICENSE",
         "NOTICE",
         "SECURITY.md",
+        "docs/consumer-integration.md",
         "docs/errors.md",
         "docs/getting-started.md",
+        "docs/recipes.md",
         "docs/security.md",
-        "docs/telemetry.md"
+        "docs/telemetry.md",
+        "docs/upgrading.md"
       ]
     ]
   end

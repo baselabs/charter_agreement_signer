@@ -67,6 +67,25 @@ caller-side self-checks, against its own key store. A production party points
 the handle at an HSM or KMS; the in-memory reference handle used in tests
 compiles only in the test environment and never ships.
 
+## Telemetry
+
+The four signing entry points emit a closed, value-free two-event surface —
+`[:charter_agreement_signer, :sign, :start|:stop]` — whose class axis mirrors
+the error vocabulary exactly (a refusal is `:refused`, a post-sign verify
+failure is `:verification_failed`; neither ever wears the `:signing_failed`
+custody label). No handler is attached by default. See
+[docs/telemetry.md](docs/telemetry.md).
+
+## Examples
+
+- [`examples/charter_lifecycle`](https://github.com/baselabs/charter_agreement_signer/tree/master/examples/charter_lifecycle) —
+  a complete bilateral charter (descriptors → genesis revision → dual
+  acceptances → receipt → mutual termination) with a CAP-only counterparty
+  verifying every artifact, the wrong-key rejection, and its own CI lane. No
+  transport — CAP defines none and this repo invents none (`docs/adr/0004`).
+- [`examples/charter_signing_roundtrip.livemd`](https://github.com/baselabs/charter_agreement_signer/blob/master/examples/charter_signing_roundtrip.livemd) —
+  the Livebook walkthrough.
+
 ## Development
 
 ```bash
@@ -74,12 +93,14 @@ mix deps.get
 mix ci
 ```
 
-`mix ci` reproduces the CI pipeline locally: format, warnings-as-errors
-compilation, Credo, the full test suite (including the wrong-key gate, the
-refusal battery, and the dependency-direction wall), the coverage floor,
-Dialyzer, doc warnings, dependency audits, the shipped-artifact package
-census with a consumer smoke against the unpacked package, and the
-release-candidate reproducibility gate.
+`mix ci` reproduces the CI pipeline locally for BOTH projects: format,
+warnings-as-errors compilation, Credo, the full test suite (including the
+wrong-key gate, the refusal battery, and the dependency-direction wall), the
+coverage floor, Dialyzer, doc warnings, dependency audits, the
+shipped-artifact package census with a consumer smoke against the unpacked
+package, the release-candidate reproducibility gate, and the
+`examples/charter_lifecycle` battery (its own audits, format, compile,
+lint, and the bilateral round-trip tests).
 
 Requires Elixir 1.20+ (developed on 1.20 / OTP 29) — the protocol package's
 own floor.

@@ -11,7 +11,8 @@ and this project adheres to
 ### Added
 
 - Initial public release: the holder-side companion signer for the Charter
-  Agreement Protocol (`charter_agreement_protocol` ~&gt; 0.1).
+  Agreement Protocol (`charter_agreement_protocol` `~> 0.1.0`, double-pinned
+  to the tested 0.1.x line per ADR-0002).
 - `sign_descriptor/3`, `sign_receipt/4`, `sign_acceptance/4`, and
   `sign_termination/4` — one shared signing tail per the BARA companion-signer
   grammar: atomic `key_identity/1` snapshot (header `kid` sourced only from
@@ -23,7 +24,19 @@ and this project adheres to
 - Closed error vocabulary: `:invalid_key_handle`, `:signing_failed`,
   `:verification_failed`, `{:refused, :signing_refused}`,
   `{:invalid_input, code}` — no key material, message bytes, or claims
-  content in errors.
+  content in errors. Opts accept maps and keyword lists; any other shape
+  returns `{:invalid_input, :invalid_type}` rather than raising.
+- The value-free telemetry surface (ADR-0003): two events,
+  `[:charter_agreement_signer, :sign, :start|:stop]`, with a class axis
+  exactly mirroring the error vocabulary (refusals and verification
+  failures are their own classes — never folded into `:signing_failed`);
+  no handler is attached by default. `:telemetry ~> 1.4` joins the
+  dependency set as the one sanctioned runtime seam beyond the protocol
+  package.
+- The full guide set (`docs/`: errors, getting-started, security, telemetry,
+  upgrading, recipes, consumer-integration), five governing ADRs
+  (`docs/adr/`), the runnable bilateral `examples/charter_lifecycle`
+  reference app with its own CI lane, and the Livebook round-trip.
 - Gate battery: red-capable wrong-key gate (with the structural
   assemblability non-vacuity proof), refusal propagation, handle-contract
   totals (raise/exit/throw/reject/short-signature), dependency-direction
