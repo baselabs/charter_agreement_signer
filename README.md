@@ -58,6 +58,11 @@ Three disciplines are load-bearing on every path:
    red-capable in the test suite), and the assembled compact must then pass
    the matching CAP verify function before it is returned.
 
+Claims you sign mint at the protocol's current revision — CAP 0.2's emission
+rule is exactly (`"Ed25519"`, `protocol_revision` 2), so claims carry
+`"protocol_revision" => 2`; retained revision-1 artifacts keep verifying
+(cross-revision composition). See [docs/upgrading.md](docs/upgrading.md).
+
 ## Key custody
 
 The library never holds a key. A caller passes a `{module, ref}` handle; the

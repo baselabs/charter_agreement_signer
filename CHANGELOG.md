@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] — 2026-08-30
+
+### Changed
+
+- Documentation-only release (the CAP 0.2.1 pattern): the 0.2.0 adoption
+  left the guide set silent on the revision-2 minting rule except where the
+  migration note lives. The sweep names it everywhere a host or counterparty
+  looks: `errors.md` lists revision-below-emission claims as a cause of
+  `:signing_input_invalid`, `consumer-integration.md` tells counterparties
+  what header a fresh mint carries (`"Ed25519"`, revision 2) and that legacy
+  revision-1 views compose freely, `recipes.md`'s porting note pins the
+  emission identity for non-Elixir signers, `usage-rules.md` gains the
+  mint-at-current-revision rule, and the README states it on the landing
+  page. No library, dependency, or gate change.
+
 ## [0.2.0] — 2026-08-29
 
 ### Changed
@@ -63,5 +78,6 @@ and this project adheres to
   wall, shipped-artifact package census + consumer smoke, and the
   release-candidate reproducibility gate (`mix ci` mirrors CI step-for-step).
 
+[0.2.1]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.2.1
 [0.2.0]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.2.0
 [0.1.0]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.1.0

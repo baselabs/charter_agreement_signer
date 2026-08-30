@@ -44,3 +44,9 @@ enforces most of them structurally, and the rest are posture.
 8. **Errors are closed atoms.** Do not pattern-match on error detail beyond
    the documented set; do not log inspect terms as though they might carry
    key material (they cannot — the vocabulary is value-free by construction).
+
+9. **Mint at the protocol's current revision.** Claims you hand to a sign
+   path carry `"protocol_revision" => 2` — CAP 0.2's emission rule mints
+   exactly `("Ed25519", 2)`, and revision-1 claims are refused at the
+   producer before the key is used. Retained revision-1 artifacts keep
+   verifying (cross-revision composition); only NEW claims must say 2.

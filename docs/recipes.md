@@ -140,12 +140,18 @@ Full walkthrough: [consumer-integration.md](consumer-integration.md).
 A signer in any language produces conformant artifacts by following CAP's
 specification alone: build the exact RFC 7515 signing input (protected
 header `{alg, kid, typ}` + canonical payload), sign it with Ed25519, attach
-the raw 64-byte signature. Two disciplines travel with the port:
+the raw 64-byte signature. `alg` is the registry's emission name —
+`"Ed25519"` at `protocol_revision` 2; the binding rule rejects
+`(revision 1, "Ed25519")`, while legacy `"EdDSA"` artifacts remain
+verifiable. Three disciplines travel with the port:
 
 1. The atomic kid+public-key snapshot, and the wrong-key verify-before-return
    guard, are not Elixir conveniences — they are the failure modes the
    custody boundary must not have (silent `{pub_A, sig_B}` successes).
-2. Gate the port against CAP's published conformance corpus (its
+2. Mint at the protocol's current emission identity exactly (`"Ed25519"`,
+   `protocol_revision` 2) — a port that hand-writes revision-1 claims or the
+   deprecated `"EdDSA"` name is refused at best and nonconformant at worst.
+3. Gate the port against CAP's published conformance corpus (its
    `docs/test-vectors.md` manifest defines the byte-agreement procedure) —
    canonical-JSON construction is where cross-language implementations
    diverge, and the corpus is what catches it.

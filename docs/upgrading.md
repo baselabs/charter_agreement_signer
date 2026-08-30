@@ -22,6 +22,14 @@ that governs how the library evolves alongside the protocol package.
   appear in `docs/telemetry.md`'s tables (tied bidirectionally by the test
   suite) and in this page's notes.
 
+## 0.2.1 — 2026-08-30
+
+Documentation-only. The 0.2.0 migration rule (mint claims at
+`"protocol_revision" => 2`) is now stated in every guide where a host or
+counterparty looks for it — errors, consumer-integration, recipes (the
+non-Elixir porting note), usage rules, and the README landing page. Nothing
+to do if you already followed the 0.2.0 note.
+
 ## 0.2.0 — 2026-08-29
 
 The protocol dependency line moves: `charter_agreement_protocol ~> 0.1.0` →
