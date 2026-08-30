@@ -50,26 +50,38 @@ defmodule CharterAgreementSigner.KeyHandleTest do
   test "malformed handle shapes are :invalid_key_handle", %{setup: setup} do
     for handle <- [:not_a_tuple, {"StringModule", :ref}, {NoSuchHandleModule, :ref}, nil] do
       assert {:error, :invalid_key_handle} =
-               CharterAgreementSigner.sign_descriptor(setup.issuer.claims, handle)
+               CharterAgreementSigner.sign_descriptor(
+                 ChainFixture.mint(setup.issuer.claims),
+                 handle
+               )
     end
   end
 
   test "a crashing key_identity/1 is caught, not escaped", %{setup: setup} do
     assert {:error, :invalid_key_handle} =
-             CharterAgreementSigner.sign_descriptor(setup.issuer.claims, {RaisingIdentity, :ref})
+             CharterAgreementSigner.sign_descriptor(
+               ChainFixture.mint(setup.issuer.claims),
+               {RaisingIdentity, :ref}
+             )
   end
 
   test "exit/throw/reject/short-signature on the sign path are :signing_failed", %{setup: setup} do
     for module <- [ExitingSign, ThrowingSign, RejectingSign, ShortSignature] do
       assert {:error, :signing_failed} =
-               CharterAgreementSigner.sign_descriptor(setup.issuer.claims, {module, :ref})
+               CharterAgreementSigner.sign_descriptor(
+                 ChainFixture.mint(setup.issuer.claims),
+                 {module, :ref}
+               )
     end
   end
 
   test "bad identity snapshot shapes are :invalid_key_handle", %{setup: setup} do
     for ref <- [:empty_kid, :short_key, :not_a_tuple, :crashed] do
       assert {:error, :invalid_key_handle} =
-               CharterAgreementSigner.sign_descriptor(setup.issuer.claims, {BadSnapshots, ref})
+               CharterAgreementSigner.sign_descriptor(
+                 ChainFixture.mint(setup.issuer.claims),
+                 {BadSnapshots, ref}
+               )
     end
   end
 
@@ -90,7 +102,10 @@ defmodule CharterAgreementSigner.KeyHandleTest do
     private = elem(setup.issuer_handle, 2)
 
     errors = [
-      CharterAgreementSigner.sign_descriptor(setup.issuer.claims, :bad_handle),
+      CharterAgreementSigner.sign_descriptor(
+        ChainFixture.mint(setup.issuer.claims),
+        :bad_handle
+      ),
       CharterAgreementSigner.sign_acceptance(%{}, {RejectingSign, :ref}, set),
       CharterAgreementSigner.sign_receipt(%{}, {RejectingSign, :ref}, :no_context)
     ]

@@ -1,16 +1,15 @@
 # Upgrading
 
-Per-version notes, newest first. This library has exactly one released
-version so far — this page also states the versioning policy that governs
-how it evolves alongside the protocol package.
+Per-version notes, newest first. This page also states the versioning policy
+that governs how the library evolves alongside the protocol package.
 
 ## Versioning policy
 
 - **This library follows pre-1.0 SemVer §4 semantics**: anything may change
-  at a 0.x minor bump; pin `~> 0.1.0` (the three-part form) and read this
+  at a 0.x minor bump; pin `~> 0.2.0` (the three-part form) and read this
   page at every minor.
-- **The protocol dependency is double-pinned** to the tested `0.1.x` line
-  (`{:charter_agreement_protocol, "~> 0.1.0"}` + a lock parity gate). CAP's
+- **The protocol dependency is double-pinned** to the tested `0.2.x` line
+  (`{:charter_agreement_protocol, "~> 0.2.1"}` + a lock parity gate). CAP's
   package semver carries no compatibility promise (its governance: the
   `protocol_revision` claim is the sole wire identity), so a CAP bump here is
   always a deliberate, reviewed release of THIS library — never something a
@@ -22,6 +21,28 @@ how it evolves alongside the protocol package.
 - **Telemetry axes are closed and additive-only**: new objects or classes
   appear in `docs/telemetry.md`'s tables (tied bidirectionally by the test
   suite) and in this page's notes.
+
+## 0.2.0 — 2026-08-29
+
+The protocol dependency line moves: `charter_agreement_protocol ~> 0.1.0` →
+`~> 0.2.1` (ADR-0002's deliberate-bump discipline; both locks moved in the
+release commit). CAP 0.2.0 shipped `protocol_revision` 2 and the RFC 9864
+alg-name bundle; 0.2.1 is docs-only. One migration item:
+
+- **Claims must mint at revision 2.** CAP's producers now emit exactly
+  (`"Ed25519"`, `protocol_revision` 2) — the protected header's alg name is
+  the fully-specified RFC 9864 spelling, and the binding rule runs at the
+  producer's provisional decode. Claims carrying `"protocol_revision" => 1`
+  (or omitting it) are refused as `{:invalid_input, :signing_input_invalid}`
+  BEFORE the key is used. Set `"protocol_revision" => 2` on every claims map
+  you hand to `sign_descriptor/3`, `sign_acceptance/4`,
+  `sign_termination/4`, or `sign_receipt/4`.
+- **Retained revision-1 artifacts need nothing.** Cross-revision composition
+  is the protocol's supported mixed deployment: a revision-2 signature
+  anchored to revision-1 views verifies (legacy `("EdDSA", 1)` artifacts
+  verify forever; the signer's own suite proves the mixed path).
+- No signer API, error vocabulary, or telemetry change rides this release —
+  the surface is byte-for-byte what 0.1.0 shipped.
 
 ## 0.1.0 — 2026-08-26
 

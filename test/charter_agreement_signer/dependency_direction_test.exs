@@ -57,21 +57,22 @@ defmodule CharterAgreementSigner.DependencyDirectionTest do
 
   # The library-side protocol double-pin (the BARA ADR-0010 discipline): the
   # shipped requirement must name EXACTLY the locked version's tested line —
-  # a three-part "~> 0.1.0" pin admitting only 0.1.x, per CAP's own dependent
-  # guidance (CAP's package semver carries no compatibility promise, so the
-  # dependent pins conservatively and bumps deliberately). A silent
-  # `mix deps.update` or a loosened requirement reds here.
-  @protocol_requirement "~> 0.1.0"
-  @protocol_locked_version "0.1.0"
+  # a three-part "~> 0.2.1" pin admitting only the tested 0.2.x line, per
+  # CAP's own dependent guidance (CAP's package semver carries no
+  # compatibility promise, so the dependent pins conservatively and bumps
+  # deliberately). A silent `mix deps.update` or a loosened requirement reds
+  # here.
+  @protocol_requirement "~> 0.2.1"
+  @protocol_locked_version "0.2.1"
 
   test "the protocol dependency is double-pinned to the tested release line" do
     mix_source = File.read!(Path.join(@repo_root, "mix.exs"))
 
     assert mix_source =~ "{:charter_agreement_protocol, \"#{@protocol_requirement}\"}",
            "the CAP requirement must be exactly \"#{@protocol_requirement}\" — a two-part " <>
-             "\"~> 0.1\" admits every future pre-1.0 CAP that no gate has tested"
+             "\"~> 0.2\" admits every future pre-1.0 CAP that no gate has tested"
 
-    refute mix_source =~ "{:charter_agreement_protocol, \"~> 0.1\"},",
+    refute mix_source =~ "{:charter_agreement_protocol, \"~> 0.2\"},",
            "the two-part pin must not appear alongside the three-part form"
 
     lock_source = File.read!(Path.join(@repo_root, "mix.lock"))

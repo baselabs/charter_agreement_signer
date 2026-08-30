@@ -21,7 +21,7 @@ depends on exactly one package: the public `charter_agreement_protocol`.
 ```elixir
 def deps do
   [
-    {:charter_agreement_signer, "~> 0.1"}
+    {:charter_agreement_signer, "~> 0.2"}
   ]
 end
 ```

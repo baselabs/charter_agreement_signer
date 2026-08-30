@@ -280,6 +280,14 @@ defmodule CharterAgreementSigner.ChainFixture do
     DescriptorFixture.genesis(key: {DescriptorFixture.key(handle), elem(handle, 2)})
   end
 
+  # Claims entering a sign path mint at the emission revision — exactly what
+  # a host does after CAP 0.2 (CAP's algorithm-name-agility ADR: new minting
+  # is exactly ("Ed25519", 2), enforced at the producer's provisional decode).
+  # The hand-built compacts below stay at revision 1 + "EdDSA" headers —
+  # legacy held views — so the suite keeps proving cross-revision composition:
+  # a freshly minted revision-2 signature over revision-1 views.
+  def mint(claims), do: Map.put(claims, "protocol_revision", 2)
+
   # Acceptance/termination compacts for the fixture views — signed directly
   # with the handle's key (bypassing the signer, the way a counterparty's
   # artifacts arrive from outside).

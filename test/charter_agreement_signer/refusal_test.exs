@@ -40,10 +40,12 @@ defmodule CharterAgreementSigner.RefusalTest do
     set: set
   } do
     false_claims =
-      AcceptanceFixture.claims(setup.genesis, setup.issuer, "issuer", %{
-        "revision_digest" =>
-          CharterRevisionFixture.tagged(:charter_revision_content, "not-retained")
-      })
+      ChainFixture.mint(
+        AcceptanceFixture.claims(setup.genesis, setup.issuer, "issuer", %{
+          "revision_digest" =>
+            CharterRevisionFixture.tagged(:charter_revision_content, "not-retained")
+        })
+      )
 
     assert {:error, {:refused, :signing_refused}} =
              CharterAgreementSigner.sign_acceptance(
@@ -63,7 +65,7 @@ defmodule CharterAgreementSigner.RefusalTest do
     {:ok, fork_set} =
       ChainFixture.raw_set(setup, [setup.genesis, left, right], [right_acceptance], [])
 
-    left_claims = AcceptanceFixture.claims(left, setup.issuer, "issuer")
+    left_claims = ChainFixture.mint(AcceptanceFixture.claims(left, setup.issuer, "issuer"))
 
     assert {:error, {:refused, :signing_refused}} =
              CharterAgreementSigner.sign_acceptance(
@@ -75,9 +77,11 @@ defmodule CharterAgreementSigner.RefusalTest do
 
   test "an unlisted termination reason is refused", %{setup: setup, set: set} do
     claims =
-      TerminationFixture.claims(setup.genesis, setup.issuer, "issuer", %{
-        "reason_code" => "not-in-charter"
-      })
+      ChainFixture.mint(
+        TerminationFixture.claims(setup.genesis, setup.issuer, "issuer", %{
+          "reason_code" => "not-in-charter"
+        })
+      )
 
     assert {:error, {:refused, :signing_refused}} =
              CharterAgreementSigner.sign_termination(claims, {RawKey, setup.issuer_handle}, set)
@@ -92,7 +96,8 @@ defmodule CharterAgreementSigner.RefusalTest do
 
     {:ok, advanced_set} = ChainFixture.raw_set(setup, [setup.genesis, advanced], acceptances, [])
 
-    stale_claims = TerminationFixture.claims(setup.genesis, setup.issuer, "issuer")
+    stale_claims =
+      ChainFixture.mint(TerminationFixture.claims(setup.genesis, setup.issuer, "issuer"))
 
     assert {:error, {:refused, :signing_refused}} =
              CharterAgreementSigner.sign_termination(
@@ -118,7 +123,7 @@ defmodule CharterAgreementSigner.RefusalTest do
         ChainFixture.descriptors(setup)
       )
 
-    claims = AcceptanceFixture.claims(setup.genesis, setup.issuer, "issuer")
+    claims = ChainFixture.mint(AcceptanceFixture.claims(setup.genesis, setup.issuer, "issuer"))
 
     assert {:error, {:invalid_input, :compact_invalid}} =
              CharterAgreementSigner.sign_acceptance(

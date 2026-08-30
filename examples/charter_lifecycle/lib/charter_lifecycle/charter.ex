@@ -1,7 +1,10 @@
 # The charter's claim material: descriptor claims (each pinning its party's
 # verification key) and the genesis revision's canonical bytes. Everything
 # byte-shaped flows through CAP's public canonicalization/digest modules —
-# this example never re-implements canonical bytes.
+# this example never re-implements canonical bytes. All claims carry
+# protocol_revision 2: this is a greenfield flow, and CAP 0.2's emission rule
+# mints exactly ("Ed25519", 2) — a host hand-write of revision-1 claims would
+# be refused at the producer's provisional decode.
 defmodule CharterLifecycle.Charter do
   @moduledoc false
 
@@ -11,7 +14,7 @@ defmodule CharterLifecycle.Charter do
     {kid, public, _private} = handle
 
     %{
-      "protocol_revision" => 1,
+      "protocol_revision" => 2,
       "descriptor_number" => 1,
       "verification_keys" => [
         %{
@@ -29,7 +32,7 @@ defmodule CharterLifecycle.Charter do
 
   def genesis_revision_claims(issuer_descriptor_digest, acceptor_descriptor_digest) do
     %{
-      "protocol_revision" => 1,
+      "protocol_revision" => 2,
       "revision_number" => 1,
       "parties" => [
         %{"party_descriptor_digest" => issuer_descriptor_digest, "role" => "issuer"},
@@ -61,7 +64,7 @@ defmodule CharterLifecycle.Charter do
 
   def acceptance_claims(revision, party_digest, role) do
     %{
-      "protocol_revision" => 1,
+      "protocol_revision" => 2,
       "charter_id" => revision.charter_id,
       "revision_number" => revision.claims["revision_number"],
       "revision_digest" => revision.digest,
@@ -73,7 +76,7 @@ defmodule CharterLifecycle.Charter do
 
   def termination_claims(revision, party_digest, role) do
     %{
-      "protocol_revision" => 1,
+      "protocol_revision" => 2,
       "charter_id" => revision.charter_id,
       "governing_revision_digest" => revision.digest,
       "party_descriptor_digest" => party_digest,
@@ -86,7 +89,7 @@ defmodule CharterLifecycle.Charter do
 
   def receipt_claims(revision) do
     %{
-      "protocol_revision" => 1,
+      "protocol_revision" => 2,
       "charter_id" => revision.charter_id,
       "revision_number" => revision.claims["revision_number"],
       "revision_digest" => revision.digest,

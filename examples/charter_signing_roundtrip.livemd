@@ -47,7 +47,7 @@ acceptor = Demo.Keys.key("acceptor-demo", <<2::256>>)
 ```elixir
 descriptor_claims = fn {kid, public, _priv} ->
   %{
-    "protocol_revision" => 1,
+    "protocol_revision" => 2,
     "descriptor_number" => 1,
     "verification_keys" => [
       %{

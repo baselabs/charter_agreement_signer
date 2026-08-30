@@ -37,7 +37,10 @@ defmodule CharterAgreementSigner.WrongKeyGateTest do
     rogue_handle: rogue_handle
   } do
     assert {:error, :signing_failed} =
-             CharterAgreementSigner.sign_descriptor(setup.issuer.claims, {RogueKey, rogue_handle})
+             CharterAgreementSigner.sign_descriptor(
+               ChainFixture.mint(setup.issuer.claims),
+               {RogueKey, rogue_handle}
+             )
   end
 
   test "a wrong-key sign is :signing_failed on the set-based acceptance path", %{
@@ -45,7 +48,7 @@ defmodule CharterAgreementSigner.WrongKeyGateTest do
     rogue_handle: rogue_handle
   } do
     {:ok, set} = ChainFixture.raw_set(setup, [setup.genesis], [], [])
-    claims = AcceptanceFixture.claims(setup.genesis, setup.issuer, "issuer")
+    claims = ChainFixture.mint(AcceptanceFixture.claims(setup.genesis, setup.issuer, "issuer"))
 
     assert {:error, :signing_failed} =
              CharterAgreementSigner.sign_acceptance(claims, {RogueKey, rogue_handle}, set)
@@ -56,7 +59,7 @@ defmodule CharterAgreementSigner.WrongKeyGateTest do
     {:ok, input} =
       CAP.descriptor_signing_input(%{
         "kid" => elem(setup.issuer_handle, 0),
-        "claims" => setup.issuer.claims
+        "claims" => ChainFixture.mint(setup.issuer.claims)
       })
 
     signature =

@@ -8,6 +8,12 @@ Accepted. Reverses the scaffold's two-part pin — a real correction, not a
 formalization. Found by the release-readiness adversarial review (2026-08-26)
 on three authorities at once.
 
+Amended 2026-08-29: the first deliberate line move under decision 3 —
+`~> 0.1.0` → `~> 0.2.1` for CAP's revision-2 RFC 9864 alg-name bundle,
+classified against CAP's changelog (minting-side change: producers emit
+exactly ("Ed25519", 2) and refuse revision-1 claims; verification stays
+backward compatible). No signer `lib/` delta; released as 0.2.0.
+
 ## Context
 
 The scaffold shipped `{:charter_agreement_protocol, "~> 0.1"}`. In Hex's

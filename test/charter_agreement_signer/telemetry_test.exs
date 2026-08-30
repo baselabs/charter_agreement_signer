@@ -61,7 +61,10 @@ defmodule CharterAgreementSigner.TelemetryTest do
 
     {result, events} =
       capture_events(fn ->
-        CharterAgreementSigner.sign_descriptor(setup.issuer.claims, {RawKey, setup.issuer_handle})
+        CharterAgreementSigner.sign_descriptor(
+          ChainFixture.mint(setup.issuer.claims),
+          {RawKey, setup.issuer_handle}
+        )
       end)
 
     assert {:ok, %{descriptor: _compact}} = result
@@ -87,7 +90,7 @@ defmodule CharterAgreementSigner.TelemetryTest do
     {_result, events} =
       capture_events(fn ->
         CharterAgreementSigner.sign_descriptor(
-          setup.issuer.claims,
+          ChainFixture.mint(setup.issuer.claims),
           {RawKey, setup.issuer_handle},
           :bad_opts
         )
@@ -101,7 +104,10 @@ defmodule CharterAgreementSigner.TelemetryTest do
 
     {_result, events} =
       capture_events(fn ->
-        CharterAgreementSigner.sign_descriptor(setup.issuer.claims, {:NoSuchCustodyModule, :ref})
+        CharterAgreementSigner.sign_descriptor(
+          ChainFixture.mint(setup.issuer.claims),
+          {:NoSuchCustodyModule, :ref}
+        )
       end)
 
     assert [{_start, _, _}, {@prefix ++ [:stop], _, %{result_class: :invalid_key_handle}}] =
@@ -115,7 +121,10 @@ defmodule CharterAgreementSigner.TelemetryTest do
 
     {_result, events} =
       capture_events(fn ->
-        CharterAgreementSigner.sign_descriptor(setup.issuer.claims, {RogueKey, rogue})
+        CharterAgreementSigner.sign_descriptor(
+          ChainFixture.mint(setup.issuer.claims),
+          {RogueKey, rogue}
+        )
       end)
 
     assert [{_start, _, _}, {@prefix ++ [:stop], _, %{result_class: :signing_failed}}] = events
@@ -127,7 +136,10 @@ defmodule CharterAgreementSigner.TelemetryTest do
 
     {_result, events} =
       capture_events(fn ->
-        CharterAgreementSigner.sign_descriptor(setup.issuer.claims, {RawKey, stranger})
+        CharterAgreementSigner.sign_descriptor(
+          ChainFixture.mint(setup.issuer.claims),
+          {RawKey, stranger}
+        )
       end)
 
     assert [{_start, _, _}, {@prefix ++ [:stop], _, %{result_class: :verification_failed}}] =
@@ -139,13 +151,15 @@ defmodule CharterAgreementSigner.TelemetryTest do
     {:ok, set} = ChainFixture.raw_set(setup, [setup.genesis], [], [])
 
     false_claims =
-      CharterAgreementSigner.AcceptanceFixture.claims(setup.genesis, setup.issuer, "issuer", %{
-        "revision_digest" =>
-          CharterAgreementSigner.CharterRevisionFixture.tagged(
-            :charter_revision_content,
-            "not-retained"
-          )
-      })
+      CharterAgreementSigner.ChainFixture.mint(
+        CharterAgreementSigner.AcceptanceFixture.claims(setup.genesis, setup.issuer, "issuer", %{
+          "revision_digest" =>
+            CharterAgreementSigner.CharterRevisionFixture.tagged(
+              :charter_revision_content,
+              "not-retained"
+            )
+        })
+      )
 
     {_result, events} =
       capture_events(fn ->
@@ -166,7 +180,10 @@ defmodule CharterAgreementSigner.TelemetryTest do
 
     {_result, events} =
       capture_events(fn ->
-        CharterAgreementSigner.sign_descriptor(setup.issuer.claims, {RawKey, setup.issuer_handle})
+        CharterAgreementSigner.sign_descriptor(
+          ChainFixture.mint(setup.issuer.claims),
+          {RawKey, setup.issuer_handle}
+        )
       end)
 
     private = elem(setup.issuer_handle, 2)

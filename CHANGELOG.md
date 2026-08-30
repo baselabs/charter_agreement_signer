@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-08-29
+
+### Changed
+
+- The protocol dependency moves to the tested 0.2.x line:
+  `charter_agreement_protocol ~> 0.2.1` (double-pinned per ADR-0002 — the
+  requirement, the library lock, and the example lock moved in this one
+  commit). Classified against CAP's changelog: 0.2.0 is `protocol_revision`
+  2 with the RFC 9864 alg-name bundle; 0.2.1 is docs-only (it points hosts
+  at this signer). No signer API, error-shape, or telemetry change.
+- What the new line means for callers: CAP's producers now mint exactly
+  (`"Ed25519"`, `protocol_revision` 2), so claims handed to any sign path
+  must carry `"protocol_revision" => 2`. Claims carrying revision 1 are
+  refused at CAP's producer (the alg-name binding rule) as
+  `{:invalid_input, :signing_input_invalid}` — that is the protocol's
+  emission rule, not a signer regression. Revision-1 artifacts you retain
+  still verify freely (cross-revision composition): a freshly signed
+  revision-2 artifact over revision-1 views is the supported mixed
+  deployment. See `docs/upgrading.md`.
+
 ## [0.1.0] — 2026-08-26
 
 ### Added
@@ -43,4 +63,5 @@ and this project adheres to
   wall, shipped-artifact package census + consumer smoke, and the
   release-candidate reproducibility gate (`mix ci` mirrors CI step-for-step).
 
+[0.2.0]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.2.0
 [0.1.0]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.1.0

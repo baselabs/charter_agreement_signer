@@ -24,7 +24,10 @@ defmodule CharterAgreementSignerTest do
     handle = {RawKey, setup.issuer_handle}
 
     assert {:ok, %{descriptor: compact}} =
-             CharterAgreementSigner.sign_descriptor(setup.issuer.claims, handle)
+             CharterAgreementSigner.sign_descriptor(
+               ChainFixture.mint(setup.issuer.claims),
+               handle
+             )
 
     assert {:ok, _facts} = CAP.verify_descriptor(compact, nil, Limits.default())
 
@@ -34,7 +37,7 @@ defmodule CharterAgreementSignerTest do
   test "sign_acceptance round-trips through CAP verify against the retained view" do
     setup = ChainFixture.base()
     {:ok, set} = ChainFixture.raw_set(setup, [setup.genesis], [], [])
-    claims = AcceptanceFixture.claims(setup.genesis, setup.issuer, "issuer")
+    claims = ChainFixture.mint(AcceptanceFixture.claims(setup.genesis, setup.issuer, "issuer"))
 
     assert {:ok, %{acceptance: compact}} =
              CharterAgreementSigner.sign_acceptance(claims, {RawKey, setup.issuer_handle}, set)
@@ -49,7 +52,7 @@ defmodule CharterAgreementSignerTest do
     setup = ChainFixture.base()
     acceptances = ChainFixture.dual_acceptances(setup.genesis, setup)
     {:ok, set} = ChainFixture.raw_set(setup, [setup.genesis], acceptances, [])
-    claims = TerminationFixture.claims(setup.genesis, setup.issuer, "issuer")
+    claims = ChainFixture.mint(TerminationFixture.claims(setup.genesis, setup.issuer, "issuer"))
 
     assert {:ok, %{termination: compact}} =
              CharterAgreementSigner.sign_termination(claims, {RawKey, setup.issuer_handle}, set)
@@ -63,7 +66,7 @@ defmodule CharterAgreementSignerTest do
   test "sign_receipt round-trips through CAP verify against the revision context" do
     setup = ChainFixture.base()
     {:ok, revision} = CAP.decode_charter_revision(setup.genesis.bytes, Limits.default())
-    claims = ReceiptFixture.claims(setup.genesis)
+    claims = ChainFixture.mint(ReceiptFixture.claims(setup.genesis))
 
     assert {:ok, %{receipt: compact}} =
              CharterAgreementSigner.sign_receipt(claims, {RawKey, setup.issuer_handle}, revision)
@@ -80,7 +83,10 @@ defmodule CharterAgreementSignerTest do
     stranger = RawKey.generate("stranger-key-001", <<7::256>>)
 
     assert {:error, :verification_failed} =
-             CharterAgreementSigner.sign_descriptor(setup.issuer.claims, {RawKey, stranger})
+             CharterAgreementSigner.sign_descriptor(
+               ChainFixture.mint(setup.issuer.claims),
+               {RawKey, stranger}
+             )
   end
 
   test "a successor descriptor requires predecessor facts for the post-sign verify" do
@@ -91,7 +97,7 @@ defmodule CharterAgreementSignerTest do
     # non-genesis descriptor — surfaced here as :verification_failed, never a
     # silent success.
     successor_claims =
-      Map.merge(setup.issuer.claims, %{
+      Map.merge(ChainFixture.mint(setup.issuer.claims), %{
         "descriptor_number" => 2,
         "party_id" => setup.issuer.party_id,
         "prev_descriptor_digest" => setup.issuer.digest
@@ -109,7 +115,7 @@ defmodule CharterAgreementSignerTest do
 
     assert {:error, {:invalid_input, :invalid_limits}} =
              CharterAgreementSigner.sign_descriptor(
-               setup.issuer.claims,
+               ChainFixture.mint(setup.issuer.claims),
                {RawKey, setup.issuer_handle},
                %{
                  limits: :not_limits
@@ -122,11 +128,19 @@ defmodule CharterAgreementSignerTest do
     handle = {RawKey, setup.issuer_handle}
 
     assert {:ok, %{descriptor: _compact}} =
-             CharterAgreementSigner.sign_descriptor(setup.issuer.claims, handle, [])
+             CharterAgreementSigner.sign_descriptor(
+               ChainFixture.mint(setup.issuer.claims),
+               handle,
+               []
+             )
 
     for bad_opts <- [:atom, "string", {1, 2}, 42] do
       assert {:error, {:invalid_input, :invalid_type}} =
-               CharterAgreementSigner.sign_descriptor(setup.issuer.claims, handle, bad_opts)
+               CharterAgreementSigner.sign_descriptor(
+                 ChainFixture.mint(setup.issuer.claims),
+                 handle,
+                 bad_opts
+               )
     end
   end
 

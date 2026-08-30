@@ -244,7 +244,7 @@ defmodule CharterAgreementSigner.PackageCheck do
 
       defp claims do
         %{
-          "protocol_revision" => 1,
+          "protocol_revision" => 2,
           "descriptor_number" => 1,
           "verification_keys" => [
             %{

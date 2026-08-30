@@ -8,7 +8,7 @@ here runs with no database, no services, and no network beyond `mix deps.get`.
 ```elixir
 def deps do
   [
-    {:charter_agreement_signer, "~> 0.1"}
+    {:charter_agreement_signer, "~> 0.2"}
   ]
 end
 ```
@@ -55,7 +55,10 @@ the claims:
 public = MyApp.Custody.public_for!(ref)
 
 claims = %{
-  "protocol_revision" => 1,
+  # CAP 0.2's emission rule: new minting is exactly ("Ed25519", 2). Claims
+  # carrying revision 1 are refused at CAP's producer (the alg-name binding
+  # rule) — revision-1 artifacts you RETAIN still verify forever.
+  "protocol_revision" => 2,
   "descriptor_number" => 1,
   "verification_keys" => [
     %{
