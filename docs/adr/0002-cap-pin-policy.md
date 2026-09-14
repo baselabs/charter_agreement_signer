@@ -8,6 +8,14 @@ Accepted. Reverses the scaffold's two-part pin — a real correction, not a
 formalization. Found by the release-readiness adversarial review (2026-08-26)
 on three authorities at once.
 
+Amended 2026-09-14: the second deliberate line move — `~> 0.2.1` →
+`~> 0.3.0` for CAP's revision-3 ML-DSA registry act (RFC 9964). This move
+carries a real `lib/` delta: the signer is algorithm-aware — the emission
+pair is caller-selected (`:algorithm` opt, closed to CAP's mint set
+"Ed25519"/"ML-DSA-65"), the handle-signature length and the wrong-key guard
+follow the registry row, and the key-identity snapshot accepts any registry
+key length. Released as 0.3.0.
+
 Amended 2026-08-29: the first deliberate line move under decision 3 —
 `~> 0.1.0` → `~> 0.2.1` for CAP's revision-2 RFC 9864 alg-name bundle,
 classified against CAP's changelog (minting-side change: producers emit

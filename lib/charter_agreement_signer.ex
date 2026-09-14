@@ -131,7 +131,8 @@ defmodule CharterAgreementSigner do
          {:ok, opts} <- normalize_opts(opts),
          {:ok, limits} <- resolve_limits(opts) do
       sign_common(:descriptor, claims, kid, key_handle, public_key, limits,
-        context: Map.get(opts, :predecessor)
+        context: Map.get(opts, :predecessor),
+        algorithm: Map.get(opts, :algorithm)
       )
     end
   end
@@ -161,7 +162,10 @@ defmodule CharterAgreementSigner do
     with {:ok, {kid, public_key}} <- resolve_key_identity(key_handle),
          {:ok, opts} <- normalize_opts(opts),
          {:ok, limits} <- resolve_limits(opts) do
-      sign_common(:receipt, claims, kid, key_handle, public_key, limits, context: context)
+      sign_common(:receipt, claims, kid, key_handle, public_key, limits,
+        context: context,
+        algorithm: Map.get(opts, :algorithm)
+      )
     end
   end
 
@@ -196,7 +200,8 @@ defmodule CharterAgreementSigner do
          {:ok, opts} <- normalize_opts(opts),
          {:ok, limits} <- resolve_limits(opts) do
       sign_common(:acceptance, claims, kid, key_handle, public_key, limits,
-        context: {:set, set, claims}
+        context: {:set, set, claims},
+        algorithm: Map.get(opts, :algorithm)
       )
     end
   end
@@ -229,7 +234,8 @@ defmodule CharterAgreementSigner do
          {:ok, opts} <- normalize_opts(opts),
          {:ok, limits} <- resolve_limits(opts) do
       sign_common(:termination, claims, kid, key_handle, public_key, limits,
-        context: {:set, set, claims}
+        context: {:set, set, claims},
+        algorithm: Map.get(opts, :algorithm)
       )
     end
   end
@@ -245,15 +251,30 @@ defmodule CharterAgreementSigner do
   # :signing_failed, never a silent false-success.
   # ---------------------------------------------------------------------------
 
-  defp sign_common(kind, claims, kid, key_handle, public_key, limits, context: context) do
-    with {:ok, signing_input} <- produce(kind, claims, kid, context),
-         {:ok, signature} <- sign_via_handle(key_handle, signing_input.message),
-         :ok <- verify_signature(signing_input.message, signature, public_key),
+  defp sign_common(kind, claims, kid, key_handle, public_key, limits,
+         context: context,
+         algorithm: algorithm
+       ) do
+    with {:ok, algorithm} <- resolve_algorithm(algorithm),
+         {:ok, signing_input} <- produce(kind, claims, kid, context, algorithm),
+         {:ok, signature} <- sign_via_handle(key_handle, signing_input.message, algorithm),
+         :ok <- verify_signature(signing_input.message, signature, public_key, algorithm),
          {:ok, compact} <- assemble(signing_input, signature),
          :ok <- post_sign_verify(kind, compact, context, limits) do
       {:ok, %{result_key(kind) => compact}}
     end
   end
+
+  # The emission algorithm is caller-selected and closed to CAP's mint set
+  # (Ed25519 at revision 2, ML-DSA-65 at revision 3). The claims must already
+  # carry the matching protocol_revision; CAP's producer enforces the pair.
+  defp resolve_algorithm(algorithm) when algorithm in ["Ed25519", "ML-DSA-65"],
+    do: {:ok, algorithm}
+
+  defp resolve_algorithm(algorithm) when is_binary(algorithm),
+    do: {:error, {:invalid_input, :algorithm_unsupported}}
+
+  defp resolve_algorithm(_no_selection), do: {:ok, "Ed25519"}
 
   defp result_key(:descriptor), do: :descriptor
   defp result_key(:receipt), do: :receipt
@@ -264,17 +285,20 @@ defmodule CharterAgreementSigner do
   # is ALWAYS the atomic snapshot's — a caller cannot name a kid the handle
   # does not control, so the signed header's kid and the signing key cannot
   # disagree by construction.
-  defp produce(:descriptor, claims, kid, _context),
-    do: mapped(CAP.descriptor_signing_input(%{"kid" => kid, "claims" => claims}))
+  defp produce(:descriptor, claims, kid, _context, algorithm),
+    do: mapped(CAP.descriptor_signing_input(producer_input(kid, claims, algorithm)))
 
-  defp produce(:receipt, claims, kid, _context),
-    do: mapped(CAP.receipt_signing_input(%{"kid" => kid, "claims" => claims}))
+  defp produce(:receipt, claims, kid, _context, algorithm),
+    do: mapped(CAP.receipt_signing_input(producer_input(kid, claims, algorithm)))
 
-  defp produce(:acceptance, claims, kid, {:set, set, _claims}),
-    do: mapped(CAP.acceptance_signing_input(%{"kid" => kid, "claims" => claims}, set))
+  defp produce(:acceptance, claims, kid, {:set, set, _claims}, algorithm),
+    do: mapped(CAP.acceptance_signing_input(producer_input(kid, claims, algorithm), set))
 
-  defp produce(:termination, claims, kid, {:set, set, _claims}),
-    do: mapped(CAP.termination_signing_input(%{"kid" => kid, "claims" => claims}, set))
+  defp produce(:termination, claims, kid, {:set, set, _claims}, algorithm),
+    do: mapped(CAP.termination_signing_input(producer_input(kid, claims, algorithm), set))
+
+  defp producer_input(kid, claims, algorithm),
+    do: %{"kid" => kid, "claims" => claims, "algorithm" => algorithm}
 
   defp mapped({:ok, %SigningInput{} = input}), do: {:ok, input}
 
@@ -426,9 +450,10 @@ defmodule CharterAgreementSigner do
   defp resolve_key_identity({module, handle}) when is_atom(module) do
     case safe_callback(module, :key_identity, [handle]) do
       {:ok, {kid, public_key}}
-      when is_binary(kid) and byte_size(kid) > 0 and is_binary(public_key) and
-             byte_size(public_key) == 32 ->
-        {:ok, {kid, public_key}}
+      when is_binary(kid) and byte_size(kid) > 0 and is_binary(public_key) ->
+        if byte_size(public_key) in registry_key_lengths(),
+          do: {:ok, {kid, public_key}},
+          else: {:error, :invalid_key_handle}
 
       _malformed_or_failed ->
         {:error, :invalid_key_handle}
@@ -437,30 +462,43 @@ defmodule CharterAgreementSigner do
 
   defp resolve_key_identity(_handle), do: {:error, :invalid_key_handle}
 
-  defp sign_via_handle({module, handle}, message) when is_atom(module) and is_binary(message) do
-    case safe_callback(module, :sign, [message, handle]) do
-      {:ok, signature} when is_binary(signature) and byte_size(signature) == 64 ->
-        {:ok, signature}
+  # The snapshot accepts any registry key length (Ed25519 32, ML-DSA
+  # 1312/1952/2592); a key that does not match the SELECTED emission
+  # algorithm still fails closed at the wrong-key guard below.
+  defp registry_key_lengths,
+    do: Enum.map(CAP.Algorithm.registry(), & &1.public_key_bytes)
 
-      _rejected_wrong_size_or_failed ->
+  defp sign_via_handle({module, handle}, message, algorithm)
+       when is_atom(module) and is_binary(message) do
+    signature_bytes = CAP.Algorithm.row_for(algorithm).signature_bytes
+
+    case safe_callback(module, :sign, [message, handle]) do
+      {:ok, signature} when is_binary(signature) ->
+        if byte_size(signature) == signature_bytes,
+          do: {:ok, signature},
+          else: {:error, :signing_failed}
+
+      _rejected_or_failed ->
         {:error, :signing_failed}
     end
   end
 
-  defp sign_via_handle(_handle, _message), do: {:error, :invalid_key_handle}
+  defp sign_via_handle(_handle, _message, _algorithm), do: {:error, :invalid_key_handle}
 
   # The wrong-key guard: the signature MUST verify against the snapshot's
   # public key. A callback signing with a different key (a rotation or
   # misconfiguration race — key_identity/1 returns key A, sign/2 uses key B)
   # is :signing_failed, never a silent false-success.
-  defp verify_signature(message, signature, public_key)
+  defp verify_signature(message, signature, public_key, algorithm)
        when is_binary(message) and is_binary(signature) and is_binary(public_key) do
-    if :crypto.verify(:eddsa, :none, message, signature, [public_key, :ed25519]),
-      do: :ok,
-      else: {:error, :signing_failed}
+    case CAP.Signature.verify(message, signature, public_key, algorithm) do
+      :ok -> :ok
+      {:error, _code} -> {:error, :signing_failed}
+    end
   end
 
-  defp verify_signature(_message, _signature, _public_key), do: {:error, :signing_failed}
+  defp verify_signature(_message, _signature, _public_key, _algorithm),
+    do: {:error, :signing_failed}
 
   # The callback is caller-supplied; a missing module, a function-clause raise
   # inside it, or any other fault must map to the closed-atom error rather

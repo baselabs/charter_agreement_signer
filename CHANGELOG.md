@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — 2026-09-14
+
+Adopts CAP 0.3.0 (the deliberate line move, ADR 0002) and adds
+algorithm-aware signing for CAP's revision-3 ML-DSA registry act:
+
+- The `:algorithm` option (closed to CAP's emission set: `"Ed25519"` at
+  `protocol_revision` 2 — the default — and `"ML-DSA-65"` at
+  `protocol_revision` 3) selects the mint pair; claims must already carry
+  the matching `protocol_revision` (CAP's producer enforces the pair).
+- The handle-signature acceptance length and the wrong-key guard follow the
+  registry row (64 bytes Ed25519, 3309 ML-DSA-65) instead of the hardcoded
+  64; the key-identity snapshot accepts any registry key length
+  (32/1312/1952/2592) — a key that does not match the selected algorithm
+  still fails closed at the wrong-key guard.
+- A test-only ML-DSA-65 key handle (`CharterAgreementSigner.Keys.RawMLDSA65`)
+  exercises the full custody path: snapshot → producer → sign → guard →
+  assemble → CAP post-verify at revision 3.
+
 ## [0.2.1] — 2026-08-30
 
 ### Changed

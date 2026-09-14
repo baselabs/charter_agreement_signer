@@ -10,7 +10,7 @@ defmodule CharterAgreementSignerTest do
 
   alias CharterAgreementProtocol, as: CAP
   alias CharterAgreementProtocol.Limits
-  alias CharterAgreementSigner.Keys.RawKey
+  alias CharterAgreementSigner.Keys.{RawKey, RawMLDSA65}
 
   alias CharterAgreementSigner.{
     AcceptanceFixture,
@@ -18,6 +18,43 @@ defmodule CharterAgreementSignerTest do
     ReceiptFixture,
     TerminationFixture
   }
+
+  test "sign_descriptor mints ML-DSA-65 at revision 3 end-to-end" do
+    {kid, mldsa_public, mldsa_private} = RawMLDSA65.generate("mldsa-key-001")
+    handle = {RawMLDSA65, {kid, mldsa_public, mldsa_private}}
+
+    claims = %{
+      "protocol_revision" => 3,
+      "descriptor_number" => 1,
+      "verification_keys" => [
+        %{
+          "key_id" => kid,
+          "algorithm" => "ML-DSA-65",
+          "public_key" => Base.url_encode64(mldsa_public, padding: false),
+          "status" => "active"
+        }
+      ],
+      "attestation_hints" => [],
+      "extensions" => %{"critical" => %{}, "optional" => %{}},
+      "effective_from" => "2026-08-25T10:00:00Z"
+    }
+
+    assert {:ok, %{descriptor: compact}} =
+             CharterAgreementSigner.sign_descriptor(claims, handle, %{algorithm: "ML-DSA-65"})
+
+    assert {:ok, facts} = CAP.verify_descriptor(compact, nil, Limits.default())
+    assert facts.descriptor.protocol_revision == 3
+    assert header_kid(compact) == "mldsa-key-001"
+
+    assert {:error, {:invalid_input, :algorithm_unsupported}} =
+             CharterAgreementSigner.sign_descriptor(claims, handle, %{algorithm: "ML-DSA-87"})
+
+    # an Ed25519 handle cannot satisfy the ML-DSA signature length
+    classical = {RawKey, RawKey.generate("classical", :binary.copy(<<1>>, 32))}
+
+    assert {:error, :signing_failed} =
+             CharterAgreementSigner.sign_descriptor(claims, classical, %{algorithm: "ML-DSA-65"})
+  end
 
   test "sign_descriptor round-trips through CAP verify with the snapshot kid" do
     setup = ChainFixture.base()

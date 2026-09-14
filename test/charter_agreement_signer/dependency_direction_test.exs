@@ -57,13 +57,13 @@ defmodule CharterAgreementSigner.DependencyDirectionTest do
 
   # The library-side protocol double-pin (the BARA ADR-0010 discipline): the
   # shipped requirement must name EXACTLY the locked version's tested line —
-  # a three-part "~> 0.2.1" pin admitting only the tested 0.2.x line, per
+  # a three-part "~> 0.3.0" pin admitting only the tested 0.3.x line, per
   # CAP's own dependent guidance (CAP's package semver carries no
   # compatibility promise, so the dependent pins conservatively and bumps
   # deliberately). A silent `mix deps.update` or a loosened requirement reds
   # here.
-  @protocol_requirement "~> 0.2.1"
-  @protocol_locked_version "0.2.1"
+  @protocol_requirement "~> 0.3.0"
+  @protocol_locked_version "0.3.0"
 
   test "the protocol dependency is double-pinned to the tested release line" do
     mix_source = File.read!(Path.join(@repo_root, "mix.exs"))

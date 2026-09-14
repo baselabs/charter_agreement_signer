@@ -102,3 +102,33 @@ defmodule CharterAgreementSigner.Keys.RogueKey do
 
   def thumbprint(_handle), do: {:error, :invalid_handle}
 end
+
+defmodule CharterAgreementSigner.Keys.RawMLDSA65 do
+  @moduledoc """
+  TEST-ONLY ML-DSA-65 key-handle variant of `RawKey` — same behaviour
+  contract, lattice key material. The handle term is `{kid, public, private}`
+  with the FIPS 204 expanded private key; `sign/2` signs pure ML-DSA with the
+  empty context (RFC 9964). Test-only for the same custody reason as RawKey.
+  """
+
+  @behaviour CharterAgreementSigner
+
+  def generate(kid) do
+    {public, private} = :crypto.generate_key(:mldsa65, [])
+    {kid, public, private}
+  end
+
+  @impl true
+  def sign(message, {_kid, _public, private}) when is_binary(message) do
+    {:ok, :crypto.sign(:mldsa65, :none, message, private)}
+  end
+
+  def sign(_message, _handle), do: {:error, :invalid_handle}
+
+  @impl true
+  def key_identity({kid, public, _private}) when is_binary(kid) and is_binary(public) do
+    {:ok, {kid, public}}
+  end
+
+  def key_identity(_handle), do: {:error, :invalid_handle}
+end
