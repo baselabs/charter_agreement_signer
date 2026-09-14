@@ -71,6 +71,9 @@ defmodule CharterAgreementSigner.MixProject do
         # The shipped-artifact gate: builds the exact Hex archive, proves its
         # census/metadata, and compiles + smoke-runs a consumer against the
         # UNPACKED package (scripts/check_package.exs; scratch-cleaned).
+        # Cross-implementation gate: TypeScript-signed artifacts must verify
+        # under the Elixir reference (typescript/ dist must be built first).
+        "cmd env MIX_ENV=test mix run --no-start scripts/check_typescript_signer.exs",
         "cmd env MIX_ENV=test mix run --no-start scripts/check_package.exs",
         # Two cache-isolated builds of the exact archive must agree byte for
         # byte (the release-candidate reproducibility gate).
