@@ -7,11 +7,15 @@
 # hex.pm lookup also exits nonzero: an unverified currency state must never
 # pass the gate. Dev/test-only and transitive deps are covered (--all).
 #
+# Runs in the CALLER'S working directory: it gates whichever mix project
+# the caller is in (CI's gate job and the alias run it from the repo root;
+# CI's example job runs it from examples/charter_lifecycle via the job's
+# working-directory). No internal cd — a script-relative cd would re-check
+# the repo root from the example job, whose root deps were never fetched.
+#
 # hex.outdated itself exits nonzero BOTH on drift and on lookup failure, so
 # the classifier is the rendered result table, not the command's exit code.
 set -euo pipefail
-
-cd "$(dirname "$0")/.."
 
 out="$(mix hex.outdated --all 2>&1 || true)"
 
