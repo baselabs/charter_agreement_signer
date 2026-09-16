@@ -206,6 +206,98 @@ defmodule CharterAgreementSigner.TelemetryTest do
     assert {:error, :telemetry_invalid} = Telemetry.emit_stop(:descriptor, :not_integer, :ok)
   end
 
+  # --- emission fault tolerance --------------------------------------------------
+  #
+  # A real :telemetry dispatch into a REALLY faulting attached handler.
+  # telemetry 1.4 contains handler faults itself (the handler is removed and
+  # re-reported on [telemetry, handler, failure]), so the emitters carry no
+  # dispatch rescue — these tests pin that containment end-to-end and the
+  # property it exists for: telemetry never outranks the signature.
+
+  test "a raising attached handler never reaches the signer's result" do
+    setup = ChainFixture.base()
+
+    # :telemetry detaches a handler on its FIRST fault, so each phase below
+    # attaches a FRESH faulting handler — every assert stays load-bearing.
+    :ok =
+      :telemetry.attach(
+        "telemetry-crash-raise-1",
+        @prefix ++ [:start],
+        fn _e, _m, _md, _c -> raise "handler boom" end,
+        nil
+      )
+
+    # :telemetry contains the raise (the emitter still returns :ok) ...
+    assert :ok = Telemetry.emit_start(:descriptor)
+  after
+    :telemetry.detach("telemetry-crash-raise-1")
+  end
+
+  test "an exiting attached handler never reaches the emitter" do
+    # The :exit fault shape (what a GenServer call timeout inside a handler
+    # takes), contained the same way — fresh handler per emission.
+    :ok =
+      :telemetry.attach(
+        "telemetry-crash-exit-1",
+        @prefix ++ [:start],
+        fn _e, _m, _md, _c -> exit(:handler_exit) end,
+        nil
+      )
+
+    assert :ok = Telemetry.emit_start(:descriptor)
+
+    :ok =
+      :telemetry.attach(
+        "telemetry-crash-exit-2",
+        @prefix ++ [:stop],
+        fn _e, _m, _md, _c -> exit(:handler_exit) end,
+        nil
+      )
+
+    assert :ok = Telemetry.emit_stop(:descriptor, 1, :ok)
+  after
+    :telemetry.detach("telemetry-crash-exit-1")
+    :telemetry.detach("telemetry-crash-exit-2")
+  end
+
+  test "a faulting handler attached across a real sign leaves the artifact unchanged" do
+    # The end-to-end property the containment exists for: telemetry never
+    # outranks the signature. The handler faults on the sign's OWN start
+    # emission, mid-span — the artifact still returns.
+    setup = ChainFixture.base()
+
+    :ok =
+      :telemetry.attach_many(
+        "telemetry-crash-sign",
+        [@prefix ++ [:start], @prefix ++ [:stop]],
+        fn _e, _m, _md, _c -> raise "handler boom" end,
+        nil
+      )
+
+    assert {:ok, %{descriptor: _compact}} =
+             CharterAgreementSigner.sign_descriptor(
+               ChainFixture.mint(setup.issuer.claims),
+               {RawKey, setup.issuer_handle}
+             )
+  after
+    :telemetry.detach("telemetry-crash-sign")
+  end
+
+  test "an off-spec span result classifies as :signing_failed, never success" do
+    # sign_span/2 is the public seam: a fun returning outside the signer's
+    # closed vocabulary is a signing-path anomaly — the classify catch-all
+    # must label it :signing_failed (the loud operator signal), never :ok.
+    {result, events} =
+      capture_events(fn -> Telemetry.sign_span(:descriptor, fn -> :off_spec end) end)
+
+    assert :off_spec == result
+
+    assert [
+             {@prefix ++ [:start], _, _},
+             {@prefix ++ [:stop], _, %{result_class: :signing_failed}}
+           ] = events
+  end
+
   test "the closed axes are exactly the four objects and six classes" do
     assert Telemetry.objects() == [:descriptor, :receipt, :acceptance, :termination]
 

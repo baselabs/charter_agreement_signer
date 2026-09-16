@@ -9,12 +9,14 @@ defmodule CharterAgreementSignerTest do
   use ExUnit.Case, async: true
 
   alias CharterAgreementProtocol, as: CAP
-  alias CharterAgreementProtocol.Limits
+  alias CharterAgreementProtocol.{ArtifactSet, Limits}
   alias CharterAgreementSigner.Keys.{RawKey, RawMLDSA65}
 
   alias CharterAgreementSigner.{
     AcceptanceFixture,
     ChainFixture,
+    CharterRevisionFixture,
+    DescriptorFixture,
     ReceiptFixture,
     TerminationFixture
   }
@@ -158,6 +160,121 @@ defmodule CharterAgreementSignerTest do
                  limits: :not_limits
                }
              )
+  end
+
+  test "caller limits too narrow to decode the retained revision are :verification_failed" do
+    # The producer verifies the set on DEFAULT limits; only the post-sign
+    # verify runs on the caller's. Limits that cannot decode the retained
+    # revision reject the just-signed artifact — never a silent success.
+    setup = ChainFixture.base()
+    {:ok, set} = ChainFixture.raw_set(setup, [setup.genesis], [], [])
+    claims = ChainFixture.mint(AcceptanceFixture.claims(setup.genesis, setup.issuer, "issuer"))
+
+    assert {:error, :verification_failed} =
+             CharterAgreementSigner.sign_acceptance(claims, {RawKey, setup.issuer_handle}, set, %{
+               limits: %{Limits.default() | max_bytes: 200}
+             })
+  end
+
+  test "caller limits too narrow to decode the party descriptor are :verification_failed" do
+    # A fat descriptor (a padded optional extension plus float/boolean flag
+    # values) bound as the issuer party of its own genesis: the producer, on
+    # defaults, accepts it; caller max_bytes between the two artifact sizes
+    # decodes the revision but halts on the descriptor.
+    setup = ChainFixture.base()
+    {kid, _public, private} = setup.issuer_handle
+
+    fat_claims =
+      Map.merge(setup.issuer.claims, %{
+        "extensions" => %{
+          "critical" => %{},
+          "optional" => %{
+            "com.example/pad" => String.duplicate("x", 3_000),
+            "com.example/flags" => %{"ratio" => 0.5, "enabled" => true}
+          }
+        }
+      })
+
+    fat = DescriptorFixture.compact(fat_claims, kid, private)
+
+    genesis =
+      CharterRevisionFixture.genesis(
+        claims: %{
+          "parties" => [
+            %{"party_descriptor_digest" => fat.digest, "role" => "issuer"},
+            %{"party_descriptor_digest" => setup.acceptor.digest, "role" => "acceptor"}
+          ],
+          "extensions" => %{"critical" => %{}, "optional" => %{"com.example/flags" => true}}
+        }
+      )
+
+    mid = div(byte_size(genesis.bytes) + byte_size(fat.compact), 2)
+
+    {:ok, set} =
+      ArtifactSet.build([genesis.bytes], [], [], [fat.compact, setup.acceptor.compact])
+
+    claims = ChainFixture.mint(AcceptanceFixture.claims(genesis, fat, "issuer"))
+
+    assert {:error, :verification_failed} =
+             CharterAgreementSigner.sign_acceptance(claims, {RawKey, setup.issuer_handle}, set, %{
+               limits: %{Limits.default() | max_bytes: mid}
+             })
+  end
+
+  test "a termination over an already-terminated charter is refused before the key is used" do
+    # The bilateral endgame is ONE notice per charter: the acceptor's notice
+    # in the retained set terminates it, and CAP's honest-signer rules refuse
+    # the issuer's own second notice (an equivocation over a settled
+    # charter) BEFORE the key is touched.
+    setup = ChainFixture.base()
+    acceptances = ChainFixture.dual_acceptances(setup.genesis, setup)
+
+    {_, acceptor_termination} =
+      ChainFixture.termination(setup.genesis, setup.acceptor, setup.acceptor_handle, "acceptor")
+
+    {:ok, set} = ChainFixture.raw_set(setup, [setup.genesis], acceptances, [acceptor_termination])
+    claims = ChainFixture.mint(TerminationFixture.claims(setup.genesis, setup.issuer, "issuer"))
+
+    assert {:error, {:refused, :signing_refused}} =
+             CharterAgreementSigner.sign_termination(claims, {RawKey, setup.issuer_handle}, set)
+  end
+
+  test "a revision party with no descriptor in the set is :verification_failed, never a crash" do
+    # The producer's R1 binds the claims' party digest to the RETAINED
+    # REVISION'S parties list — NOT to the set's descriptors. A genesis
+    # whose parties name a digest the set carries no descriptor for passes
+    # every producer refusal; the post-sign verify's chain selection must
+    # map that to the closed :verification_failed atom (reviewer-caught
+    # reachable input: the fixture parties' synthetic digests are exactly
+    # this shape when the descriptor is withheld from the set).
+    setup = ChainFixture.base()
+
+    synthetic_issuer =
+      CharterAgreementSigner.CharterRevisionFixture.party("issuer")
+      |> Map.fetch!("party_descriptor_digest")
+
+    genesis =
+      CharterAgreementSigner.CharterRevisionFixture.genesis(
+        claims: %{
+          "parties" => [
+            %{"party_descriptor_digest" => synthetic_issuer, "role" => "issuer"},
+            %{"party_descriptor_digest" => setup.acceptor.digest, "role" => "acceptor"}
+          ]
+        }
+      )
+
+    # The set carries BOTH descriptors (the bilateral two-chain shape the
+    # set verifier requires) — but the issuer party the claims name was
+    # never pinned by any descriptor digest in this view.
+    {:ok, set} = ChainFixture.raw_set(setup, [genesis], [], [])
+
+    synthetic_party = %{setup.issuer | digest: synthetic_issuer, party_id: synthetic_issuer}
+
+    claims =
+      ChainFixture.mint(AcceptanceFixture.claims(genesis, synthetic_party, "issuer"))
+
+    assert {:error, :verification_failed} =
+             CharterAgreementSigner.sign_acceptance(claims, {RawKey, setup.issuer_handle}, set)
   end
 
   test "keyword-list options work and malformed options return the closed error" do

@@ -272,7 +272,7 @@ defmodule CharterAgreementSigner do
          {:ok, signing_input} <- produce(kind, claims, kid, context, algorithm),
          {:ok, signature} <- sign_via_handle(key_handle, signing_input.message, algorithm),
          :ok <- verify_signature(signing_input.message, signature, public_key, algorithm),
-         {:ok, compact} <- assemble(signing_input, signature),
+         compact = assemble(signing_input, signature),
          :ok <- post_sign_verify(kind, compact, context, limits) do
       {:ok, %{result_key(kind) => compact}}
     end
@@ -320,11 +320,14 @@ defmodule CharterAgreementSigner do
 
   defp mapped({:error, %Error{code: code}}), do: {:error, {:invalid_input, code}}
 
+  # No error arm: the producer's own size gate fires on any input the
+  # assembler would reject (probed on both emission pairs — a compact just
+  # over the default byte ceiling is refused by the producer FIRST), so an
+  # assemble failure past a successful produce is a CAP-contract break and
+  # crashes loudly here instead of wearing a misleading input error.
   defp assemble(signing_input, signature) do
-    case CAP.assemble_compact(signing_input, signature) do
-      {:ok, compact} when is_binary(compact) -> {:ok, compact}
-      {:error, %Error{code: code}} -> {:error, {:invalid_input, code}}
-    end
+    {:ok, compact} = CAP.assemble_compact(signing_input, signature)
+    compact
   end
 
   # The post-sign verify-before-return: the assembled artifact must pass the
@@ -389,6 +392,13 @@ defmodule CharterAgreementSigner do
   end
 
   defp party_chain(pairs, party_digest) do
+    # The nil arm is REACHABLE and load-bearing: the producer's R1 binds the
+    # claims' party digest to the RETAINED REVISION'S parties list, never to
+    # the set's descriptors, and Chain.verify checks only that the set holds
+    # exactly two well-formed descriptor chains — nothing binds the two. A
+    # genesis may name a party digest no set descriptor pins (a party that
+    # never pinned itself in this view), and that selection failure must be
+    # the closed :verification_failed, never a crash out of the sign path.
     target =
       Enum.find(pairs, fn {_compact, descriptor} ->
         CAP.descriptor_digest(descriptor) == party_digest
@@ -421,6 +431,11 @@ defmodule CharterAgreementSigner do
   # Chain.verify'd — decoded and digest-matched through CAP's public API. A
   # claims digest no set revision matches cannot happen past a successful
   # producer refusal pass; if it ever does, it is a verification failure.
+  # No non-binary fallback clause: the producer's claims-shape gate rejects a
+  # non-binary revision/governing digest as :signing_input_invalid before the
+  # key is used, so a non-binary digest past a successful produce is a
+  # CAP-contract break — a loud FunctionClauseError, never a silent
+  # verification failure.
   defp retained_revision(set, digest, limits) when is_binary(digest) do
     set.revisions
     |> Enum.reduce_while({:error, :verification_failed}, fn bytes, acc ->
@@ -430,8 +445,6 @@ defmodule CharterAgreementSigner do
       end
     end)
   end
-
-  defp retained_revision(_set, _digest, _limits), do: {:error, :verification_failed}
 
   defp retained_revision_step(revision, digest, acc) do
     if CAP.revision_digest(revision) == digest,
@@ -482,6 +495,11 @@ defmodule CharterAgreementSigner do
   defp registry_key_lengths,
     do: Enum.map(CAP.Algorithm.registry(), & &1.public_key_bytes)
 
+  # No malformed-handle fallback: resolve_key_identity (the with-chain's
+  # FIRST step) already gates the handle to exactly this shape and returns
+  # the closed :invalid_key_handle for anything else, and the message is
+  # the producer's binary. A guard miss here is an internal-contract break —
+  # a loud FunctionClauseError, never a mislabeled custody error.
   defp sign_via_handle({module, handle}, message, algorithm)
        when is_atom(module) and is_binary(message) do
     signature_bytes = CAP.Algorithm.row_for(algorithm).signature_bytes
@@ -497,12 +515,15 @@ defmodule CharterAgreementSigner do
     end
   end
 
-  defp sign_via_handle(_handle, _message, _algorithm), do: {:error, :invalid_key_handle}
-
   # The wrong-key guard: the signature MUST verify against the snapshot's
   # public key. A callback signing with a different key (a rotation or
   # misconfiguration race — key_identity/1 returns key A, sign/2 uses key B)
   # is :signing_failed, never a silent false-success.
+  #
+  # No non-binary fallback: all three arguments are binary-gated upstream
+  # (the producer's message, sign_via_handle's length-checked signature,
+  # resolve_key_identity's snapshot key) — a guard miss here is an internal
+  # -contract break and crashes loudly rather than wearing :signing_failed.
   defp verify_signature(message, signature, public_key, algorithm)
        when is_binary(message) and is_binary(signature) and is_binary(public_key) do
     case CAP.Signature.verify(message, signature, public_key, algorithm) do
@@ -510,9 +531,6 @@ defmodule CharterAgreementSigner do
       {:error, _code} -> {:error, :signing_failed}
     end
   end
-
-  defp verify_signature(_message, _signature, _public_key, _algorithm),
-    do: {:error, :signing_failed}
 
   # The callback is caller-supplied; a missing module, a function-clause raise
   # inside it, or any other fault must map to the closed-atom error rather

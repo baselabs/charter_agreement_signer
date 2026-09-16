@@ -26,7 +26,7 @@ defmodule CharterAgreementSigner.MixProject do
       # for display, so an exact display-value pin can flake). At a measured
       # 100.0 the raw ratio is exactly 1.0, so the pin is exact — any future
       # uncovered line reds the battery immediately.
-      test_coverage: [summary: [threshold: 87.0]],
+      test_coverage: [summary: [threshold: 100.0]],
       # PLT lives under _build (gitignored, cache-friendly) — the BARA
       # sibling's shape.
       dialyzer: [

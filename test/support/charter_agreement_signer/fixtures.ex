@@ -17,7 +17,10 @@ defmodule CharterAgreementSigner.DescriptorFixture do
     }
   end
 
-  def genesis(options \\ []) do
+  # No default options: every caller names its key/claims — a bare genesis()
+  # has no meaning (the :key fetch below would raise), so the default-arg
+  # wrapper is dead surface.
+  def genesis(options) do
     {key_entry, private} = Keyword.fetch!(options, :key)
     kid = Keyword.get(options, :kid, key_entry["key_id"])
 
@@ -83,7 +86,10 @@ defmodule CharterAgreementSigner.CharterRevisionFixture do
 
   def abp_deployment_digest, do: @abp_deployment_digest
 
-  def genesis(options \\ []) do
+  # No default options — same reason as DescriptorFixture.genesis/1. The
+  # :legal_text KEY keeps its own fallback (ChainFixture builds genesis
+  # revisions without naming it).
+  def genesis(options) do
     legal_text = Keyword.get(options, :legal_text, "Example charter terms\n")
 
     claims =

@@ -35,9 +35,10 @@ defmodule CharterAgreementSigner.Telemetry do
 
   ## Telemetry never outranks the signature
 
-  `sign_span/2` returns the signer's result UNCHANGED. A failure inside the
-  emission is swallowed (`{:error, :telemetry_invalid}`); a raise inside the
-  SIGNER propagates — only the emission is guarded, never the crypto.
+  `sign_span/2` returns the signer's result UNCHANGED. A faulting handler is
+  contained by `:telemetry` itself (removed and re-reported on its own
+  failure event — see `emit_start/1`); a raise inside the
+  SIGNER propagates — only the emission side is bounded, never the crypto.
   """
 
   @prefix [:charter_agreement_signer, :sign]
@@ -67,8 +68,8 @@ defmodule CharterAgreementSigner.Telemetry do
   with the monotonic duration and the classified result, and returns whatever
   `fun` returned — unchanged. `object` must be one of `objects/0`.
 
-  Telemetry failures are swallowed inside the emitters; a raise inside `fun`
-  propagates (the emission is guarded, the crypto is not).
+  Faulting handlers are contained by `:telemetry` itself; a raise inside
+  `fun` propagates (the emission side is bounded, the crypto is not).
   """
   @spec sign_span(atom(), (-> term())) :: term()
   def sign_span(object, fun) when object in @objects and is_function(fun, 0) do
@@ -85,6 +86,12 @@ defmodule CharterAgreementSigner.Telemetry do
   Emits `[:charter_agreement_signer, :sign, :start]` with
   `%{count: 1}` / `%{object: object}`. Refuses an unknown object with
   `{:error, :telemetry_invalid}` instead of emitting garbage.
+
+  No dispatch rescue: `:telemetry` 1.4 contains handler faults itself
+  (a raising/exiting/throwing handler is removed and re-reported on
+  `[telemetry, handler, failure]`), so no handler fault can reach this
+  emitter — the only `{:error, :telemetry_invalid}` is the closed-axes
+  refusal above.
   """
   @spec emit_start(atom()) :: :ok | {:error, :telemetry_invalid}
   def emit_start(object) do
@@ -96,10 +103,6 @@ defmodule CharterAgreementSigner.Telemetry do
       :error ->
         {:error, :telemetry_invalid}
     end
-  rescue
-    _exception -> {:error, :telemetry_invalid}
-  catch
-    _kind, _reason -> {:error, :telemetry_invalid}
   end
 
   @doc """
@@ -108,7 +111,9 @@ defmodule CharterAgreementSigner.Telemetry do
   Refuses an unknown object or class, or a non-nonnegative-integer duration,
   with `{:error, :telemetry_invalid}` instead of emitting garbage — this
   validation is the mechanical value-free guarantee: a metadata key outside
-  the closed shape is not expressible through this emitter.
+  the closed shape is not expressible through this emitter. Same containment
+  note as `emit_start/1`: `:telemetry` 1.4 contains handler faults itself,
+  so no dispatch rescue is needed here.
   """
   @spec emit_stop(atom(), integer(), atom()) :: :ok | {:error, :telemetry_invalid}
   def emit_stop(object, duration, result_class) do
@@ -124,10 +129,6 @@ defmodule CharterAgreementSigner.Telemetry do
     else
       _invalid -> {:error, :telemetry_invalid}
     end
-  rescue
-    _exception -> {:error, :telemetry_invalid}
-  catch
-    _kind, _reason -> {:error, :telemetry_invalid}
   end
 
   # The translated classification — the exact image of the signer's public
