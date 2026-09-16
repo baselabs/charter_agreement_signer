@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-09-15
+
+Docs-and-tooling correction release; no behavioral `lib/` change — only
+doc-comment corrections ride the release. The
+protocol dependency moves within the tested span: `charter_agreement_protocol`
+locked 0.3.0 → 0.3.1 (requirement unchanged `~> 0.3.0`; library lock, wall
+test, and example lock moved in this release commit per ADR-0002's
+discipline — CAP 0.3.1 is docs-and-tooling only, no verdict-flipping
+change).
+
 ### Fixed
 
 - The ML-DSA-65 emission pair needs the OTP runtime linked against
@@ -23,8 +33,17 @@ and this project adheres to
   setup and TypeScript build steps its `mix ci` battery needs (the
   cross-implementation gate imports `typescript/dist`, which is gitignored
   and was never built there — the v0.3.0 tag build failed before reaching
-  it). Every matrix lane keeps its pinned versions, and the CAP pin (locked
-  0.3.0 from Hex) is untouched. No test, error atom, or assertion changed.
+  it). Every matrix lane keeps its pinned versions. No test, error atom, or
+  assertion changed.
+- Documentation re-trued to the algorithm-aware 0.3.0 surface: the
+  upgrading guide now carries the 0.3.0 and 0.3.1 notes and the current
+  pin policy (`~> 0.3.0`); every guide that stated the 0.2-era
+  single-emission-pair rule now states the pair set (default
+  `Ed25519`/revision 2, opt-in `ML-DSA-65`/revision 3 via `:algorithm`);
+  signature-length prose keys to the registry row instead of a universal
+  64 bytes; the key-identity snapshot documents the registry key lengths;
+  install examples pin `~> 0.3.0`; and ADR-0005 records the length
+  generalization as a dated amendment.
 
 ## [0.3.0] — 2026-09-14
 
@@ -92,7 +111,7 @@ algorithm-aware signing for CAP's revision-3 ML-DSA registry act:
   the snapshot), CAP producer with honest-signer R1–R3 refusals before the
   key is used, raw-signature wrong-key guard, CAP assembly, and post-sign
   verification through the matching CAP public verify function.
-- The key-handle behaviour (`sign/2`, `key_identity/1` required;
+- The key-handle behavior (`sign/2`, `key_identity/1` required;
   `public_key/1`, `thumbprint/1` optional caller self-checks).
 - Closed error vocabulary: `:invalid_key_handle`, `:signing_failed`,
   `:verification_failed`, `{:refused, :signing_refused}`,
@@ -116,7 +135,8 @@ algorithm-aware signing for CAP's revision-3 ML-DSA registry act:
   wall, shipped-artifact package census + consumer smoke, and the
   release-candidate reproducibility gate (`mix ci` mirrors CI step-for-step).
 
-[Unreleased]: https://github.com/baselabs/charter_agreement_signer/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/baselabs/charter_agreement_signer/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.3.1
 [0.3.0]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.3.0
 [0.2.1]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.2.1
 [0.2.0]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.2.0

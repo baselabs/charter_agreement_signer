@@ -1,7 +1,7 @@
 defmodule CharterAgreementSigner.MixProject do
   use Mix.Project
 
-  @version "0.3.0"
+  @version "0.3.1"
   @source_url "https://github.com/baselabs/charter_agreement_signer"
 
   def project do
@@ -101,12 +101,12 @@ defmodule CharterAgreementSigner.MixProject do
   # (the dependency-direction wall, BARA ADR-0003's shape) plus :telemetry
   # for the closed, value-free sign-span surface (ADR-0003; the one sanctioned
   # seam — zero transitive deps, no custody, no transport). CAP is consumed
-  # from its Hex release, pinned to the three-part "~> 0.2.1" per CAP's own
+  # from its Hex release, pinned to the three-part "~> 0.3.0" per CAP's own
   # dependent guidance (README §Installation): package semver carries no
   # compatibility promise in CAP's governance, so the pin admits exactly the
-  # tested 0.2.x line (the 0.1.0 → 0.2.1 move was ADR-0002's deliberate,
-  # reviewed bump for CAP's revision-2 alg-name bundle). No install task
-  # ships yet — adding one grows scripts/check_package.exs's
+  # tested 0.3.x line (the 0.1.0 → 0.2.1 → 0.3.0 moves were ADR-0002's
+  # deliberate, reviewed bumps for CAP's revision-2 and revision-3 acts).
+  # No install task ships yet — adding one grows scripts/check_package.exs's
   # @runtime_dep_allowlist in the same commit.
   defp deps do
     [

@@ -29,9 +29,11 @@ Every artifact was verified through the matching CAP function BEFORE this
 signer returned it — but that is the signer's own discipline, not something
 the counterparty can observe. The counterparty re-verifies from scratch.
 
-Freshly minted artifacts carry the protocol's current emission identity —
-`alg: "Ed25519"`, `protocol_revision` 2 (CAP 0.2+). Retained revision-1
-artifacts (`alg: "EdDSA"`) verify forever: verification composes freely
+Freshly minted artifacts carry one of the protocol's two emission
+identities — (`alg: "Ed25519"`, `protocol_revision` 2), the default, or
+(`alg: "ML-DSA-65"`, `protocol_revision` 3) when the signing host selects
+the ML-DSA-65 emission pair (CAP 0.3+). Retained revision-1 artifacts
+(`alg: "EdDSA"`) verify forever: verification composes freely
 across revisions, so a counterparty holding legacy views accepts a freshly
 minted artifact anchored to them. No counterparty action is required for
 either side of that mix.

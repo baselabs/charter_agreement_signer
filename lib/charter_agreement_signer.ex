@@ -67,11 +67,12 @@ defmodule CharterAgreementSigner do
 
     * `:invalid_key_handle` — the handle is malformed, a callback crashed
       (raise/exit/throw), or the `key_identity/1` snapshot was not a
-      non-empty `kid` plus a 32-byte Ed25519 public key.
-    * `:signing_failed` — `sign/2` rejected, returned a non-64-byte
-      signature, violated the `{:ok, _} | {:error, _}` contract, or the
-      signature did not verify against the snapshot's public key (the
-      wrong-key guard).
+      non-empty `kid` plus a public key at a registry key length (32 bytes
+      for `Ed25519`; 1312/1952/2592 for the ML-DSA parameterizations).
+    * `:signing_failed` — `sign/2` rejected, returned a signature whose
+      length does not match the selected algorithm's registry row,
+      violated the `{:ok, _} | {:error, _}` contract, or the signature did
+      not verify against the snapshot's public key (the wrong-key guard).
     * `{:refused, :signing_refused}` — CAP's honest-signer refusal (R1–R3):
       the claims contradict the caller's own verified artifact view. An
       honest signer refuses; a dishonest one bypasses CAP entirely, which no
@@ -113,6 +114,9 @@ defmodule CharterAgreementSigner do
 
     * `:predecessor` — `nil | CAP.DescriptorFacts.t()` (default `nil`):
       the verified predecessor's facts for a successor descriptor.
+    * `:algorithm` — `"Ed25519"` (default) or `"ML-DSA-65"`: the emission
+      pair CAP's producer mints (`protocol_revision` 2 or 3; claims must
+      carry the matching revision).
     * `:limits` — `CAP.Limits.t()` (default `CAP.Limits.default()`).
 
   ## Example
@@ -150,6 +154,9 @@ defmodule CharterAgreementSigner do
 
   Options may be given as a map or a keyword list.
 
+    * `:algorithm` — `"Ed25519"` (default) or `"ML-DSA-65"`: the emission
+      pair CAP's producer mints (`protocol_revision` 2 or 3; claims must
+      carry the matching revision).
     * `:limits` — `CAP.Limits.t()` (default `CAP.Limits.default()`).
   """
   @spec sign_receipt(map(), key_handle(), CAP.ChainFacts.t() | CAP.CharterRevision.t(), opts()) ::
@@ -187,6 +194,9 @@ defmodule CharterAgreementSigner do
 
   Options may be given as a map or a keyword list.
 
+    * `:algorithm` — `"Ed25519"` (default) or `"ML-DSA-65"`: the emission
+      pair CAP's producer mints (`protocol_revision` 2 or 3; claims must
+      carry the matching revision).
     * `:limits` — `CAP.Limits.t()` (default `CAP.Limits.default()`).
   """
   @spec sign_acceptance(map(), key_handle(), ArtifactSet.t(), opts()) ::
@@ -221,6 +231,9 @@ defmodule CharterAgreementSigner do
 
   Options may be given as a map or a keyword list.
 
+    * `:algorithm` — `"Ed25519"` (default) or `"ML-DSA-65"`: the emission
+      pair CAP's producer mints (`protocol_revision` 2 or 3; claims must
+      carry the matching revision).
     * `:limits` — `CAP.Limits.t()` (default `CAP.Limits.default()`).
   """
   @spec sign_termination(map(), key_handle(), ArtifactSet.t(), opts()) ::
@@ -442,9 +455,10 @@ defmodule CharterAgreementSigner do
     end
   end
 
-  # The atomic key identity — the signed-header `kid` AND the 32-byte public
-  # key — resolved as ONE snapshot. A single key_identity/1 call cannot split
-  # kid from public_key across a rotation race. The remaining surface — sign/2
+  # The atomic key identity — the signed-header `kid` AND the public key at
+  # its registry key length — resolved as ONE snapshot. A single
+  # key_identity/1 call cannot split kid from public_key across a rotation
+  # race. The remaining surface — sign/2
   # signing with a key different from the snapshot's public_key — is caught by
   # verify_signature in the shared tail.
   defp resolve_key_identity({module, handle}) when is_atom(module) do
@@ -519,15 +533,16 @@ defmodule CharterAgreementSigner do
   Signs `message` with the key behind `handle`.
 
   The caller's callback performs the actual `:crypto.sign`; this library
-  never references the private key. Returns the raw 64-byte Ed25519
-  signature.
+  never references the private key. Returns the raw signature at the
+  selected emission algorithm's registry-row length (64 bytes for `Ed25519`,
+  3309 for `ML-DSA-65`).
   """
   @callback sign(message :: binary(), handle :: term()) ::
               {:ok, binary()} | {:error, term()}
 
   @doc """
-  Returns the key's identity — the protected-header `kid` AND its 32-byte raw
-  Ed25519 public key — as a single atomic `{kid, public_key}` snapshot.
+  Returns the key's identity — the protected-header `kid` AND its raw
+  public key (at the key's registry length) — as a single atomic `{kid, public_key}` snapshot.
 
   Required by every sign path here: CAP's protected header carries the
   signing `kid`, and resolving kid and public key in ONE call means a stateful
@@ -538,7 +553,8 @@ defmodule CharterAgreementSigner do
               {:ok, {kid :: binary(), public_key :: binary()}} | {:error, term()}
 
   @doc """
-  Returns the 32-byte raw Ed25519 public key for the key behind `handle`.
+  Returns the raw public key for the key behind `handle` (32 bytes for
+  `Ed25519`; the registry row's length in general).
 
   Optional: unused by this library — it exists so callers can self-check a
   handle against a party descriptor's `verification_keys` before signing.

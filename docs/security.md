@@ -24,8 +24,10 @@ caller claims ──▶ CharterAgreementSigner ──▶ CAP producers (pure) �
 
 ## The wrong-key guard
 
-The load-bearing control: after `sign/2` returns, the raw 64-byte signature
-is verified against the public key from the SAME atomic `key_identity/1`
+The load-bearing control: after `sign/2` returns, the raw signature (at the
+selected algorithm's registry-row length — 64 bytes for `Ed25519`, 3309 for
+`ML-DSA-65`) is verified against the public key from the SAME atomic
+`key_identity/1`
 snapshot that sourced the header `kid`. A custody layer that signs with a
 different key than it advertises (rotation race, misconfigured slot, a
 compromised callback substituting its key) produces `:signing_failed` —

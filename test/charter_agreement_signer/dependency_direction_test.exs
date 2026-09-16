@@ -63,7 +63,7 @@ defmodule CharterAgreementSigner.DependencyDirectionTest do
   # deliberately). A silent `mix deps.update` or a loosened requirement reds
   # here.
   @protocol_requirement "~> 0.3.0"
-  @protocol_locked_version "0.3.0"
+  @protocol_locked_version "0.3.1"
 
   test "the protocol dependency is double-pinned to the tested release line" do
     mix_source = File.read!(Path.join(@repo_root, "mix.exs"))

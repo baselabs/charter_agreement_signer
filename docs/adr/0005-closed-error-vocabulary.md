@@ -7,6 +7,12 @@ Date: 2026-08-26
 Accepted. Records decisions in force since the scaffold; the mapping table
 was tightened by the 2026-08-26 alignment audit's fix pass.
 
+Amended 2026-09-15: the 0.3.0 release made the signer algorithm-aware, so
+the signature-length check below reads against the selected algorithm's
+registry row (64 bytes for `Ed25519`, 3309 for `ML-DSA-65`) instead of the
+literal 64 bytes, and the key-identity snapshot accepts any registry key
+length. The closed-vocabulary decision itself is unchanged.
+
 ## Context
 
 CAP returns typed, value-free failures (`%CharterAgreementProtocol.Error{}`).
@@ -32,7 +38,7 @@ release pass hardened it.
    destructured and re-wrapped; no `%Error{}` escapes. `:invalid_type`
    covers a malformed opts argument (maps and keyword lists are both
    accepted); `:signature_invalid` is documented as defensively unreachable
-   through this library (a non-64-byte signature is `:signing_failed`
+   through this library (a wrong-length signature is `:signing_failed`
    before assembly).
 4. **Additive-only within the 0.x line**; a removal or rename is a breaking
    change (per `docs/upgrading.md`).

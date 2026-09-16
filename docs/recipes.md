@@ -104,9 +104,13 @@ defmodule MyApp.KmsHandle do
 end
 ```
 
-Note the wrong-size signature clause: this signer rejects any non-64-byte
-signature as `:signing_failed` after `sign/2` returns it — mapping the size
-check to your own error keeps the failure cause readable at the boundary.
+Note the wrong-size signature clause: this signer checks the signature's
+length against the selected algorithm's registry row — 64 bytes for
+`Ed25519`, 3309 for `ML-DSA-65` — and rejects a mismatch as
+`:signing_failed` after `sign/2` returns it; mapping the size check to your
+own error keeps the failure cause readable at the boundary. (The sample
+handle above is written for an Ed25519 key — a `binary-size(64)` clause and
+a 256-bit public key — so an ML-DSA-65 flow needs its own length clauses.)
 
 ## Recipe: the counterparty verifier (no signer dependency)
 
@@ -139,17 +143,20 @@ Full walkthrough: [consumer-integration.md](consumer-integration.md).
 
 A signer in any language produces conformant artifacts by following CAP's
 specification alone: build the exact RFC 7515 signing input (protected
-header `{alg, kid, typ}` + canonical payload), sign it with Ed25519, attach
-the raw 64-byte signature. `alg` is the registry's emission name —
-`"Ed25519"` at `protocol_revision` 2; the binding rule rejects
-`(revision 1, "Ed25519")`, while legacy `"EdDSA"` artifacts remain
-verifiable. Three disciplines travel with the port:
+header `{alg, kid, typ}` + canonical payload), sign it with the chosen
+emission algorithm's key, attach the raw signature at that algorithm's exact
+length. `alg` is the registry's emission name — `"Ed25519"` at
+`protocol_revision` 2, or `"ML-DSA-65"` at `protocol_revision` 3; the
+binding rule rejects `(revision 1, "Ed25519")` and any name below its
+minimum revision, while legacy `"EdDSA"` artifacts remain verifiable. Three
+disciplines travel with the port:
 
 1. The atomic kid+public-key snapshot, and the wrong-key verify-before-return
    guard, are not Elixir conveniences — they are the failure modes the
    custody boundary must not have (silent `{pub_A, sig_B}` successes).
-2. Mint at the protocol's current emission identity exactly (`"Ed25519"`,
-   `protocol_revision` 2) — a port that hand-writes revision-1 claims or the
+2. Mint at one of the protocol's two emission identities exactly —
+   (`"Ed25519"`, `protocol_revision` 2) or (`"ML-DSA-65"`,
+   `protocol_revision` 3) — a port that hand-writes revision-1 claims or the
    deprecated `"EdDSA"` name is refused at best and nonconformant at worst.
 3. Gate the port against CAP's published conformance corpus (its
    `docs/test-vectors.md` manifest defines the byte-agreement procedure) —
