@@ -6,7 +6,64 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.2] — 2026-09-16
+
+Toolchain-and-hygiene release. No behavioral `lib/` change for any reachable
+input: the shipped code differs only by comments, documentation corrections,
+and the removal of provably-unreachable defensive lines. The full battery
+passes with a MEASURED test coverage of 100.0% (50 tests; the coverage floor
+in mix.exs re-pinned 87.0 → 100.0 — any future uncovered line reds the
+battery immediately).
+
+- **Toolchain enforcement in code** (supported range, not a single-version
+  pin): mix.exs keeps `~> 1.20` — the tested 1.20.x line; anything outside
+  refuses with `Mix.ElixirVersionError` before anything compiles — and the
+  new config/config.exs asserts the OTP major against the supported set
+  {28, 29} (`System.version/0` does not encode the OTP build, so a
+  same-Elixir binary built on an unsupported OTP would otherwise compile
+  incompatible BEAMs into shared `_build`/PLT state silently). The example
+  project enforces identically. Lockstep: the declared range, the
+  supported-OTP set, .tool-versions (the dev lane), and CI's matrix lanes
+  move together in ONE commit.
+- **Dependency currency is mechanical**: `scripts/check_deps_current.sh`,
+  wired into CI (gate + example jobs) and `mix ci`, exits nonzero on any
+  resolvable `mix hex.outdated` drift and prints resolver-rejected packages
+  with the requirement chain holding them back. dialyxir 1.4.7 → 1.4.8 and
+  ex_doc 0.40.3 → 0.40.4 moved to latest (`mix hex.audit` and
+  `mix deps.audit` re-run clean after the move); hex_core/protobuf/purl
+  remain resolver-rejected below latest by sbom 0.10.0's own pins.
+- **Eight provably-unreachable defensive lines removed** (each site carries
+  a comment naming the subsuming invariant): four in the signer tail (the
+  assemble error arm, the non-binary-digest fallback, and two handle-shape
+  re-guards — the producer's size/shape gates and the entry
+  `resolve_key_identity` gate cover every reachable input, so a miss past
+  them is a CAP-contract break that now fails loudly instead of wearing a
+  misleading closed atom), and the four dispatch rescue/catch arms in
+  Telemetry (`:telemetry` 1.4 contains handler faults itself — a faulting
+  handler is removed and re-reported on `[telemetry, handler, failure]`;
+  docs/telemetry.md re-trued to the containment-and-alarm story).
+- **New coverage pins real properties**: caller-limits post-sign-verify
+  branches (revision and descriptor decode under limits narrower than the
+  producer's defaults), telemetry fault containment through real signs, the
+  off-spec span classification, every reference key-handle's malformed-ref
+  fallbacks, and the RogueKey advertised-key semantics. Guarding tests were
+  mutant-proven red in a scratch copy.
+
+### Fixed
+
+- `party_chain/2`'s nil arm is REACHABLE and stays: an initially-planned
+  deletion (its comment had claimed the producer rejects un-pinned party
+  digests) was caught by the decorrelated review — the producer's R1 binds
+  claims to the RETAINED REVISION's parties list, never to the set's
+  descriptors, so a genesis naming a party digest no set descriptor pins
+  passes every producer refusal and must land as the closed
+  `:verification_failed`, never a crash. The arm carries the corrected
+  invariant comment and its own driving test.
+- The `examples/charter_signing_roundtrip.livemd` Setup cell was broken
+  since it shipped: `Path.join(__DIR__, "../..")` resolved one directory
+  above the repo, so `Mix.install` found no mix.exs. Now `".."`; the
+  notebook's cells execute green end-to-end (descriptor round-trips, CAP
+  verification, the wrong-key rejection).
 
 ## [0.3.1] — 2026-09-15
 

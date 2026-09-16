@@ -11,7 +11,7 @@ DEMO-ONLY pairs.
 
 ```elixir
 Mix.install([
-  {:charter_agreement_signer, path: __DIR__ |> Path.join("../..") |> Path.expand()}
+  {:charter_agreement_signer, path: __DIR__ |> Path.join("..") |> Path.expand()}
 ])
 ```
 

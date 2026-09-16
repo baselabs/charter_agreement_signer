@@ -71,10 +71,15 @@ surface, not an extension: the emitters are shape-validated and refuse
 anything outside the closed shapes with `{:error, :telemetry_invalid}`
 rather than emitting it.
 
-## Known quiet failure: a raising handler detaches silently
+## Known quiet failure: a faulting handler detaches — but not silently
 
-`:telemetry` detaches any handler that raises, silently and permanently —
-one exception in your reporter takes the `:signing_failed` custody alarm with
-it and the surface goes quiet while every sign path keeps working. Keep
-handlers defensive; if sign telemetry matters to you, monitor handler
-liveness (`:telemetry.list_handlers/1` for the event names above).
+`:telemetry` 1.4 detaches any handler that raises, exits, or throws — one
+exception in your reporter takes the `:signing_failed` custody alarm with it
+and the surface goes quiet while every sign path keeps working. The detach
+is not silent, though: `:telemetry` re-reports every handler fault on the
+`[:telemetry, :handler, :failure]` event (metadata carries `:kind`, `:reason`,
+`:stacktrace`, and which `:event_name`/`:handler_id` faulted), so the
+operator move is to attach an alarm to THAT event instead of polling
+`list_handlers/1`. Keep handlers defensive regardless — the signer's own
+emissions carry no dispatch rescue by design (containment is `:telemetry`'s
+job, and the signature is never subordinated to telemetry).

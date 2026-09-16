@@ -6,6 +6,22 @@ package — never a runtime, never a transport), the atomic-snapshot key
 discipline, the closed-atom value-free error vocabulary, and the test-only
 status of `test/support/` (nothing there ships).
 
+## Toolchain
+
+The supported toolchain is enforced in code, before anything compiles: the
+tested Elixir 1.20.x line (mix.exs's `~> 1.20` — anything outside refuses
+with `Mix.ElixirVersionError`) on Erlang/OTP 28 or 29 (config/config.exs
+refuses any other OTP major). You cannot compile on a wrong toolchain by
+accident. `.tool-versions` pins the dev lane (asdf); CI covers both
+supported lanes. Lockstep: mix.exs's range, config/config.exs's supported-OTP
+set, `.tool-versions`, and CI's matrix lanes move together in ONE commit —
+divergence between them is a defect.
+
+Dependency currency is mechanical: `scripts/check_deps_current.sh` (wired
+into CI and `mix ci`) exits nonzero on any resolvable `mix hex.outdated`
+drift; anything deliberately below latest carries an inline reason in
+mix.exs. `mix hex.audit` runs in the battery after every dependency move.
+
 ## Before a pull request
 
 Run the per-file floor on EVERY file you touched:
