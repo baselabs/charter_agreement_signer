@@ -20,10 +20,12 @@ jobs:
     runs-on: ubuntu-26.04
 
     # Local parity: `mix ci` reproduces these steps step-for-step on the
-    # PINNED lane only (asdf .tool-versions — the local floor). The matrix is
-    # CI-side breadth across supported Elixir/OTP pairs; every cell runs the
-    # identical battery. Lanes are 1.20+ only: the protocol package's own
-    # floor (~> 1.20) governs every consumer.
+    # DEV lane only (asdf .tool-versions). The matrix is CI-side breadth
+    # across supported Elixir/OTP pairs; every cell runs the identical
+    # battery. LOCKSTEP: the lanes stay inside the supported range declared
+    # in code — mix.exs's Elixir range + config/config.exs's supported-OTP
+    # set — and any lane change lands in ONE commit with those two and
+    # .tool-versions (divergence is a defect).
     strategy:
       fail-fast: false
       matrix:
@@ -78,6 +80,9 @@ jobs:
       - name: Audit dependencies (security advisories)
         run: mix deps.audit
 
+      - name: Check dependency currency (no resolvable drift)
+        run: scripts/check_deps_current.sh
+
       - name: Package boundary (build + unpack + consumer smoke)
         run: mix run --no-start scripts/check_package.exs
 
@@ -95,7 +100,8 @@ jobs:
 
     # Same two-cell matrix as the gate job: the example app is part of the
     # supported surface (its lock parity with the library must hold on every
-    # lane).
+    # lane). LOCKSTEP: lanes stay inside the range declared in code (its own
+    # mix.exs + config/config.exs supported-OTP set).
     strategy:
       fail-fast: false
       matrix:
@@ -123,8 +129,11 @@ jobs:
       - name: Install deps
         run: mix deps.get
 
-      - name: Audit dependencies
+      - name: Audit dependencies (retirements)
         run: mix hex.audit
+
+      - name: Check dependency currency (no resolvable drift)
+        run: ../../scripts/check_deps_current.sh
 
       - name: Check formatting
         run: mix format --check-formatted

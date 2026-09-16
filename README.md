@@ -104,16 +104,22 @@ mix ci
 warnings-as-errors compilation, Credo, the full test suite (including the
 wrong-key gate, the refusal battery, and the dependency-direction wall), the
 coverage floor, Dialyzer, doc warnings, dependency audits, the
+dependency-currency gate (no resolvable `mix hex.outdated` drift), the
 shipped-artifact package census with a consumer smoke against the unpacked
 package, the release-candidate reproducibility gate, and the
 `examples/charter_lifecycle` battery (its own audits, format, compile,
 lint, and the bilateral round-trip tests).
 
-Requires Elixir 1.20+ on Erlang/OTP ≥ 28.1 (the protocol package's declared
-floor; developed on 1.20 / OTP 29). Selecting the ML-DSA-65 emission pair
-additionally needs the OTP runtime linked against OpenSSL ≥ 3.5 — FIPS 204
-reached OpenSSL in 3.5.0, and a runtime linked against OpenSSL 3.0.x cannot
-generate or verify ML-DSA keys.
+Supported toolchain, enforced in code before anything compiles: the tested
+Elixir 1.20.x line (`~> 1.20` — anything outside the range refuses with
+`Mix.ElixirVersionError`) on Erlang/OTP 28 or 29 (config/config.exs asserts
+the OTP build — a same-Elixir binary built on an unsupported OTP would
+otherwise compile incompatible BEAMs silently). `.tool-versions` pins the
+dev lane, CI's matrix covers the supported lanes, and all of it moves in
+ONE commit. Selecting the ML-DSA-65 emission pair additionally needs the
+OTP runtime linked against OpenSSL ≥ 3.5 — FIPS 204 reached OpenSSL in
+3.5.0, and a runtime linked against OpenSSL 3.0.x cannot generate or
+verify ML-DSA keys.
 
 ## What this is not
 

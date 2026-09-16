@@ -8,13 +8,24 @@ defmodule CharterAgreementSigner.MixProject do
     [
       app: :charter_agreement_signer,
       version: @version,
+      # SUPPORTED RANGE, not a single-version pin: the tested 1.20.x line on
+      # OTP 28/29 (CAP's declared floor ~> 1.20 governs every consumer).
+      # Anything outside the range refuses at compile — a foreign toolchain
+      # never compiles silently (mixing toolchains poisons shared _build/PLT
+      # state) — while every 1.20.x stays admitted. LOCKSTEP: this range,
+      # config/config.exs's supported-OTP set, .tool-versions (the dev lane),
+      # and CI's matrix lanes move together in ONE commit — divergence
+      # between them is a defect. The OTP BUILD is asserted separately in
+      # config/config.exs — System.version/0 does not encode it.
       elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       # The coverage floor is the MEASURED total, re-pinned at every slice
       # that moves it (never aspirational; pinned just under the measured
       # number — Mix compares the RAW ratio, whose hidden decimals round up
-      # for display, so an exact display-value pin can flake).
+      # for display, so an exact display-value pin can flake). At a measured
+      # 100.0 the raw ratio is exactly 1.0, so the pin is exact — any future
+      # uncovered line reds the battery immediately.
       test_coverage: [summary: [threshold: 87.0]],
       # PLT lives under _build (gitignored, cache-friendly) — the BARA
       # sibling's shape.
@@ -61,13 +72,14 @@ defmodule CharterAgreementSigner.MixProject do
         "cmd env MIX_ENV=test mix test",
         # The gate battery (parity with the sibling-standard batteries): coverage
         # floor, dialyzer (PLT + analysis under :test so test/support/ is in the
-        # paths — the RA7 lesson), doc warnings, and the library's own advisory
-        # audits.
+        # paths — the RA7 lesson), doc warnings, the advisory audits, and the
+        # dependency-currency gate (scripts/check_deps_current.sh).
         "cmd env MIX_ENV=test mix test --cover",
         "cmd env MIX_ENV=test mix dialyzer",
         "cmd env MIX_ENV=test mix docs --warnings-as-errors",
         "cmd env MIX_ENV=test mix hex.audit",
         "cmd env MIX_ENV=test mix deps.audit",
+        "cmd env MIX_ENV=test scripts/check_deps_current.sh",
         # The shipped-artifact gate: builds the exact Hex archive, proves its
         # census/metadata, and compiles + smoke-runs a consumer against the
         # UNPACKED package (scripts/check_package.exs; scratch-cleaned).
@@ -81,6 +93,7 @@ defmodule CharterAgreementSigner.MixProject do
         # job: example (the workflow's working-directory: examples/charter_lifecycle)
         "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix deps.get",
         "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix hex.audit",
+        "cmd --cd examples/charter_lifecycle env MIX_ENV=test ../../scripts/check_deps_current.sh",
         "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix format --check-formatted",
         "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix compile --warnings-as-errors",
         "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix credo --strict",
@@ -117,6 +130,9 @@ defmodule CharterAgreementSigner.MixProject do
       {:ex_doc, "~> 0.40", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
       # CycloneDX SBOM generation for the tag-push supply-chain workflow.
+      # At sbom 0.10.0 (latest), its own pins deliberately hold three
+      # transitives below latest — hex_core ~> 0.15.0, protobuf ~> 0.16.0,
+      # purl ~> 0.3.0 — the resolver-rejected rows the currency gate prints.
       {:sbom, "~> 0.10", only: [:dev, :test], runtime: false}
     ]
   end

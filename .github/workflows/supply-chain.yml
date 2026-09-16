@@ -19,6 +19,12 @@ jobs:
     # OpenSSL >= 3.5; ubuntu-latest is 24.04 / OpenSSL 3.0.x today (see
     # ci.yml for the full rationale).
     runs-on: ubuntu-26.04
+    # The DEV lane (.tool-versions), LOCKSTEP with ci.yml's matrix lanes,
+    # mix.exs's supported range, and config/config.exs's supported-OTP set —
+    # ONE commit moves any change to all of them.
+    env:
+      ELIXIR_VERSION: "1.20.3"
+      OTP_VERSION: "29.0.3"
     # Deliberately NO id-token/attestations here: this job compiles and runs
     # third-party packages' code — it must not hold OIDC identity. The
     # attest job below is the only one that can mint attestations, and it
@@ -30,8 +36,8 @@ jobs:
 
       - uses: erlef/setup-beam@v1
         with:
-          elixir-version: "1.20.3"
-          otp-version: "29.0.3"
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
 
       - name: Set up Node
         uses: actions/setup-node@v4
