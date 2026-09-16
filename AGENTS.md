@@ -37,8 +37,8 @@ are the compiled truth, not this repo's docs or a prior session's handoff:
 
 1. **The private key never enters this library.** No key bytes in `lib/`, no
    signer callbacks beyond the caller's handle, no custody. The test-only
-   reference handles (`Keys.RawKey`, `Keys.RogueKey`) compile only under
-   `:test` and never ship (package-census-gated).
+   reference handles (`Keys.RawKey`, `Keys.RogueKey`, `Keys.RawMLDSA65`)
+   compile only under `:test` and never ship (package-census-gated).
 2. **The header `kid` comes only from the atomic `key_identity/1` snapshot.**
    Never add a caller-supplied kid. The snapshot is ONE callback call —
    never split kid from public key across calls (the rotation race).
@@ -71,5 +71,8 @@ mix ci   # the whole battery, local parity with CI (aborts at first red step)
 ```
 
 MIX_ENV=test for any compile check (test/support only compiles under :test).
-Requires Elixir 1.20+ (CAP's floor). Commits: surgical pathspecs, single tree
-on `master`, never `git stash`.
+Requires Elixir 1.20+ on Erlang/OTP ≥ 28.1 (CAP's declared floor); the
+ML-DSA-65 emission pair — mint path and tests — additionally needs the OTP
+runtime linked against OpenSSL ≥ 3.5 (FIPS 204 reached OpenSSL in 3.5.0;
+Ubuntu 24.04's OpenSSL 3.0.x cannot run them). Commits: surgical pathspecs,
+single tree on `master`, never `git stash`.

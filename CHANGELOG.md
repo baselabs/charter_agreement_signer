@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- The ML-DSA-65 emission pair needs the OTP runtime linked against
+  OpenSSL ≥ 3.5 (FIPS 204 reached OpenSSL in 3.5.0; OTP's `:crypto` exposes
+  ML-DSA only through the linked libcrypto). CI ran on the ubuntu-latest
+  runner (24.04, OpenSSL 3.0.x today), where the end-to-end ML-DSA-65 mint
+  test fails with the OpenSSL `Bad key type` error while the same tree
+  passes the full local battery on a runtime linked against OpenSSL 3.6 —
+  bob's OTP builds dynamically link the distro `libcrypto.so.3` and bundle
+  nothing, so the distro library is the only variable. The CI gate and
+  example jobs and the tag-triggered supply-chain build now run on
+  ubuntu-26.04 (OpenSSL 3.5.x), and the supply-chain build gains the Node
+  setup and TypeScript build steps its `mix ci` battery needs (the
+  cross-implementation gate imports `typescript/dist`, which is gitignored
+  and was never built there — the v0.3.0 tag build failed before reaching
+  it). Every matrix lane keeps its pinned versions, and the CAP pin (locked
+  0.3.0 from Hex) is untouched. No test, error atom, or assertion changed.
+
 ## [0.3.0] — 2026-09-14
 
 Adopts CAP 0.3.0 (the deliberate line move, ADR 0002) and adds
@@ -96,6 +116,8 @@ algorithm-aware signing for CAP's revision-3 ML-DSA registry act:
   wall, shipped-artifact package census + consumer smoke, and the
   release-candidate reproducibility gate (`mix ci` mirrors CI step-for-step).
 
+[Unreleased]: https://github.com/baselabs/charter_agreement_signer/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.3.0
 [0.2.1]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.2.1
 [0.2.0]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.2.0
 [0.1.0]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.1.0

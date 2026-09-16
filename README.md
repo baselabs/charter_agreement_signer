@@ -21,7 +21,7 @@ depends on exactly one package: the public `charter_agreement_protocol`.
 ```elixir
 def deps do
   [
-    {:charter_agreement_signer, "~> 0.2"}
+    {:charter_agreement_signer, "~> 0.3.0"}
   ]
 end
 ```
@@ -58,10 +58,12 @@ Three disciplines are load-bearing on every path:
    red-capable in the test suite), and the assembled compact must then pass
    the matching CAP verify function before it is returned.
 
-Claims you sign mint at the protocol's current revision — CAP 0.2's emission
-rule is exactly (`"Ed25519"`, `protocol_revision` 2), so claims carry
-`"protocol_revision" => 2`; retained revision-1 artifacts keep verifying
-(cross-revision composition). See [docs/upgrading.md](docs/upgrading.md).
+Claims you sign mint at the protocol's current revision — CAP 0.3's emission
+rule is exactly (`"Ed25519"`, `protocol_revision` 2) or (`"ML-DSA-65"`,
+`protocol_revision` 3), selected by the `:algorithm` option (default
+`"Ed25519"`); claims carry the matching `"protocol_revision"`, and retained
+revision-1/2 artifacts keep verifying (cross-revision composition). See
+[docs/upgrading.md](docs/upgrading.md).
 
 ## Key custody
 
@@ -107,8 +109,11 @@ package, the release-candidate reproducibility gate, and the
 `examples/charter_lifecycle` battery (its own audits, format, compile,
 lint, and the bilateral round-trip tests).
 
-Requires Elixir 1.20+ (developed on 1.20 / OTP 29) — the protocol package's
-own floor.
+Requires Elixir 1.20+ on Erlang/OTP ≥ 28.1 (the protocol package's declared
+floor; developed on 1.20 / OTP 29). Selecting the ML-DSA-65 emission pair
+additionally needs the OTP runtime linked against OpenSSL ≥ 3.5 — FIPS 204
+reached OpenSSL in 3.5.0, and a runtime linked against OpenSSL 3.0.x cannot
+generate or verify ML-DSA keys.
 
 ## What this is not
 

@@ -15,7 +15,10 @@ concurrency:
 jobs:
   build:
     name: Build release package evidence
-    runs-on: ubuntu-latest
+    # mix ci includes the ML-DSA-65 mint test, which needs a linked
+    # OpenSSL >= 3.5; ubuntu-latest is 24.04 / OpenSSL 3.0.x today (see
+    # ci.yml for the full rationale).
+    runs-on: ubuntu-26.04
     # Deliberately NO id-token/attestations here: this job compiles and runs
     # third-party packages' code — it must not hold OIDC identity. The
     # attest job below is the only one that can mint attestations, and it
@@ -29,6 +32,19 @@ jobs:
         with:
           elixir-version: "1.20.3"
           otp-version: "29.0.3"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.8"
+
+      - name: Build the TypeScript companion signer
+        # mix ci's cross-implementation gate imports typescript/dist, which
+        # is gitignored — build it before the battery runs.
+        working-directory: typescript
+        run: |
+          npm ci
+          npm run build
 
       - name: Install dependencies
         run: mix deps.get
