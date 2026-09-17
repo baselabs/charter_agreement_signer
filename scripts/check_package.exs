@@ -99,8 +99,11 @@ defmodule CharterAgreementSigner.PackageCheck do
         Process.sleep(500)
 
         case File.rm_rf(path) do
-          {:ok, _} -> :ok
-          {:error, reason} -> IO.puts("warning: scratch cleanup left behind #{path}: #{inspect(reason)}")
+          {:ok, _} ->
+            :ok
+
+          {:error, reason} ->
+            IO.puts("warning: scratch cleanup left behind #{path}: #{inspect(reason)}")
         end
     end
   end
