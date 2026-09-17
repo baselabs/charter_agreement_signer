@@ -81,27 +81,22 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
   end
 
   defp build_in!(copy_root, output) do
-    run!("mix", ["deps.get"], copy_root)
-    run!("mix", ["hex.build", "--output", output], copy_root)
+    run_mix!(["deps.get"], copy_root)
+    run_mix!(["hex.build", "--output", output], copy_root)
     assert_regular_nonempty!(output)
   end
 
+  # Portable temp root: no mktemp (absent on Windows) — a unique name under
+  # the system temp dir serves this gate's purpose (scratch isolation).
   defp unique_tmp_root! do
-    template = Path.join(System.tmp_dir!(), "charter-agreement-signer-reproducible.XXXXXX")
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "charter-agreement-signer-reproducible.#{System.unique_integer([:positive])}"
+      )
 
-    case System.cmd("mktemp", ["-d", template], stderr_to_stdout: true) do
-      {path, 0} ->
-        path = String.trim(path)
-
-        if File.dir?(path),
-          do: path,
-          else: raise("release candidate check failed: mktemp returned a missing directory")
-
-      {output, status} ->
-        raise(
-          "release candidate check failed: mktemp exited with status #{status}: #{String.trim(output)}"
-        )
-    end
+    File.mkdir_p!(path)
+    path
   end
 
   defp sha256_file(path) do
@@ -115,7 +110,16 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
     end
   end
 
-  defp run!(command, arguments, directory) do
+  # On Windows `mix` is a .cmd shim that must run through cmd.exe; the gate
+  # spawns child mix processes (deps.get + hex.build per copy), so the
+  # spawn is OS-aware.
+  defp run_mix!(arguments, directory) do
+    {command, arguments} =
+      case :os.type() do
+        {:win32, _} -> {"cmd", ["/c", "mix" | arguments]}
+        _ -> {"mix", arguments}
+      end
+
     case System.cmd(command, arguments,
            cd: directory,
            stderr_to_stdout: true,
@@ -126,7 +130,7 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
 
       {_output, status} ->
         raise(
-          "release candidate check failed: #{command} #{Enum.join(arguments, " ")} exited with status #{status}"
+          "release candidate check failed: mix #{Enum.join(arguments, " ")} exited with status #{status}"
         )
     end
   end

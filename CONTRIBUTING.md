@@ -34,14 +34,26 @@ mix test
 ```
 
 Then the one-command whole-repo check (every gate, aborts at the first red
-step — the local parity of CI):
+step — the local parity of CI). It must boot under `MIX_ENV=test`; a bare
+`mix ci` refuses with the per-shell invocation in the message:
 
 ```sh
-mix ci
+MIX_ENV=test mix ci
 ```
 
 `MIX_ENV=test` matters: a bare compile runs in `:dev` and misses warnings in
 `test/support/`, which only compiles under `:test`.
+
+## Windows
+
+A plain clone is workable on Windows: install Elixir and Erlang/OTP from
+their official installers on any supported lane, then the same commands with
+PowerShell's environment syntax (`$env:MIX_ENV = "test"; mix ci`). The
+battery is platform-portable end to end (the gate scripts spawn mix through
+`cmd /c` on Windows and use no POSIX utilities), and the `windows-latest`
+CI lane proves it on every push. The ML-DSA-65 mint test is excluded on
+that lane when the Windows OTP build links an OpenSSL older than 3.5 — a
+substrate boundary, not a portability one (same class as Ubuntu 24.04).
 
 ## Commits
 

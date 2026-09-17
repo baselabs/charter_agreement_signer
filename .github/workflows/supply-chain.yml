@@ -21,10 +21,13 @@ jobs:
     runs-on: ubuntu-26.04
     # The DEV lane (.tool-versions), LOCKSTEP with ci.yml's matrix lanes,
     # mix.exs's supported range, and config/config.exs's supported-OTP set —
-    # ONE commit moves any change to all of them.
+    # ONE commit moves any change to all of them. MIX_ENV: test because the
+    # mix ci alias's first step refuses a :dev boot (test/support must
+    # compile — the warnings trap).
     env:
       ELIXIR_VERSION: "1.20.3"
       OTP_VERSION: "29.0.3"
+      MIX_ENV: test
     # Deliberately NO id-token/attestations here: this job compiles and runs
     # third-party packages' code — it must not hold OIDC identity. The
     # attest job below is the only one that can mint attestations, and it

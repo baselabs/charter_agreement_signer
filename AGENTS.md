@@ -67,7 +67,7 @@ are the compiled truth, not this repo's docs or a prior session's handoff:
 ## Working here
 
 ```sh
-mix ci   # the whole battery, local parity with CI (aborts at first red step)
+MIX_ENV=test mix ci   # the whole battery, local parity with CI (aborts at first red step)
 ```
 
 MIX_ENV=test for any compile check (test/support only compiles under :test).

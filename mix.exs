@@ -57,57 +57,74 @@ defmodule CharterAgreementSigner.MixProject do
   end
 
   # `mix ci` — local CI parity: reproduces .github/workflows/ci.yml step-for-step
-  # (the five library steps + the gate battery + the shipped-artifact gates) with
-  # zero GitHub Actions spend. The workflow exports MIX_ENV: test at the JOB
-  # level, so every step here re-execs mix under MIX_ENV=test via env(1) — a
-  # bare local `mix ci` would otherwise boot in :dev, and a :dev compile skips
-  # test/support (the warnings trap). `mix cmd` aborts on the first non-zero
-  # step, like a failed CI job. Not reproduced locally: checkout/setup-beam
-  # (asdf here).
+  # (the library steps + the gate battery + the shipped-artifact gates + the
+  # example battery) with zero GitHub Actions spend. The workflow exports
+  # MIX_ENV: test at the JOB level; locally the same environment variable must
+  # be set BEFORE mix boots — the first alias step refuses a :dev boot (it
+  # would skip test/support, the warnings trap) with the per-shell fix in
+  # hand. This guard replaced the former `env MIX_ENV=test mix ...` re-exec
+  # per step, which depended on POSIX env(1) and broke Windows clones.
+  # `mix cmd` aborts on the first non-zero step, like a failed CI job.
+  # Not reproduced locally: checkout/setup-beam (asdf here) and the
+  # windows-latest CI lane (the Windows proof lives in CI).
   defp aliases do
     [
       ci: [
-        "cmd env MIX_ENV=test mix deps.get",
-        "cmd env MIX_ENV=test mix format --check-formatted",
-        # Deps compile under their own warning posture; OUR code under
-        # --warnings-as-errors (a transitive dep warning on an older
-        # supported Elixir — protobuf's struct-update warning on 1.19 — is
-        # not ours to fatalize).
-        "cmd env MIX_ENV=test mix deps.compile",
-        "cmd env MIX_ENV=test mix compile --warnings-as-errors",
-        "cmd env MIX_ENV=test mix credo --strict",
-        "cmd env MIX_ENV=test mix test",
+        &enforce_test_env!/1,
+        "deps.get",
+        "format --check-formatted",
+        "deps.compile",
+        "compile --warnings-as-errors",
+        "credo --strict",
+        "test",
         # The gate battery (parity with the sibling-standard batteries): coverage
         # floor, dialyzer (PLT + analysis under :test so test/support/ is in the
         # paths — the RA7 lesson), doc warnings, the advisory audits, and the
-        # dependency-currency gate (scripts/check_deps_current.sh).
-        "cmd env MIX_ENV=test mix test --cover",
-        "cmd env MIX_ENV=test mix dialyzer",
-        "cmd env MIX_ENV=test mix docs --warnings-as-errors",
-        "cmd env MIX_ENV=test mix hex.audit",
-        "cmd env MIX_ENV=test mix deps.audit",
-        "cmd env MIX_ENV=test scripts/check_deps_current.sh",
+        # dependency-currency gate (scripts/check_deps_current.exs).
+        "test --cover",
+        "dialyzer",
+        "docs --warnings-as-errors",
+        "hex.audit",
+        "deps.audit",
+        "run --no-start scripts/check_deps_current.exs",
         # The shipped-artifact gate: builds the exact Hex archive, proves its
         # census/metadata, and compiles + smoke-runs a consumer against the
         # UNPACKED package (scripts/check_package.exs; scratch-cleaned).
         # Cross-implementation gate: TypeScript-signed artifacts must verify
         # under the Elixir reference (typescript/ dist must be built first).
-        "cmd env MIX_ENV=test mix run --no-start scripts/check_typescript_signer.exs",
-        "cmd env MIX_ENV=test mix run --no-start scripts/check_package.exs",
+        "run --no-start scripts/check_typescript_signer.exs",
+        "run --no-start scripts/check_package.exs",
         # Two cache-isolated builds of the exact archive must agree byte for
         # byte (the release-candidate reproducibility gate).
-        "cmd env MIX_ENV=test mix run --no-start scripts/check_reproducible.exs",
+        "run --no-start scripts/check_reproducible.exs",
         # job: example (the workflow's working-directory: examples/charter_lifecycle)
-        "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix deps.get",
-        "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix hex.audit",
-        "cmd --cd examples/charter_lifecycle env MIX_ENV=test ../../scripts/check_deps_current.sh",
-        "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix format --check-formatted",
-        "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix deps.compile",
-        "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix compile --warnings-as-errors",
-        "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix credo --strict",
-        "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix test"
+        "cmd --cd examples/charter_lifecycle mix deps.get",
+        "cmd --cd examples/charter_lifecycle mix hex.audit",
+        "cmd --cd examples/charter_lifecycle mix run --no-start ../../scripts/check_deps_current.exs",
+        "cmd --cd examples/charter_lifecycle mix format --check-formatted",
+        "cmd --cd examples/charter_lifecycle mix deps.compile",
+        "cmd --cd examples/charter_lifecycle mix compile --warnings-as-errors",
+        "cmd --cd examples/charter_lifecycle mix credo --strict",
+        "cmd --cd examples/charter_lifecycle mix test"
       ]
     ]
+  end
+
+  # The Windows-portable replacement for the POSIX `env MIX_ENV=test` re-exec:
+  # fail fast on a :dev boot, with the invocation for every shell in the
+  # message. (The guard runs as the first alias step, so every later step in
+  # the SAME mix process already boots under :test.)
+  defp enforce_test_env!(_args) do
+    if Mix.env() != :test do
+      Mix.raise("""
+      `mix ci` runs under MIX_ENV=test — a :dev boot skips test/support and
+      hides its warnings. Re-run as:
+
+        MIX_ENV=test mix ci               (sh / bash / zsh)
+        $env:MIX_ENV = "test"; mix ci     (PowerShell)
+        set MIX_ENV=test && mix ci        (cmd.exe)
+      """)
+    end
   end
 
   # test/support/ holds the reference key-handle impl (Keys.RawKey, the rogue

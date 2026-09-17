@@ -359,20 +359,18 @@ defmodule CharterAgreementSigner.PackageCheck do
     end
   end
 
+  # Portable temp root: no mktemp (a POSIX utility absent on Windows) — a
+  # unique name under the system temp dir is equivalent for this gate's
+  # purpose (scratch isolation, not collision-hardening against adversaries).
   defp unique_tmp_root! do
-    template = Path.join(System.tmp_dir!(), "charter-agreement-signer-package.XXXXXX")
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "charter-agreement-signer-package.#{System.unique_integer([:positive])}"
+      )
 
-    case System.cmd("mktemp", ["-d", template], stderr_to_stdout: true) do
-      {path, 0} ->
-        path = String.trim(path)
-
-        if File.dir?(path),
-          do: path,
-          else: fail!("mktemp returned a missing directory")
-
-      {output, status} ->
-        fail!("mktemp exited with status #{status}: #{String.trim(output)}")
-    end
+    File.mkdir_p!(path)
+    path
   end
 
   defp assert_regular_nonempty!(path) do
@@ -382,6 +380,14 @@ defmodule CharterAgreementSigner.PackageCheck do
   end
 
   defp run!(command, arguments, directory, environment) do
+    # On Windows `mix` is a .cmd shim that must run through cmd.exe; the
+    # package census spawns child mix processes (the unpacked package build
+    # and the consumer), so the spawn is OS-aware.
+    {command, arguments} =
+      if command == "mix" and :os.type() == {:win32, :nt},
+        do: {"cmd", ["/c", "mix" | arguments]},
+        else: {command, arguments}
+
     options = [
       cd: directory,
       env: environment,

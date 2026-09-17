@@ -1,0 +1,4 @@
+# One canonical line-ending posture so a Windows clone behaves exactly like
+# the POSIX ones: git stores LF and checks out LF everywhere (a CRLF working
+# tree would fail `mix format --check-formatted` — the formatter emits LF).
+* text=auto eol=lf
