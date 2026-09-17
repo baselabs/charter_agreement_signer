@@ -69,6 +69,11 @@ defmodule CharterAgreementSigner.MixProject do
       ci: [
         "cmd env MIX_ENV=test mix deps.get",
         "cmd env MIX_ENV=test mix format --check-formatted",
+        # Deps compile under their own warning posture; OUR code under
+        # --warnings-as-errors (a transitive dep warning on an older
+        # supported Elixir — protobuf's struct-update warning on 1.19 — is
+        # not ours to fatalize).
+        "cmd env MIX_ENV=test mix deps.compile",
         "cmd env MIX_ENV=test mix compile --warnings-as-errors",
         "cmd env MIX_ENV=test mix credo --strict",
         "cmd env MIX_ENV=test mix test",
@@ -97,6 +102,7 @@ defmodule CharterAgreementSigner.MixProject do
         "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix hex.audit",
         "cmd --cd examples/charter_lifecycle env MIX_ENV=test ../../scripts/check_deps_current.sh",
         "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix format --check-formatted",
+        "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix deps.compile",
         "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix compile --warnings-as-errors",
         "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix credo --strict",
         "cmd --cd examples/charter_lifecycle env MIX_ENV=test mix test"

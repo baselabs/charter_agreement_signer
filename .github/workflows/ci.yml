@@ -56,8 +56,14 @@ jobs:
       - name: Check formatting
         run: mix format --check-formatted
 
-      - name: Compile (warnings as errors)
-        run: mix compile --warnings-as-errors
+      - name: Compile (warnings as errors, own code only)
+        # Dependencies compile under their own warning posture first — a
+        # transitive dep warning under an older supported Elixir (protobuf's
+        # struct-update warning on 1.19) is not ours to fatalize; our code
+        # stays under --warnings-as-errors on every lane.
+        run: |
+          mix deps.compile
+          mix compile --warnings-as-errors
 
       - name: Lint (credo)
         run: mix credo --strict
@@ -142,8 +148,14 @@ jobs:
       - name: Check formatting
         run: mix format --check-formatted
 
-      - name: Compile (warnings as errors)
-        run: mix compile --warnings-as-errors
+      - name: Compile (warnings as errors, own code only)
+        # Dependencies compile under their own warning posture first — a
+        # transitive dep warning under an older supported Elixir (protobuf's
+        # struct-update warning on 1.19) is not ours to fatalize; our code
+        # stays under --warnings-as-errors on every lane.
+        run: |
+          mix deps.compile
+          mix compile --warnings-as-errors
 
       - name: Lint (credo)
         run: mix credo --strict
