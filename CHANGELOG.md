@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] — 2026-09-17
+
+Cross-platform release: a plain clone is workable on Windows, macOS, and
+Linux — proven, not asserted. No behavioral `lib/` change; the shipped
+bytes differ only in mix.exs (the alias), README, and CONTRIBUTING.
+
+- The `mix ci` alias drops its 21 POSIX `env MIX_ENV=test` re-execs: the
+  first step now guards its own boot env and refuses a `:dev` boot with
+  the per-shell invocation (`MIX_ENV=test mix ci`; PowerShell
+  `$env:MIX_ENV = "test"; mix ci`; cmd.exe `set MIX_ENV=test && mix ci`).
+- The dependency-currency gate is a portable `scripts/check_deps_current.exs`
+  (same caller-cwd contract and classifiers, red-proven) replacing the bash
+  script; the package and reproducibility gates spawn `mix` through
+  `cmd /c` on Windows, use no POSIX utilities (`mktemp` → `System.tmp_dir!`),
+  walk the census tree instead of globbing (`Path.wildcard` treats
+  backslashes as literals on Windows), and treat scratch cleanup as
+  best-effort with a bounded retry (a just-exited child's handle is not a
+  gate verdict).
+- A `windows-latest` CI lane proves the clone-pickup surface on every push:
+  deps, format, compile, credo, tests, both dependency audits, the currency
+  gate, and the package census with its consumer smoke. The ML-DSA-65 mint
+  test is tagged `requires_mldsa_substrate` and excluded there (the Windows
+  OTP build's OpenSSL linkage — the same exclusion class as Ubuntu 24.04),
+  and the coverage step is absent by design because that exclusion
+  subtracts covered lines by construction.
+- `.gitattributes` pins `* text=auto eol=lf` so Windows checkouts keep
+  `mix format --check-formatted` green.
+
 ## [0.3.3] — 2026-09-16
 
 Support-floor widening; no behavioral `lib/` change. The supported Elixir
