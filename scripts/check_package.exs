@@ -149,6 +149,16 @@ defmodule CharterAgreementSigner.PackageCheck do
     run!("mix", ["compile", "--warnings-as-errors"], package_root, environment)
   end
 
+  # The smoke consumer's floor tracks the RUNNING Elixir line. A hardcoded
+  # floor went stale the moment the library's supported range widened past it
+  # (the consumer refused to boot on the 1.19 lane); the consumer exists to
+  # compile the unpacked package on THIS lane, not to assert a floor — the
+  # CI lanes assert floors.
+  defp running_elixir_line do
+    version = Version.parse!(System.version())
+    "#{version.major}.#{version.minor}"
+  end
+
   defp compile_consumer!(consumer_root, package_root) do
     File.mkdir_p!(Path.join(consumer_root, "lib"))
 
@@ -162,7 +172,7 @@ defmodule CharterAgreementSigner.PackageCheck do
           [
             app: :charter_agreement_signer_consumer,
             version: "0.0.0",
-            elixir: "~> 1.20",
+            elixir: "~> #{running_elixir_line()}",
             deps: [
               {:charter_agreement_signer, path: #{inspect(package_root)}}
             ]
