@@ -62,7 +62,8 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
       {:ok, _} ->
         :ok
 
-      {:error, _reason} ->
+      # File.rm_rf/1 fails as a THREE-tuple: {:error, reason, file}.
+      {:error, _reason, _file} ->
         Process.sleep(500)
 
         case File.rm_rf(path) do
