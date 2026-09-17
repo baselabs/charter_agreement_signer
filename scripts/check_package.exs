@@ -88,13 +88,7 @@ defmodule CharterAgreementSigner.PackageCheck do
   ## checks
 
   defp check_exact_files!(package_root) do
-    actual =
-      package_root
-      |> Path.join("**/*")
-      |> Path.wildcard(match_dot: true)
-      |> Enum.filter(&File.regular?/1)
-      |> Enum.map(&Path.relative_to(&1, package_root))
-      |> MapSet.new()
+    actual = package_root |> walk_regular_files([]) |> MapSet.new()
 
     unless actual == @expected_files do
       missing = @expected_files |> MapSet.difference(actual) |> Enum.sort()
@@ -105,6 +99,22 @@ defmodule CharterAgreementSigner.PackageCheck do
           "unexpected=#{inspect(unexpected)}"
       )
     end
+  end
+
+  # Path.wildcard/:filelib.wildcard treats backslashes as literal characters
+  # on Windows — a temp root with native separators (C:\...\Temp joined with
+  # /) matches nothing and the census reads as empty. A plain recursive
+  # File.ls! walk is separator-agnostic and needs no glob semantics.
+  defp walk_regular_files(dir, prefix) do
+    dir
+    |> File.ls!()
+    |> Enum.flat_map(fn entry ->
+      path = Path.join(dir, entry)
+
+      if File.dir?(path),
+        do: walk_regular_files(path, prefix ++ [entry]),
+        else: [Path.join(prefix ++ [entry])]
+    end)
   end
 
   defp check_metadata!(path, version, requirements) do
