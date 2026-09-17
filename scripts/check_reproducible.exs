@@ -69,7 +69,8 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
           {:ok, _} ->
             :ok
 
-          {:error, reason} ->
+          # File.rm_rf/1 fails as a THREE-tuple: {:error, reason, file}.
+          {:error, reason, _file} ->
             IO.puts("warning: scratch cleanup left behind #{path}: #{inspect(reason)}")
         end
     end
