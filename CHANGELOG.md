@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] — 2026-09-16
+
+Support-floor widening; no behavioral `lib/` change. The supported Elixir
+range moves `~> 1.20` → `~> 1.19` — the tested 1.19.x–1.20.x lines on
+Erlang/OTP 28/29, with 1.19.x riding the OTP-28 CI lane. Everything below
+was probe-proven before the range moved: on Elixir 1.19.5 / OTP 28.5 the
+full tree (the protocol dependency included) compiles, the entire suite
+passes, and `mix format --check-formatted` is green; Elixir 1.18 stays
+outside the range (the protocol package's compile-time extension registry
+does not build on 1.18 — a source incompatibility there, not a declaration
+one). CI gains the `1.19.5/28.5.0.3` lane on both jobs; the lockstep
+quadruple (mix.exs range, config's supported-OTP set, .tool-versions dev
+lane, CI lanes) moved in ONE commit. Note for consumers on 1.19: the
+protocol package's hex metadata still declares `~> 1.20`, but its source
+compiles and passes on 1.19 — Mix does not enforce dependency Elixir
+requirements at `deps.compile`; a future protocol docs-release can re-declare
+for metadata honesty.
+
 ## [0.3.2] — 2026-09-16
 
 Toolchain-and-hygiene release. No behavioral `lib/` change for any reachable
