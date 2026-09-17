@@ -50,7 +50,25 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
       IO.puts("release candidate reproducibility gate passed (two independent builds agree)")
       IO.puts("candidate archive SHA-256: #{digest1}")
     after
-      File.rm_rf!(tmp)
+      best_effort_rm_rf!(tmp)
+    end
+  end
+
+  # Cleanup is hygiene, never the gate's verdict: on Windows a just-exited
+  # child (the per-copy cmd /c mix) can still hold a scratch handle — a
+  # bang remove would raise AFTER a passed gate. Bounded retry, then warn.
+  defp best_effort_rm_rf!(path) do
+    case File.rm_rf(path) do
+      {:ok, _} ->
+        :ok
+
+      {:error, _reason} ->
+        Process.sleep(500)
+
+        case File.rm_rf(path) do
+          {:ok, _} -> :ok
+          {:error, reason} -> IO.puts("warning: scratch cleanup left behind #{path}: #{inspect(reason)}")
+        end
     end
   end
 

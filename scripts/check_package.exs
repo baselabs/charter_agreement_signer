@@ -81,7 +81,27 @@ defmodule CharterAgreementSigner.PackageCheck do
 
       IO.puts("package archive boundary passed")
     after
-      File.rm_rf!(scratch_root)
+      best_effort_rm_rf!(scratch_root)
+    end
+  end
+
+  # Cleanup is hygiene, never the gate's verdict: on Windows a just-exited
+  # child process (the consumer's cmd /c mix) can still hold a scratch
+  # handle — File.rm_rf! would raise 'file already exists' AFTER a passed
+  # gate. Bounded retries absorb the handle-release race; a genuine leak
+  # warns and the ephemeral runner temp dir reaps it.
+  defp best_effort_rm_rf!(path) do
+    case File.rm_rf(path) do
+      {:ok, _} ->
+        :ok
+
+      {:error, reason} ->
+        Process.sleep(500)
+
+        case File.rm_rf(path) do
+          {:ok, _} -> :ok
+          {:error, reason} -> IO.puts("warning: scratch cleanup left behind #{path}: #{inspect(reason)}")
+        end
     end
   end
 
