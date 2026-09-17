@@ -216,8 +216,10 @@ jobs:
       - name: Test (excluding the ML-DSA mint substrate)
         run: mix test --exclude requires_mldsa_substrate
 
-      - name: Coverage floor
-        run: mix test --cover --exclude requires_mldsa_substrate
+      # No coverage step on this lane BY DESIGN: the excluded ML-DSA mint
+      # test carries covered lines, so the total lands under the 100.0 floor
+      # by construction (97.59% observed). The floor is the Linux lanes'
+      # gate; this lane proves clone pickup, not coverage.
 
       - name: Audit dependencies (retirements)
         run: mix hex.audit
