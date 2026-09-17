@@ -72,12 +72,13 @@ mix ci   # the whole battery, local parity with CI (aborts at first red step)
 
 MIX_ENV=test for any compile check (test/support only compiles under :test).
 Supported toolchain, enforced in code before anything compiles: the tested
-Elixir 1.20.x line on Erlang/OTP 28/29 — mix.exs's `~> 1.20` range refuses
-any other Elixir (Mix.ElixirVersionError) and config/config.exs refuses any
-OTP major outside {28, 29} (floor 28.1). Lockstep: the declared range, the
-supported-OTP set, .tool-versions (the dev lane), and CI's matrix lanes
-move together in ONE commit (divergence is a defect). The ML-DSA-65
-emission pair — mint path and tests — additionally needs the OTP runtime
-linked against OpenSSL ≥ 3.5 (FIPS 204 reached OpenSSL in 3.5.0; Ubuntu
-24.04's OpenSSL 3.0.x cannot run them). Commits: surgical pathspecs,
-single tree on `master`, never `git stash`.
+Elixir 1.19.x–1.20.x lines on Erlang/OTP 28/29 — mix.exs's `~> 1.19` range
+refuses any other Elixir (Mix.ElixirVersionError; 1.19.x rides the OTP-28
+lane) and config/config.exs refuses any OTP major outside {28, 29} (floor
+28.1). Lockstep: the declared range, the supported-OTP set, .tool-versions
+(the dev lane), and CI's matrix lanes move together in ONE commit
+(divergence is a defect). The ML-DSA-65 emission pair — mint path and
+tests — additionally needs the OTP runtime linked against OpenSSL ≥ 3.5
+(FIPS 204 reached OpenSSL in 3.5.0; Ubuntu 24.04's OpenSSL 3.0.x cannot
+run them). Commits: surgical pathspecs, single tree on `master`, never
+`git stash`.

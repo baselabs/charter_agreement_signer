@@ -8,16 +8,18 @@ defmodule CharterAgreementSigner.MixProject do
     [
       app: :charter_agreement_signer,
       version: @version,
-      # SUPPORTED RANGE, not a single-version pin: the tested 1.20.x line on
-      # OTP 28/29 (CAP's declared floor ~> 1.20 governs every consumer).
-      # Anything outside the range refuses at compile — a foreign toolchain
-      # never compiles silently (mixing toolchains poisons shared _build/PLT
-      # state) — while every 1.20.x stays admitted. LOCKSTEP: this range,
-      # config/config.exs's supported-OTP set, .tool-versions (the dev lane),
-      # and CI's matrix lanes move together in ONE commit — divergence
-      # between them is a defect. The OTP BUILD is asserted separately in
-      # config/config.exs — System.version/0 does not encode it.
-      elixir: "~> 1.20",
+      # SUPPORTED RANGE, not a single-version pin: the tested 1.19.x–1.20.x
+      # lines on OTP 28/29 (1.19.x rides the OTP-28 lane; the protocol
+      # package's source compiles and its suite passes there — probed before
+      # this range moved). Anything outside the range refuses at compile — a
+      # foreign toolchain never compiles silently (mixing toolchains poisons
+      # shared _build/PLT state) — while every 1.19.x/1.20.x stays admitted.
+      # LOCKSTEP: this range, config/config.exs's supported-OTP set,
+      # .tool-versions (the dev lane), and CI's matrix lanes move together in
+      # ONE commit — divergence between them is a defect. The OTP BUILD is
+      # asserted separately in config/config.exs — System.version/0 does not
+      # encode it.
+      elixir: "~> 1.19",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       # The coverage floor is the MEASURED total, re-pinned at every slice

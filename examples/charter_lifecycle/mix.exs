@@ -27,11 +27,12 @@ defmodule CharterLifecycle.MixProject do
       app: :charter_lifecycle,
       version: @version,
       # SUPPORTED RANGE, LOCKSTEP with the root pin (see the repo root's
-      # mix.exs): the tested 1.20.x line on OTP 28/29, asserted by this
-      # project's own config/config.exs (a path dependency's config never
-      # leaks into this project's config load). The range, .tool-versions
-      # (dev lane), and CI's matrix lanes move together in ONE commit.
-      elixir: "~> 1.20",
+      # mix.exs): the tested 1.19.x–1.20.x lines on OTP 28/29, asserted by
+      # this project's own config/config.exs (a path dependency's config
+      # never leaks into this project's config load). The range,
+      # .tool-versions (dev lane), and CI's matrix lanes move together in
+      # ONE commit.
+      elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps()
     ]

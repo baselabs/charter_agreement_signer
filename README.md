@@ -111,15 +111,15 @@ package, the release-candidate reproducibility gate, and the
 lint, and the bilateral round-trip tests).
 
 Supported toolchain, enforced in code before anything compiles: the tested
-Elixir 1.20.x line (`~> 1.20` — anything outside the range refuses with
-`Mix.ElixirVersionError`) on Erlang/OTP 28 or 29 (config/config.exs asserts
-the OTP build — a same-Elixir binary built on an unsupported OTP would
-otherwise compile incompatible BEAMs silently). `.tool-versions` pins the
-dev lane, CI's matrix covers the supported lanes, and all of it moves in
-ONE commit. Selecting the ML-DSA-65 emission pair additionally needs the
-OTP runtime linked against OpenSSL ≥ 3.5 — FIPS 204 reached OpenSSL in
-3.5.0, and a runtime linked against OpenSSL 3.0.x cannot generate or
-verify ML-DSA keys.
+Elixir 1.19.x–1.20.x lines (`~> 1.19` — anything outside the range refuses
+with `Mix.ElixirVersionError`; 1.19.x rides the OTP-28 lane) on Erlang/OTP
+28 or 29 (config/config.exs asserts the OTP build — a same-Elixir binary
+built on an unsupported OTP would otherwise compile incompatible BEAMs
+silently). `.tool-versions` pins the dev lane, CI's matrix covers the
+supported lanes, and all of it moves in ONE commit. Selecting the ML-DSA-65
+emission pair additionally needs the OTP runtime linked against
+OpenSSL ≥ 3.5 — FIPS 204 reached OpenSSL in 3.5.0, and a runtime linked
+against OpenSSL 3.0.x cannot generate or verify ML-DSA keys.
 
 ## What this is not
 
