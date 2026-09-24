@@ -142,9 +142,11 @@ is unchanged), and the npm verify side mirrors it as
 signer: artifacts minted here verify identically under a 0.4.x verifier.
 The producer-side capability alignment (a mirrored `capabilities()` probe
 with refuse-before-mint, declared minting metadata, a profile-bound signing
-mode) is recorded as a contract with the protocol repository and lands with
-the deliberate wall move to the 0.4.x line once CAP 0.4.0 is on Hex; see
-CHANGELOG's Unreleased note.
+mode) is recorded as a contract with the protocol repository. CAP 0.4.0
+and the packaging correction 0.4.1 are now on Hex (lib/ byte-identical
+between them, so this package's lock at 0.3.2 loses nothing), which
+unblocks the alignment: it lands with the deliberate wall move to the
+`~> 0.4.0` line. See CHANGELOG.
 protocol package), never transports or persists anything, never evaluates
 charter terms, and never authorizes anything — CAP never authorizes, and
 neither does its signer.
