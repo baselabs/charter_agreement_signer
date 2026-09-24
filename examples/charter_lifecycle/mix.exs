@@ -49,6 +49,11 @@ defmodule CharterLifecycle.MixProject do
       # The signing glue. Path-relative so the example tracks the working
       # tree of this repo; transitively resolves charter_agreement_protocol.
       {:charter_agreement_signer, path: "../.."},
+      # Deliberate pin mirroring the library wall: the example is a
+      # counterparty view of THIS package's tested line. CAP 0.4.x is
+      # published but outside the wall by design; the wall moves to the
+      # 0.4.x line in one commit with the library (the alignment act).
+      {:charter_agreement_protocol, "~> 0.3.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
