@@ -1,7 +1,7 @@
 defmodule CharterAgreementSigner.MixProject do
   use Mix.Project
 
-  @version "0.3.5"
+  @version "0.4.0"
   @source_url "https://github.com/baselabs/charter_agreement_signer"
 
   def project do
@@ -148,7 +148,7 @@ defmodule CharterAgreementSigner.MixProject do
   # @runtime_dep_allowlist in the same commit.
   defp deps do
     [
-      {:charter_agreement_protocol, "~> 0.3.0"},
+      {:charter_agreement_protocol, "~> 0.4.0"},
       {:telemetry, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},

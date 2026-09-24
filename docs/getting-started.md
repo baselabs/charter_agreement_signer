@@ -8,7 +8,7 @@ here runs with no database, no services, and no network beyond `mix deps.get`.
 ```elixir
 def deps do
   [
-    {:charter_agreement_signer, "~> 0.3.0"}
+    {:charter_agreement_signer, "~> 0.4.0"}
   ]
 end
 ```

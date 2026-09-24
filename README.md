@@ -21,7 +21,7 @@ depends on exactly one package: the public `charter_agreement_protocol`.
 ```elixir
 def deps do
   [
-    {:charter_agreement_signer, "~> 0.3.0"}
+    {:charter_agreement_signer, "~> 0.4.0"}
   ]
 end
 ```
@@ -134,19 +134,15 @@ This library never verifies third-party artifacts (verifiers use only the
 
 ## The 0.4.x ecosystem
 
-The protocol package's 0.4.0 release-identity act is consumer-surface
-additive (a capability profile and an honest substrate diagnostic on the
-verify paths, facts-record scalars, a versioned release manifest; the wire
-is unchanged), and the npm verify side mirrors it as
-`@charter-agreement-protocol/verifier` 0.5.0. Nothing in it affects this
-signer: artifacts minted here verify identically under a 0.4.x verifier.
-The producer-side capability alignment (a mirrored `capabilities()` probe
-with refuse-before-mint, declared minting metadata, a profile-bound signing
-mode) is recorded as a contract with the protocol repository. CAP 0.4.0
-and the packaging correction 0.4.1 are now on Hex (lib/ byte-identical
-between them, so this package's lock at 0.3.2 loses nothing), which
-unblocks the alignment: it lands with the deliberate wall move to the
-`~> 0.4.0` line. See CHANGELOG.
+This package tracks the published protocol line: as of 0.4.0 it depends on
+`charter_agreement_protocol ~> 0.4.0` (locked 0.4.1). CAP 0.4.x added
+consumer-side surfaces only (a capability profile on the verify paths, an
+honest substrate diagnostic, facts-record scalars, a versioned release
+manifest) - the producer surface this signer uses is unchanged, and
+artifacts minted by this signer verify identically under every CAP
+0.3.x/0.4.x verifier. The producer-side capability alignment (a mirrored
+`capabilities()` probe with refuse-before-mint, declared minting metadata,
+a profile-bound signing mode) is the next feature release on this line.
 protocol package), never transports or persists anything, never evaluates
 charter terms, and never authorizes anything — CAP never authorizes, and
 neither does its signer.

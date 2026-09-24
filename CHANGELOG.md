@@ -6,22 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] — 2026-09-24
 
-### Documentation
+Dependency-line release: this package now tracks the published CAP 0.4.x
+line. No behavioral `lib/` change.
 
-- State change since 0.3.5's ecosystem note: CAP 0.4.0 (and the packaging
-  correction 0.4.1) are now PUBLISHED on hex.pm. The 0.3.5 note's
-  "possible only after CAP 0.4.0 publishes to Hex (currently held)" is
-  superseded - the producer/verifier capability alignment is unblocked
-  and remains queued as the deliberate wall move to
-  `charter_agreement_protocol ~> 0.4.0` (one commit: the wall test,
-  the lock, the example lock). Nothing in this package changes before
-  that move: the dependency wall `~> 0.3.0` keeps CAP at 0.3.2, the
-  currency gate is green against the live registry (0.4.1 sits outside
-  the requirement and prints as a resolver-rejected row, not drift), and
-  CAP 0.4.1's lib/ is byte-identical to 0.4.0's, so the lock holds none
-  of the new consumer surface - by design.
+### Changed
+
+- The protocol wall moves to `charter_agreement_protocol ~> 0.4.0` and
+  the lock to 0.4.1 (wall test and the example app's mirror pin move in
+  the same commit, per the one-commit rule). Why now and not with the
+  capability alignment: CAP 0.4.x is consumer-surface additive - the
+  producer surface this library delegates to is unchanged, so holding the
+  wall below the published line bought process coupling, not safety, and
+  made the example's dependency gate fight every CAP publish. The
+  alignment (mirrored `capabilities()` with refuse-before-mint, declared
+  minting metadata, profile-bound signing) is the next feature release
+  on this line.
 
 ## [0.3.5] — 2026-09-24
 
