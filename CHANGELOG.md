@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Documentation
+
+- The ecosystem note, post-CAP-0.4.0 (no signer code change; the wall and
+  the lock are untouched at `~> 0.3.0` / 0.3.1):
+  - **Nothing the signer does is affected.** CAP 0.4.0's release-identity
+    act is consumer-surface additive - a capability profile on the verify
+    paths, an implementation-local substrate diagnostic
+    (`:algorithm_unsupported_on_substrate`, deliberately outside the
+    conformance verdict surface), facts-record scalars, and a versioned
+    release manifest. The producer surface this library delegates to is
+    unchanged, and the wire is unchanged (`protocol_revision` stays 3):
+    artifacts minted by this signer verify identically under a 0.4.x
+    verifier.
+  - **The npm verify side moved to 0.5.0**: `@charter-agreement-protocol/
+    verifier` now mirrors the capability probe (`capabilities()`), the
+    signature registry's own identity (`algorithmRegistryDigest()`), the
+    descriptor timestamp floor, and the 104-case certified corpus.
+  - **The producer/verifier capability alignment is recorded and queued**
+    (the contract at the protocol repository's partner record): mirror
+    `capabilities()` on the producing side with a refuse-before-mint named
+    failure, declare minting profile metadata, and add a profile-bound
+    signing mode. That work rides the deliberate wall move to
+    `charter_agreement_protocol ~> 0.4.0` - possible only after
+    CAP 0.4.0 publishes to Hex (currently held by the protocol owner).
+    Until then this package stays on the 0.3.x line and remains fully
+    compatible.
+
 ## [0.3.4] — 2026-09-17
 
 Cross-platform release: a plain clone is workable on Windows, macOS, and

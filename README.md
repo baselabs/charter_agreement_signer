@@ -131,6 +131,20 @@ against OpenSSL 3.0.x cannot generate or verify ML-DSA keys.
 ## What this is not
 
 This library never verifies third-party artifacts (verifiers use only the
+
+## The 0.4.x ecosystem
+
+The protocol package's 0.4.0 release-identity act is consumer-surface
+additive (a capability profile and an honest substrate diagnostic on the
+verify paths, facts-record scalars, a versioned release manifest; the wire
+is unchanged), and the npm verify side mirrors it as
+`@charter-agreement-protocol/verifier` 0.5.0. Nothing in it affects this
+signer: artifacts minted here verify identically under a 0.4.x verifier.
+The producer-side capability alignment (a mirrored `capabilities()` probe
+with refuse-before-mint, declared minting metadata, a profile-bound signing
+mode) is recorded as a contract with the protocol repository and lands with
+the deliberate wall move to the 0.4.x line once CAP 0.4.0 is on Hex; see
+CHANGELOG's Unreleased note.
 protocol package), never transports or persists anything, never evaluates
 charter terms, and never authorizes anything — CAP never authorizes, and
 neither does its signer.
