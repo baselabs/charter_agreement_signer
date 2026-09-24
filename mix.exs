@@ -155,9 +155,10 @@ defmodule CharterAgreementSigner.MixProject do
       {:ex_doc, "~> 0.40", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
       # CycloneDX SBOM generation for the tag-push supply-chain workflow.
-      # At sbom 0.10.0 (latest), its own pins deliberately hold three
-      # transitives below latest — hex_core ~> 0.15.0, protobuf ~> 0.16.0,
-      # purl ~> 0.3.0 — the resolver-rejected rows the currency gate prints.
+      # At sbom 0.11.0 (latest), its own transitive requirements
+      # (hex_core ~> 0.19.0, protobuf ~> 0.17.0, purl ~> 0.5.0) resolve
+      # the previously-rejected rows; any residual resolver-rejected pin
+      # the currency gate prints is sbom's own, recorded here.
       {:sbom, "~> 0.10", only: [:dev, :test], runtime: false}
     ]
   end
