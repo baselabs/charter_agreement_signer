@@ -50,10 +50,10 @@ A plain clone is workable on Windows: install Elixir and Erlang/OTP from
 their official installers on any supported lane, then the same commands with
 PowerShell's environment syntax (`$env:MIX_ENV = "test"; mix ci`). The
 battery is platform-portable end to end (the gate scripts spawn mix through
-`cmd /c` on Windows and use no POSIX utilities), and the `windows-latest`
-CI lane proves it on every push. The ML-DSA-65 mint test is excluded on
-that lane when the Windows OTP build links an OpenSSL older than 3.5 — a
-substrate boundary, not a portability one (same class as Ubuntu 24.04).
+`cmd /c` on Windows and use no POSIX utilities). CI runs on Linux only;
+Windows and macOS portability is a property of the developer setup, not a CI
+lane. The ML-DSA-65 mint test needs an OTP build linked against OpenSSL 3.5
+or newer on any platform (the same boundary as Ubuntu 24.04).
 
 ## Commits
 
