@@ -104,8 +104,9 @@ A bare `mix ci` refuses with the per-shell fix in hand (a `:dev` boot skips
 `test/support/` — the warnings trap). PowerShell: `$env:MIX_ENV = "test";
 mix ci`; cmd.exe: `set MIX_ENV=test && mix ci`. On Windows, install Elixir
 and Erlang/OTP from their official installers (any supported lane — e.g.
-Elixir 1.20.x on OTP 29); every battery step is platform-portable, and a
-`windows-latest` CI lane proves the clone-pickup surface on every push.
+Elixir 1.20.x on OTP 29); every battery step is platform-portable. Developer
+portability across macOS, Linux, and Windows is a property of the developer
+setup, proven on a developer machine, not a CI leg: CI runs on Linux only.
 
 `mix ci` reproduces the CI pipeline locally for BOTH projects: format,
 warnings-as-errors compilation, Credo, the full test suite (including the
