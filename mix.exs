@@ -1,7 +1,7 @@
 defmodule CharterAgreementSigner.MixProject do
   use Mix.Project
 
-  @version "0.4.0"
+  @version "0.4.1"
   @source_url "https://github.com/baselabs/charter_agreement_signer"
 
   def project do
@@ -61,12 +61,10 @@ defmodule CharterAgreementSigner.MixProject do
   # example battery) with zero GitHub Actions spend. The workflow exports
   # MIX_ENV: test at the JOB level; locally the same environment variable must
   # be set BEFORE mix boots — the first alias step refuses a :dev boot (it
-  # would skip test/support, the warnings trap) with the per-shell fix in
-  # hand. This guard replaced the former `env MIX_ENV=test mix ...` re-exec
-  # per step, which depended on POSIX env(1) and broke Windows clones.
+  # would skip test/support, the warnings trap) with the fix in hand. This
+  # guard replaced the former `env MIX_ENV=test mix ...` re-exec per step.
   # `mix cmd` aborts on the first non-zero step, like a failed CI job.
-  # Not reproduced locally: checkout/setup-beam (asdf here) and the
-  # windows-latest CI lane (the Windows proof lives in CI).
+  # Not reproduced locally: checkout/setup-beam (asdf here).
   defp aliases do
     [
       ci: [
@@ -110,19 +108,17 @@ defmodule CharterAgreementSigner.MixProject do
     ]
   end
 
-  # The Windows-portable replacement for the POSIX `env MIX_ENV=test` re-exec:
-  # fail fast on a :dev boot, with the invocation for every shell in the
-  # message. (The guard runs as the first alias step, so every later step in
-  # the SAME mix process already boots under :test.)
+  # The replacement for the former `env MIX_ENV=test` re-exec: fail fast on a
+  # :dev boot, with the invocation in the message. (The guard runs as the
+  # first alias step, so every later step in the SAME mix process already
+  # boots under :test.)
   defp enforce_test_env!(_args) do
     if Mix.env() != :test do
       Mix.raise("""
       `mix ci` runs under MIX_ENV=test — a :dev boot skips test/support and
       hides its warnings. Re-run as:
 
-        MIX_ENV=test mix ci               (sh / bash / zsh)
-        $env:MIX_ENV = "test"; mix ci     (PowerShell)
-        set MIX_ENV=test && mix ci        (cmd.exe)
+        MIX_ENV=test mix ci
       """)
     end
   end

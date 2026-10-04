@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] — 2026-10-04
+
+Documentation release: the developer-platform direction, recorded. No
+behavioral `lib/` change; the shipped bytes differ only in mix.exs (the
+version), README.md, CONTRIBUTING.md, and this file.
+
+### Documentation
+
+- macOS and Linux are the developer platforms; Windows developers use
+  WSL2 (clone inside the WSL filesystem, not under `/mnt/c`) and follow
+  the Linux path — no native-Windows developer path is maintained
+  (owner direction, October 4, 2026). README's development section and
+  CONTRIBUTING's Windows section now state this, replacing the
+  0.3.4-era PowerShell/cmd.exe and native-installer instructions.
+- CI runs on Linux only (`ubuntu-26.04`, the OpenSSL 3.5-or-newer the
+  ML-DSA-65 mint path needs); docs-only pushes skip CI, and the site's
+  CI badge says Linux.
+
 ## [0.4.0] — 2026-09-24
 
 Dependency-line release: this package now tracks the published CAP 0.4.x
