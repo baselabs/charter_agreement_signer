@@ -46,13 +46,11 @@ MIX_ENV=test mix ci
 
 ## Windows
 
-A plain clone is workable on Windows: install Elixir and Erlang/OTP from
-their official installers on any supported lane, then the same commands with
-PowerShell's environment syntax (`$env:MIX_ENV = "test"; mix ci`). The
-battery is platform-portable end to end (the gate scripts spawn mix through
-`cmd /c` on Windows and use no POSIX utilities). CI runs on Linux only;
-Windows and macOS portability is a property of the developer setup, not a CI
-lane. The ML-DSA-65 mint test needs an OTP build linked against OpenSSL 3.5
+The developer platforms are macOS and Linux. Windows developers use WSL2
+(clone inside the WSL filesystem, not under `/mnt/c`) and follow the Linux
+path with the same commands; no native-Windows developer path is maintained.
+CI runs on Linux only; macOS portability is a property of the developer
+setup, not a CI lane. The ML-DSA-65 mint test needs an OTP build linked against OpenSSL 3.5
 or newer on any platform (the same boundary as Ubuntu 24.04).
 
 ## Commits
