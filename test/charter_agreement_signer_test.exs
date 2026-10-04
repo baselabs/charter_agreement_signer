@@ -22,9 +22,9 @@ defmodule CharterAgreementSignerTest do
   }
 
   # Substrate note: minting ML-DSA-65 keys needs the OTP runtime linked
-  # against OpenSSL >= 3.5. The Windows CI lane excludes this tag when its
-  # OTP build links an older OpenSSL (analogous to Ubuntu 24.04's 3.0.x);
-  # every Linux lane runs it.
+  # against OpenSSL >= 3.5 (Ubuntu 24.04's system OpenSSL is 3.0.x); every
+  # Linux CI lane runs it, and a local OTP linked against an older OpenSSL
+  # can exclude the tag.
   @tag :requires_mldsa_substrate
   test "sign_descriptor mints ML-DSA-65 at revision 3 end-to-end" do
     {kid, mldsa_public, mldsa_private} = RawMLDSA65.generate("mldsa-key-001")

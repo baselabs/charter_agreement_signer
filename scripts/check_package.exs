@@ -85,11 +85,9 @@ defmodule CharterAgreementSigner.PackageCheck do
     end
   end
 
-  # Cleanup is hygiene, never the gate's verdict: on Windows a just-exited
-  # child process (the consumer's cmd /c mix) can still hold a scratch
-  # handle — File.rm_rf! would raise 'file already exists' AFTER a passed
-  # gate. Bounded retries absorb the handle-release race; a genuine leak
-  # warns and the ephemeral runner temp dir reaps it.
+  # Cleanup is hygiene, never the gate's verdict: File.rm_rf! would raise
+  # AFTER a passed gate. One bounded retry absorbs a transient removal
+  # failure; a genuine leak warns and the ephemeral runner temp dir reaps it.
   defp best_effort_rm_rf!(path) do
     case File.rm_rf(path) do
       {:ok, _} ->
@@ -126,10 +124,8 @@ defmodule CharterAgreementSigner.PackageCheck do
     end
   end
 
-  # Path.wildcard/:filelib.wildcard treats backslashes as literal characters
-  # on Windows — a temp root with native separators (C:\...\Temp joined with
-  # /) matches nothing and the census reads as empty. A plain recursive
-  # File.ls! walk is separator-agnostic and needs no glob semantics.
+  # A plain recursive File.ls! walk, never Path.wildcard: a wildcard skips
+  # dotfiles by default, so a dotfile in the archive would escape the census.
   defp walk_regular_files(dir, prefix) do
     dir
     |> File.ls!()
@@ -394,8 +390,7 @@ defmodule CharterAgreementSigner.PackageCheck do
     end
   end
 
-  # Portable temp root: no mktemp (a POSIX utility absent on Windows) — a
-  # unique name under the system temp dir is equivalent for this gate's
+  # Temp root: a unique name under the system temp dir serves this gate's
   # purpose (scratch isolation, not collision-hardening against adversaries).
   defp unique_tmp_root! do
     path =
@@ -415,14 +410,6 @@ defmodule CharterAgreementSigner.PackageCheck do
   end
 
   defp run!(command, arguments, directory, environment) do
-    # On Windows `mix` is a .cmd shim that must run through cmd.exe; the
-    # package census spawns child mix processes (the unpacked package build
-    # and the consumer), so the spawn is OS-aware.
-    {command, arguments} =
-      if command == "mix" and :os.type() == {:win32, :nt},
-        do: {"cmd", ["/c", "mix" | arguments]},
-        else: {command, arguments}
-
     options = [
       cd: directory,
       env: environment,

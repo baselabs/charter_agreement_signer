@@ -54,9 +54,8 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
     end
   end
 
-  # Cleanup is hygiene, never the gate's verdict: on Windows a just-exited
-  # child (the per-copy cmd /c mix) can still hold a scratch handle — a
-  # bang remove would raise AFTER a passed gate. Bounded retry, then warn.
+  # Cleanup is hygiene, never the gate's verdict: a bang remove would raise
+  # AFTER a passed gate. Bounded retry, then warn.
   defp best_effort_rm_rf!(path) do
     case File.rm_rf(path) do
       {:ok, _} ->
@@ -109,8 +108,8 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
     assert_regular_nonempty!(output)
   end
 
-  # Portable temp root: no mktemp (absent on Windows) — a unique name under
-  # the system temp dir serves this gate's purpose (scratch isolation).
+  # Temp root: a unique name under the system temp dir serves this gate's
+  # purpose (scratch isolation).
   defp unique_tmp_root! do
     path =
       Path.join(
@@ -133,17 +132,9 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
     end
   end
 
-  # On Windows `mix` is a .cmd shim that must run through cmd.exe; the gate
-  # spawns child mix processes (deps.get + hex.build per copy), so the
-  # spawn is OS-aware.
+  # The gate spawns child mix processes (deps.get + hex.build per copy).
   defp run_mix!(arguments, directory) do
-    {command, arguments} =
-      case :os.type() do
-        {:win32, _} -> {"cmd", ["/c", "mix" | arguments]}
-        _ -> {"mix", arguments}
-      end
-
-    case System.cmd(command, arguments,
+    case System.cmd("mix", arguments,
            cd: directory,
            stderr_to_stdout: true,
            into: IO.stream(:stdio, :line)

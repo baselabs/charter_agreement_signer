@@ -1,5 +1,4 @@
-# Dependency-currency gate — the portable Elixir port of the former POSIX
-# shell gate (a plain clone must work on Windows too). Run:
+# Dependency-currency gate — the Elixir port of the former shell gate. Run:
 #
 #     mix run --no-start scripts/check_deps_current.exs
 #
@@ -22,14 +21,8 @@
 # the table pads rows with trailing whitespace, so the status anchors are
 # whitespace-tolerant ([[:space:]]*$ — a hard $ fails open).
 
-{mix_cmd, prefix_args} =
-  case :os.type() do
-    {:win32, _} -> {"cmd", ["/c", "mix"]}
-    _ -> {"mix", []}
-  end
-
 out =
-  case System.cmd(mix_cmd, prefix_args ++ ["hex.outdated", "--all"],
+  case System.cmd("mix", ["hex.outdated", "--all"],
          stderr_to_stdout: true,
          into: ""
        ) do
@@ -59,7 +52,7 @@ unless rejected == [] do
     package = row |> String.trim_trailing() |> String.split(" ") |> List.first()
 
     {detail, _status} =
-      System.cmd(mix_cmd, prefix_args ++ ["hex.outdated", package],
+      System.cmd("mix", ["hex.outdated", package],
         stderr_to_stdout: true,
         into: ""
       )
