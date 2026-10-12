@@ -106,7 +106,9 @@ defmodule CharterAgreementSigner.DependencyDirectionTest do
                "dialyxir",
                "ex_doc",
                "mix_audit",
-               "sbom"
+               "sbom",
+               # dev/test override for sbom (EEF-CVE-2026-103502); never shipped
+               "hex_core"
              ],
              "unexpected dependency :#{dep} — the wall allows only the protocol package and telemetry at runtime"
     end
