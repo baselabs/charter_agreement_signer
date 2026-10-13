@@ -22,12 +22,8 @@ defmodule CharterAgreementSigner.MixProject do
       elixir: "~> 1.19",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
-      # The coverage floor is the MEASURED total, re-pinned at every slice
-      # that moves it (never aspirational; pinned just under the measured
-      # number — Mix compares the RAW ratio, whose hidden decimals round up
-      # for display, so an exact display-value pin can flake). At a measured
-      # 100.0 the raw ratio is exactly 1.0, so the pin is exact — any future
-      # uncovered line reds the battery immediately.
+      # The 100% floor gates merged coverage from the standard and limited
+      # runtimes. Each lane exports its coverage before the merged report.
       test_coverage: [summary: [threshold: 100.0]],
       # PLT lives under _build (gitignored, cache-friendly) — the BARA
       # sibling's shape.
@@ -58,8 +54,8 @@ defmodule CharterAgreementSigner.MixProject do
 
   # `mix ci` runs the library and example batteries plus the pinned
   # TypeScript signer suite and the pinned verifier build. CI runs these
-  # in separate Linux jobs. Setup, matrix breadth and the capability-limited
-  # substrate check remain CI-specific. The first step requires MIX_ENV=test;
+  # in separate Linux jobs. Local merged coverage needs CAS_LIMITED_PATH;
+  # setup and matrix breadth remain CI-specific. The first step requires MIX_ENV=test;
   # every later step shares that environment and aborts on failure.
   defp aliases do
     [
@@ -72,14 +68,7 @@ defmodule CharterAgreementSigner.MixProject do
         "deps.compile",
         "compile --warnings-as-errors",
         "credo --strict",
-        "test",
-        # The gate battery (parity with the sibling-standard batteries): coverage
-        # floor, dialyzer (PLT + analysis under :test so test/support/ is in the
-        # paths — the RA7 lesson), doc warnings, the advisory audits, and the
-        # dependency-currency gate (scripts/check_deps_current.exs).
-        # A fresh process is required: Mix skips a second test invocation
-        # in the same alias process after the plain test task has run.
-        "cmd mix test --cover",
+        "run --no-start scripts/check_merged_coverage.exs",
         "dialyzer",
         "docs --warnings-as-errors",
         "hex.audit",

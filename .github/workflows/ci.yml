@@ -83,12 +83,17 @@ jobs:
       - name: Lint (credo)
         run: mix credo --strict
 
-      - name: Test (includes the wrong-key gate and the refusal battery)
-        run: mix test
+      - name: Test and export standard coverage
+        run: mix test --cover --export-coverage standard-${{ matrix.elixir }}-${{ matrix.otp }}
+
+      - name: Save standard coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-standard-${{ matrix.elixir }}-${{ matrix.otp }}
+          path: cover/*.coverdata
+          if-no-files-found: error
 
       # These library checks also run in mix ci:
-      - name: Coverage floor
-        run: mix test --cover
 
       - name: Dialyzer (PLT + analysis under :test so test/support is covered)
         run: mix dialyzer
@@ -241,8 +246,51 @@ jobs:
       - name: Assert ML-DSA is unverifiable on this lane
         run: mix run --no-start scripts/assert_limited_substrate.exs
 
-      - name: Run the suite without ML-DSA minting
-        run: mix test --exclude requires_mldsa_substrate
+      - name: Test and export limited coverage
+        run: mix test --exclude requires_mldsa_substrate --cover --export-coverage limited
 
-      - name: Check pre-sign substrate refusals and telemetry
-        run: mix test test/charter_agreement_signer/capability_limited_test.exs test/charter_agreement_signer/signer_cases_test.exs --exclude requires_mldsa_substrate
+      - name: Save limited coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-limited
+          path: cover/*.coverdata
+          if-no-files-found: error
+
+  coverage:
+    name: Merged coverage floor
+    needs: [gate, capability-limited]
+    runs-on: ubuntu-26.04
+    env:
+      MIX_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the tested CAP build
+        run: |
+          git clone --no-checkout https://github.com/baselabs/charter_agreement_protocol.git ../cap-060
+          git -C ../cap-060 checkout --detach "$CAP_SOURCE_COMMIT"
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.20.3"
+          otp-version: "29.0.3"
+
+      - name: Compile for the merged report
+        run: |
+          mix deps.get
+          mix compile --warnings-as-errors
+
+      - name: Load both lanes' coverage
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          merge-multiple: true
+          path: cover
+
+      - name: Require every lane and gate merged coverage
+        run: |
+          test -f cover/standard-1.19.5-28.5.0.3.coverdata
+          test -f cover/standard-1.20.2-28.5.0.3.coverdata
+          test -f cover/standard-1.20.3-29.0.3.coverdata
+          test -f cover/limited.coverdata
+          mix test.coverage

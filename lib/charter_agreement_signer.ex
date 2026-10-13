@@ -207,11 +207,11 @@ defmodule CharterAgreementSigner do
        when code in [:signing_refused, :signing_key_mismatch],
        do: {:error, {:refused, code}}
 
-  defp mapped({:error, %Error{code: code}})
-       when code in [:signing_key_invalid, :algorithm_unsupported_on_substrate] do
-    reason = if code == :signing_key_invalid, do: :invalid_key_handle, else: code
-    {:error, reason}
-  end
+  defp mapped({:error, %Error{code: :signing_key_invalid}}),
+    do: {:error, :invalid_key_handle}
+
+  defp mapped({:error, %Error{code: :algorithm_unsupported_on_substrate}}),
+    do: {:error, :algorithm_unsupported_on_substrate}
 
   defp mapped({:error, %Error{code: code}}), do: {:error, {:invalid_input, code}}
   defp mapped({:ok, plan}), do: {:ok, plan}

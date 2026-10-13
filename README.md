@@ -121,8 +121,14 @@ package census and consumer smoke, and archive reproducibility), the
 `examples/charter_lifecycle` battery, and the pinned TypeScript signer's own
 suite, plus a build of the pinned verifier. It needs Node 24.8 or newer, Git,
 tar, and network access to Hex, GitHub and npm. CI runs these checks in
-separate Linux jobs; setup, the Elixir/OTP matrix and the capability-limited
-substrate job are additional CI checks.
+separate Linux jobs and merges coverage exports from the standard and
+capability-limited jobs before enforcing the 100.0% floor. Local `mix ci`
+also runs both coverage lanes. Set `CAS_LIMITED_PATH` to the PATH for a
+second Elixir/OTP toolchain linked to OpenSSL without ML-DSA support; the
+script confirms that runtime is limited, uses `_build_limited` for its
+build, and merges both exports with `mix test.coverage`. The main toolchain
+must support ML-DSA. Setup and the Elixir/OTP matrix are additional CI
+checks.
 
 The TypeScript repositories and full commit hashes are in
 [`priv/signer-source.json`](https://github.com/baselabs/charter_agreement_signer/blob/master/priv/signer-source.json) and

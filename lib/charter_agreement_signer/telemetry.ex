@@ -143,10 +143,11 @@ defmodule CharterAgreementSigner.Telemetry do
        when code in [
               :invalid_key_handle,
               :signing_failed,
-              :verification_failed,
-              :algorithm_unsupported_on_substrate
+              :verification_failed
             ],
-       do: if(code == :algorithm_unsupported_on_substrate, do: :unsupported_substrate, else: code)
+       do: code
+
+  defp classify({:error, :algorithm_unsupported_on_substrate}), do: :unsupported_substrate
 
   defp classify({:error, {:refused, code}})
        when code in [:signing_refused, :signing_key_mismatch],
