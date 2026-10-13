@@ -132,7 +132,12 @@ defmodule CharterAgreementSigner.TypeScriptSources do
     |> Enum.dedup()
     |> Enum.chunk_every(2, 1, :discard)
     |> Enum.each(fn [older, newer] ->
-      reachable!(cache, older, newer, "the pin history moves backward from #{older}")
+      reachable!(
+        cache,
+        older,
+        newer,
+        "the pin history moves backward: #{newer} does not descend from"
+      )
     end)
 
     case File.read(Path.join(@root, stamp_path(kind))) do
