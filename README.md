@@ -119,8 +119,8 @@ separate Linux jobs; setup, the Elixir/OTP matrix and the capability-limited
 substrate job are additional CI checks.
 
 The TypeScript repositories and full commit hashes are in
-[`priv/signer-source.json`](priv/signer-source.json) and
-[`priv/verifier-source.json`](priv/verifier-source.json).
+[`priv/signer-source.json`](https://github.com/baselabs/charter_agreement_signer/blob/master/priv/signer-source.json) and
+[`priv/verifier-source.json`](https://github.com/baselabs/charter_agreement_signer/blob/master/priv/verifier-source.json).
 `MIX_ENV=test mix typescript.sources` fetches public `main`, refuses a pin
 outside that branch or behind the previous pin, and extracts both source
 trees under `_build/`. `mix typescript.sources --cached` uses the last

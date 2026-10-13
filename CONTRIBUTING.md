@@ -12,10 +12,11 @@ The supported toolchain is enforced in code, before anything compiles: the
 tested Elixir 1.19.x and 1.20.x lines (mix.exs's `~> 1.19`; anything outside refuses
 with `Mix.ElixirVersionError`) on Erlang/OTP 28 or 29 (config/config.exs
 refuses any other OTP major). You cannot compile on a wrong toolchain by
-accident. `.tool-versions` pins the dev lane (asdf); CI covers both
-supported pairs, including Elixir 1.19.x on OTP 28. Lockstep: mix.exs's range, config/config.exs's supported-OTP
-set, `.tool-versions`, and CI's matrix lanes move together in ONE commit —
-divergence between them is a defect.
+accident. `.tool-versions` pins the dev lane (asdf); CI covers three
+supported cells: Elixir 1.19.5 and 1.20.2 on OTP 28, and 1.20.3 on OTP 29.
+Lockstep: mix.exs's range, config/config.exs's supported-OTP set,
+`.tool-versions`, and CI's matrix move together in ONE commit; divergence
+between them is a defect.
 
 Dependency currency is mechanical: `scripts/check_deps_current.exs` (wired
 into CI and `mix ci`) exits nonzero on any resolvable `mix hex.outdated`

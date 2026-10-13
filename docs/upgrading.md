@@ -43,6 +43,15 @@ An absent or `nil` `:algorithm` selects Ed25519. Any other value outside
 Callers that passed an atom or other non-string to select the default must
 omit the option, use `nil`, or pass `"Ed25519"`.
 
+Options must be an atom-keyed map or a keyword list with each key once. A
+string key, a repeated key, or a list that is not a keyword list returns
+`{:error, {:invalid_input, :invalid_type}}` (a non-keyword list used to raise).
+
+The checks now run in a fixed order: options, then limits, then the
+algorithm, then the key snapshot. A call with bad options or limits and a
+bad key handle returns the options or limits error, where it used to return
+`:invalid_key_handle`.
+
 Telemetry's closed class list adds `:unsupported_substrate` for the
 `:algorithm_unsupported_on_substrate` span outcome. A
 `{:refused, :signing_key_mismatch}` outcome uses `:refused`. The telemetry

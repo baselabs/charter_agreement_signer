@@ -15,37 +15,48 @@ defmodule CharterAgreementSigner.KeyHandleTest do
     Keys.RogueKey
   }
 
+  # Each handle below injects exactly one custody fault (a raise, an exit,
+  # a throw, a rejection, a short signature, a malformed snapshot). Every key
+  # and signature they report is real Ed25519 material from a fixed seed;
+  # only the fault is synthetic.
+  defmodule RealKey do
+    @moduledoc false
+    def pair, do: :crypto.generate_key(:eddsa, :ed25519, :binary.copy(<<41>>, 32))
+    def public_key, do: elem(pair(), 0)
+    def sign(message), do: :crypto.sign(:eddsa, :none, message, [elem(pair(), 1), :ed25519])
+  end
+
   defmodule RaisingIdentity do
     def key_identity(_handle), do: raise("custody exploded")
-    def sign(_message, _handle), do: {:ok, <<0::512>>}
+    def sign(message, _handle), do: {:ok, RealKey.sign(message)}
   end
 
   defmodule ExitingSign do
-    def key_identity(_handle), do: {:ok, {"key-001", <<0::256>>}}
+    def key_identity(_handle), do: {:ok, {"key-001", RealKey.public_key()}}
     def sign(_message, _handle), do: exit(:custody_timeout)
   end
 
   defmodule ThrowingSign do
-    def key_identity(_handle), do: {:ok, {"key-001", <<0::256>>}}
+    def key_identity(_handle), do: {:ok, {"key-001", RealKey.public_key()}}
     def sign(_message, _handle), do: throw(:custody_throw)
   end
 
   defmodule RejectingSign do
-    def key_identity(_handle), do: {:ok, {"key-001", <<0::256>>}}
+    def key_identity(_handle), do: {:ok, {"key-001", RealKey.public_key()}}
     def sign(_message, _handle), do: {:error, :hsm_refused}
   end
 
   defmodule ShortSignature do
-    def key_identity(_handle), do: {:ok, {"key-001", <<0::256>>}}
-    def sign(_message, _handle), do: {:ok, <<0::504>>}
+    def key_identity(_handle), do: {:ok, {"key-001", RealKey.public_key()}}
+    def sign(message, _handle), do: {:ok, binary_part(RealKey.sign(message), 0, 63)}
   end
 
   defmodule BadSnapshots do
-    def key_identity(:empty_kid), do: {:ok, {"", <<0::256>>}}
-    def key_identity(:short_key), do: {:ok, {"key-001", <<0::248>>}}
+    def key_identity(:empty_kid), do: {:ok, {"", RealKey.public_key()}}
+    def key_identity(:short_key), do: {:ok, {"key-001", binary_part(RealKey.public_key(), 0, 31)}}
     def key_identity(:not_a_tuple), do: {:ok, :nope}
     def key_identity(:crashed), do: raise("snapshot boom")
-    def sign(_message, _handle), do: {:ok, <<0::512>>}
+    def sign(message, _handle), do: {:ok, RealKey.sign(message)}
   end
 
   setup do

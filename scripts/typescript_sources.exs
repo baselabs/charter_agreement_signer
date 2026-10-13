@@ -19,15 +19,33 @@ defmodule CharterAgreementSigner.TypeScriptSources do
   def pin!(kind) do
     repository = Map.fetch!(@sources, kind)
 
+    allowed =
+      if kind == :signer,
+        do: ["commit", "minimum_tests", "repository"],
+        else: ["commit", "repository"]
+
     case @root |> Path.join(pin_path(kind)) |> File.read!() |> :json.decode() do
-      %{"repository" => ^repository, "commit" => commit} = pin
-      when is_binary(commit) and map_size(pin) == 2 ->
-        if commit =~ ~r/\A[0-9a-f]{40}\z/,
-          do: pin,
-          else: raise("typescript source pin: commit must be a full lowercase SHA-1")
+      %{"repository" => ^repository, "commit" => commit} = pin when is_binary(commit) ->
+        cond do
+          Enum.sort(Map.keys(pin)) != allowed ->
+            raise(
+              "typescript source pin: expected exactly #{Enum.join(allowed, ", ")} in #{pin_path(kind)}"
+            )
+
+          not (commit =~ ~r/\A[0-9a-f]{40}\z/) ->
+            raise("typescript source pin: commit must be a full lowercase SHA-1")
+
+          kind == :signer and not (is_integer(pin["minimum_tests"]) and pin["minimum_tests"] > 0) ->
+            raise("typescript source pin: minimum_tests must be a positive integer")
+
+          true ->
+            pin
+        end
 
       _invalid ->
-        raise("typescript source pin: expected exactly {repository, commit} in #{pin_path(kind)}")
+        raise(
+          "typescript source pin: expected exactly #{Enum.join(allowed, ", ")} in #{pin_path(kind)}"
+        )
     end
   end
 
@@ -86,8 +104,13 @@ defmodule CharterAgreementSigner.TypeScriptSources do
     case System.cmd("git", ["--git-dir", cache, "cat-file", "-e", commit <> "^{commit}"],
            stderr_to_stdout: true
          ) do
-      {_out, 0} -> :ok
-      _missing -> raise("typescript source: #{commit} is missing; run without --cached")
+      {_out, 0} ->
+        :ok
+
+      _missing ->
+        raise(
+          "typescript source: #{commit} is not in the local cache; fetch it with mix typescript.sources"
+        )
     end
   end
 
@@ -100,15 +123,17 @@ defmodule CharterAgreementSigner.TypeScriptSources do
     end
   end
 
+  # Every pin this repository has committed must descend from the one before
+  # it, and the pin being materialized from the newest committed one. This
+  # walks the whole pin history, so a backward pin fails in CI too, where the
+  # working tree always equals HEAD. It needs full history.
   defp forward_only!(kind, cache, commit) do
-    case System.cmd("git", ["show", "HEAD:" <> pin_path(kind)], cd: @root, stderr_to_stdout: true) do
-      {bytes, 0} ->
-        %{"commit" => previous} = :json.decode(bytes)
-        reachable!(cache, previous, commit, "the new pin does not descend from the pin at HEAD")
-
-      _no_committed_pin ->
-        :ok
-    end
+    (committed_pins(kind) ++ [commit])
+    |> Enum.dedup()
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.each(fn [older, newer] ->
+      reachable!(cache, older, newer, "the pin history moves backward from #{older}")
+    end)
 
     case File.read(Path.join(@root, stamp_path(kind))) do
       {:ok, previous} ->
@@ -116,12 +141,38 @@ defmodule CharterAgreementSigner.TypeScriptSources do
           cache,
           previous,
           commit,
-          "the new pin does not descend from the last materialized pin"
+          "the new pin does not descend from the last materialized pin; to build an older " <>
+            "pin on purpose, delete #{stamp_path(kind)} first"
         )
 
       _no_materialized_pin ->
         :ok
     end
+  end
+
+  defp committed_pins(kind) do
+    case System.cmd("git", ["rev-parse", "--is-shallow-repository"], cd: @root) do
+      {"false\n", 0} ->
+        :ok
+
+      _shallow ->
+        raise("typescript source: the pin history check needs a full clone (fetch-depth 0)")
+    end
+
+    {log, 0} =
+      System.cmd("git", ["log", "--reverse", "--format=%H", "--", pin_path(kind)], cd: @root)
+
+    log
+    |> String.split()
+    |> Enum.flat_map(fn sha ->
+      case System.cmd("git", ["show", "#{sha}:#{pin_path(kind)}"],
+             cd: @root,
+             stderr_to_stdout: true
+           ) do
+        {bytes, 0} -> [Map.fetch!(:json.decode(bytes), "commit")]
+        _deleted_at_sha -> []
+      end
+    end)
   end
 
   defp extract!(kind, cache, commit) do

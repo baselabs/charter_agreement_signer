@@ -19,6 +19,15 @@ and this project adheres to
   movement, archive blob checks and current-stamp checks.
 - A Linux CI job and `mix ci` steps that build both pinned sources and run
   the TypeScript signer's own test suite with its locked npm dependencies.
+  The suite must run at least the pin's `minimum_tests` with none failing,
+  and a descriptor signed by the pinned TypeScript signer must verify under
+  CAP. Forward-only movement is checked over the whole pin history, so a
+  committed backward pin fails in CI too.
+- Options must be an atom-keyed map or a keyword list with each key once;
+  anything else returns `{:error, {:invalid_input, :invalid_type}}` (a
+  non-keyword list used to raise, a string key was ignored, and a repeated
+  key let the last value win). Checks run in a fixed order: options,
+  limits, algorithm, then the key snapshot.
   README and
   `mix ci` descriptions now state exactly which checks run.
 - The telemetry class `:unsupported_substrate` for

@@ -269,7 +269,9 @@ defmodule CharterAgreementSigner do
   # The shared signing tail (the BARA universal-companion primitive, the
   # R-1/C3 house grammar):
   #
-  # resolve_key_identity → CAP producer → sign_via_handle → verify_signature
+  # The public entry points first normalize the options, resolve the limits
+  # and the algorithm, then take the one key snapshot (resolve_key_identity).
+  # This tail then runs: CAP producer → sign_via_handle → verify_signature
   # → CAP.assemble_compact → CAP post-sign verify. Every artifact this
   # library signs flows through here. verify_signature is the wrong-key guard:
   # a signature that does not verify against the snapshot's public key is
@@ -459,8 +461,21 @@ defmodule CharterAgreementSigner do
       else: {:cont, acc}
   end
 
-  defp normalize_opts(opts) when is_map(opts), do: {:ok, opts}
-  defp normalize_opts(opts) when is_list(opts), do: {:ok, Map.new(opts)}
+  # Options are an atom-keyed map or a keyword list with each key once. A
+  # string key or a repeated key would otherwise be ignored or silently
+  # overridden, and a list that is not a keyword list would raise.
+  defp normalize_opts(opts) when is_map(opts) do
+    if opts |> Map.keys() |> Enum.all?(&is_atom/1),
+      do: {:ok, opts},
+      else: {:error, {:invalid_input, :invalid_type}}
+  end
+
+  defp normalize_opts(opts) when is_list(opts) do
+    if Keyword.keyword?(opts) and Enum.uniq(Keyword.keys(opts)) == Keyword.keys(opts),
+      do: {:ok, Map.new(opts)},
+      else: {:error, {:invalid_input, :invalid_type}}
+  end
+
   defp normalize_opts(_opts), do: {:error, {:invalid_input, :invalid_type}}
 
   defp resolve_limits(opts) do

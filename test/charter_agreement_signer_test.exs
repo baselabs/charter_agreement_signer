@@ -334,6 +334,25 @@ defmodule CharterAgreementSignerTest do
     end
   end
 
+  test "options that are not a keyword list or an atom-keyed map are invalid_type, never a raise" do
+    setup = ChainFixture.base()
+    handle = {RawKey, setup.issuer_handle}
+    claims = ChainFixture.mint(setup.issuer.claims)
+
+    # a list that is not a keyword list; a repeated key; string keys, which
+    # would otherwise be ignored and fall back to the default algorithm
+    for bad_opts <- [
+          [:x],
+          [{"algorithm", "Ed25519"}],
+          [algorithm: "bogus", algorithm: "Ed25519"],
+          %{"algorithm" => "bogus"}
+        ] do
+      assert {:error, {:invalid_input, :invalid_type}} =
+               CharterAgreementSigner.sign_descriptor(claims, handle, bad_opts),
+             inspect(bad_opts)
+    end
+  end
+
   defp header_kid(compact) do
     [protected_segment, _payload_segment, _signature] = String.split(compact, ".")
 
