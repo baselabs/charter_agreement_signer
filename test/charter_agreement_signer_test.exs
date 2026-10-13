@@ -6,7 +6,7 @@ defmodule CharterAgreementSignerTest do
   catches a snapshot key the party descriptor does not pin.
   """
 
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias CharterAgreementProtocol, as: CAP
   alias CharterAgreementProtocol.{ArtifactSet, Limits}
@@ -20,6 +20,16 @@ defmodule CharterAgreementSignerTest do
     ReceiptFixture,
     TerminationFixture
   }
+
+  setup do
+    Code.ensure_loaded!(RawKey)
+    :erlang.trace_pattern({RawKey, :sign, 2}, true, [:call_count])
+    on_exit(fn -> :erlang.trace_pattern({RawKey, :sign, 2}, false, [:call_count]) end)
+  end
+
+  defp refute_signed do
+    assert {:call_count, 0} = :erlang.trace_info({RawKey, :sign, 2}, :call_count)
+  end
 
   # Substrate note: minting ML-DSA-65 keys needs the OTP runtime linked
   # against OpenSSL >= 3.5 (Ubuntu 24.04's system OpenSSL is 3.0.x). Each
@@ -56,10 +66,10 @@ defmodule CharterAgreementSignerTest do
     assert {:error, {:invalid_input, :algorithm_unsupported}} =
              CharterAgreementSigner.sign_descriptor(claims, handle, %{algorithm: "ML-DSA-87"})
 
-    # an Ed25519 handle cannot satisfy the ML-DSA signature length
+    # CAP checks the snapshot against the selected key algorithm.
     classical = {RawKey, RawKey.generate("classical", :binary.copy(<<1>>, 32))}
 
-    assert {:error, :signing_failed} =
+    assert {:error, :invalid_key_handle} =
              CharterAgreementSigner.sign_descriptor(claims, classical, %{algorithm: "ML-DSA-65"})
   end
 
@@ -118,28 +128,22 @@ defmodule CharterAgreementSignerTest do
     assert {:ok, _facts} = CAP.verify_receipt(compact, revision, Limits.default())
   end
 
-  test "the post-sign verify rejects a snapshot key the descriptor does not pin" do
+  test "a snapshot key absent from the descriptor is refused before signing" do
     setup = ChainFixture.base()
-    # A handle whose key is NOT the descriptor's pinned key: the producer and
-    # the crypto guard both pass (the handle signs with exactly the key it
-    # advertises), but CAP's descriptor verify fails — so the signer must
-    # refuse to return the artifact.
     stranger = RawKey.generate("stranger-key-001", <<7::256>>)
 
-    assert {:error, :verification_failed} =
+    assert {:error, {:refused, :signing_key_mismatch}} =
              CharterAgreementSigner.sign_descriptor(
                ChainFixture.mint(setup.issuer.claims),
                {RawKey, stranger}
              )
+
+    refute_signed()
   end
 
-  test "a successor descriptor requires predecessor facts for the post-sign verify" do
+  test "a successor without predecessor facts is rejected before signing" do
     setup = ChainFixture.base()
-    # Signing the SAME genesis claims while claiming descriptor_number 2 via
-    # claims override: CAP's producer accepts the claims shape, the signature
-    # verifies, but verify_descriptor with a nil predecessor cannot verify a
-    # non-genesis descriptor — surfaced here as :verification_failed, never a
-    # silent success.
+
     successor_claims =
       Map.merge(ChainFixture.mint(setup.issuer.claims), %{
         "descriptor_number" => 2,
@@ -147,11 +151,13 @@ defmodule CharterAgreementSignerTest do
         "prev_descriptor_digest" => setup.issuer.digest
       })
 
-    assert {:error, :verification_failed} =
+    assert {:error, {:invalid_input, :descriptor_chain_invalid}} =
              CharterAgreementSigner.sign_descriptor(
                successor_claims,
                {RawKey, setup.issuer_handle}
              )
+
+    refute_signed()
   end
 
   test "invalid limits are rejected as input, not as verification failures" do
@@ -167,25 +173,20 @@ defmodule CharterAgreementSignerTest do
              )
   end
 
-  test "caller limits too narrow to decode the retained revision are :verification_failed" do
-    # The producer verifies the set on DEFAULT limits; only the post-sign
-    # verify runs on the caller's. Limits that cannot decode the retained
-    # revision reject the just-signed artifact — never a silent success.
+  test "limits too small for the final acceptance reject before signing" do
     setup = ChainFixture.base()
     {:ok, set} = ChainFixture.raw_set(setup, [setup.genesis], [], [])
     claims = ChainFixture.mint(AcceptanceFixture.claims(setup.genesis, setup.issuer, "issuer"))
 
-    assert {:error, :verification_failed} =
+    assert {:error, {:invalid_input, :signing_input_invalid}} =
              CharterAgreementSigner.sign_acceptance(claims, {RawKey, setup.issuer_handle}, set, %{
                limits: %{Limits.default() | max_bytes: 200}
              })
+
+    refute_signed()
   end
 
-  test "caller limits too narrow to decode the party descriptor are :verification_failed" do
-    # A fat descriptor (a padded optional extension plus float/boolean flag
-    # values) bound as the issuer party of its own genesis: the producer, on
-    # defaults, accepts it; caller max_bytes between the two artifact sizes
-    # decodes the revision but halts on the descriptor.
+  test "limits too small for a context descriptor reject before signing" do
     setup = ChainFixture.base()
     {kid, _public, private} = setup.issuer_handle
 
@@ -220,10 +221,12 @@ defmodule CharterAgreementSignerTest do
 
     claims = ChainFixture.mint(AcceptanceFixture.claims(genesis, fat, "issuer"))
 
-    assert {:error, :verification_failed} =
+    assert {:error, {:invalid_input, :limit_exceeded}} =
              CharterAgreementSigner.sign_acceptance(claims, {RawKey, setup.issuer_handle}, set, %{
                limits: %{Limits.default() | max_bytes: mid}
              })
+
+    refute_signed()
   end
 
   test "a termination over an already-terminated charter is refused before the key is used" do
@@ -244,7 +247,7 @@ defmodule CharterAgreementSignerTest do
              CharterAgreementSigner.sign_termination(claims, {RawKey, setup.issuer_handle}, set)
   end
 
-  test "a revision party with no descriptor in the set is :verification_failed, never a crash" do
+  test "an unheld successor descriptor rejects acceptance before signing" do
     setup = ChainFixture.base()
     second_handle = RawKey.generate("issuer-key-002", <<3::256>>)
     third_handle = RawKey.generate("issuer-key-003", <<4::256>>)
@@ -303,8 +306,10 @@ defmodule CharterAgreementSignerTest do
                set
              )
 
-    assert {:error, :verification_failed} =
+    assert {:error, {:invalid_input, :acceptance_claims_mismatch}} =
              CharterAgreementSigner.sign_acceptance(claims, handle, set)
+
+    refute_signed()
 
     # Holding descriptor 3 makes the same request succeed.
     {:ok, complete} = ArtifactSet.build(revisions, [], [], descriptors ++ [third.compact])

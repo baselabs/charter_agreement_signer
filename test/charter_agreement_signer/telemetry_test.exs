@@ -130,7 +130,7 @@ defmodule CharterAgreementSigner.TelemetryTest do
     assert [{_start, _, _}, {@prefix ++ [:stop], _, %{result_class: :signing_failed}}] = events
   end
 
-  test ":verification_failed class fires for an unpinned snapshot key through the real entry point" do
+  test ":refused class fires for an unpinned snapshot key through the real entry point" do
     setup = ChainFixture.base()
     stranger = RawKey.generate("stranger-key-001", <<7::256>>)
 
@@ -142,7 +142,7 @@ defmodule CharterAgreementSigner.TelemetryTest do
         )
       end)
 
-    assert [{_start, _, _}, {@prefix ++ [:stop], _, %{result_class: :verification_failed}}] =
+    assert [{_start, _, _}, {@prefix ++ [:stop], _, %{result_class: :refused}}] =
              events
   end
 
@@ -215,8 +215,6 @@ defmodule CharterAgreementSigner.TelemetryTest do
   # property it exists for: telemetry never outranks the signature.
 
   test "a raising attached handler never reaches the signer's result" do
-    setup = ChainFixture.base()
-
     # :telemetry detaches a handler on its FIRST fault, so each phase below
     # attaches a FRESH faulting handler — every assert stays load-bearing.
     :ok =
@@ -283,33 +281,16 @@ defmodule CharterAgreementSigner.TelemetryTest do
     :telemetry.detach("telemetry-crash-sign")
   end
 
-  test "a substrate outcome has its own class and keeps the result unchanged" do
-    outcome = {:error, :algorithm_unsupported_on_substrate}
-
-    for object <- Telemetry.objects() do
-      {result, events} =
-        capture_events(fn -> Telemetry.sign_span(object, fn -> outcome end) end)
-
-      assert result == outcome
-
-      assert [
-               {@prefix ++ [:start], %{count: 1}, %{object: ^object}},
-               {@prefix ++ [:stop], %{duration: duration},
-                %{object: ^object, result_class: :unsupported_substrate}}
-             ] = events
-
-      assert is_integer(duration) and duration >= 0
-    end
-  end
-
-  test "a key mismatch uses the refusal class" do
-    outcome = {:error, {:refused, :signing_key_mismatch}}
+  test "the finish failure class remains available for a CAP contract failure" do
+    outcome = {:error, :verification_failed}
 
     {result, events} =
       capture_events(fn -> Telemetry.sign_span(:descriptor, fn -> outcome end) end)
 
     assert result == outcome
-    assert [{_start, _, _}, {@prefix ++ [:stop], _, %{result_class: :refused}}] = events
+
+    assert [{_start, _, _}, {@prefix ++ [:stop], _, %{result_class: :verification_failed}}] =
+             events
   end
 
   test "an off-spec span result classifies as :signing_failed, never success" do

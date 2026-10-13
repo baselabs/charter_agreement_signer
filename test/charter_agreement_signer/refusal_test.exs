@@ -5,7 +5,7 @@ defmodule CharterAgreementSigner.RefusalTest do
   a generic failure that would hide WHY the signer refused.
   """
 
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias CharterAgreementSigner.{
     AcceptanceFixture,
@@ -16,6 +16,17 @@ defmodule CharterAgreementSigner.RefusalTest do
   }
 
   setup do
+    Code.ensure_loaded!(RawKey)
+    :erlang.trace_pattern({RawKey, :sign, 2}, true, [:call_count])
+
+    on_exit(fn ->
+      try do
+        assert {:call_count, 0} = :erlang.trace_info({RawKey, :sign, 2}, :call_count)
+      after
+        :erlang.trace_pattern({RawKey, :sign, 2}, false, [:call_count])
+      end
+    end)
+
     setup = ChainFixture.base()
     {:ok, set} = ChainFixture.raw_set(setup, [setup.genesis], [], [])
     %{setup: setup, set: set}

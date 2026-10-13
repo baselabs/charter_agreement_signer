@@ -1,32 +1,40 @@
 # Errors
 
-The signer's error vocabulary is closed and value-free: no key material,
-message bytes, or claims content ever appears in an error, and callers may
-pattern-match on exactly the shapes below.
+Errors are closed and value-free. They contain no key material, message
+bytes or claims content. Public functions return `{:error, reason}` with
+one of these reasons.
 
-## The closed set
-
-| Error | Meaning | Caller action |
+| Reason | Meaning | Caller action |
 |---|---|---|
-| `:invalid_key_handle` | The handle is malformed (`{module, ref}` with a non-module first element), the module is missing, a callback crashed (raise/exit/throw), or the `key_identity/1` snapshot was not a non-empty `kid` plus a public key at a registry key length (32 bytes for `Ed25519`; 1312/1952/2592 for the ML-DSA parameterizations). | Fix the handle or the custody behind it. |
-| `:signing_failed` | `sign/2` rejected, returned a signature whose length does not match the selected algorithm's registry row, violated the `{:ok, _} \| {:error, _}` contract, or — the load-bearing case — the signature did not verify against the snapshot's public key (the wrong-key guard). | Escalate to the operator; a wrong-key sign is a custody misconfiguration or a rotation race, never something to retry with the same handle state. |
-| `{:refused, :signing_refused}` | CAP's honest-signer refusal (R1–R3): the acceptance/termination claims contradict the caller's own verified artifact set — false revision coordinates, an equivocating number, an ancestry that excludes an accepted head, a non-governing revision at the notice's effective time, an unlisted reason code, or a party not in the revision. The refusal happens BEFORE `sign/2` is called; no signature exists. | Fix the claims or the view. Never bypass by hand-building a signing input. |
-| `{:invalid_input, code}` | CAP (or the opts normalization) rejected the input structurally. `code` is drawn from the protocol package's closed, architecture-gated vocabulary, plus one signer-local code: `:algorithm_unsupported` (an `:algorithm` value outside the emission set `"Ed25519"`/`"ML-DSA-65"`, including non-strings, checked before the key snapshot; absent or `nil` selects the Ed25519 default). CAP-sourced codes include: `:signing_input_invalid` (claims shape: unknown member, wrong scalar type, or a `protocol_revision` that does not exactly match the selected emission pair's revision (revision-3 claims under the default Ed25519 selection refuse here, for example): CAP 0.3+ mints exactly `("Ed25519", 2)` by default and `("ML-DSA-65", 3)` under the `ML-DSA-65` algorithm option, and its binding rule refuses revision-1 claims at mint: OR the handle snapshot's `kid` failing the protocol's charset/length gate, which the signer checks only for non-emptiness), `:compact_invalid` (a set member is not a compact JWS), `:signature_invalid` (defensive: unreachable through this library: a wrong-length signature is `:signing_failed` before assembly; listed because CAP's assembler emits it on the raw path), `:invalid_limits` (caller-supplied limits malformed or out of range), `:invalid_type` (an opts argument that is neither a map nor a keyword list), and the rest of CAP's code table as the set evolves. | Fix the input per the protocol package's error reference. |
-| `:verification_failed` | The post-sign CAP verify of the assembled artifact rejected it: the snapshot key is not pinned in the descriptor's `verification_keys` (or its `kid` does not match), or a successor descriptor was signed without `:predecessor` facts. | Align the handle's key with the descriptor you are signing, or supply the predecessor facts. |
+| `:invalid_key_handle` | Malformed handle, missing or crashing identity callback, a snapshot without a non-empty binary kid and binary key, or CAP's `:signing_key_invalid` for the selected algorithm. | Fix the handle or snapshot. |
+| `:signing_failed` | The custody callback rejected, crashed, returned an invalid signature shape or length, or signed with a key different from the snapshot. | Check custody and rotation handling. |
+| `{:refused, :signing_refused}` | CAP's R1-R3 checks found contradictory claims, equivocation, missing ancestry coverage, or a termination inconsistent with the governing view. | Correct the claims or retained view. |
+| `{:refused, :signing_key_mismatch}` | No active descriptor key matches the snapshot kid, public key bytes and selected key algorithm in the holder's own context. | Align the handle with the descriptor for the signing role. |
+| `:algorithm_unsupported_on_substrate` | The runtime cannot verify the artifact or a context artifact's required algorithm. | Use a runtime that supports the required algorithm. |
+| `{:invalid_input, code}` | Options or CAP's pre-sign checks rejected input. Codes include `:invalid_type`, `:invalid_limits`, `:invalid_profile`, `:algorithm_unsupported`, `:algorithm_outside_profile`, `:revision_outside_profile`, `:signing_input_invalid`, `:limit_exceeded`, `:descriptor_chain_invalid`, `:acceptance_claims_mismatch`, `:termination_claims_mismatch` and `:receipt_claims_mismatch`. Other CAP preparation codes pass through in this shape. | Correct the input according to CAP's error reference. |
+| `:verification_failed` | CAP's finish step rejected what its pre-sign step approved, after the signature passed the wrong-key guard. | Report the reproducible CAP contract failure. |
 
-## Reading order for a failure
+Option checks run before the snapshot: normalize options, resolve limits,
+profile, then algorithm. An absent or `nil` algorithm selects `"Ed25519"`;
+anything outside `"Ed25519"` and `"ML-DSA-65"` returns
+`{:invalid_input, :algorithm_unsupported}`. A malformed profile returns
+`{:invalid_input, :invalid_profile}`. Explicit `nil` limits or profile are
+malformed. Only descriptor signing accepts `:predecessor`.
 
-1. `:invalid_key_handle` / `:signing_failed` — the custody boundary; nothing
-   about the protocol is wrong.
-2. `{:refused, _}` / `{:invalid_input, _}` — the claims-or-view side; CAP
-   refused before any key was touched (`:refused`) or rejected the shape.
-3. `:verification_failed` — the signed artifact and the verifying context
-   disagree; the signature itself is fine.
+The snapshot check validates only its shape. CAP validates key shape for
+the selected algorithm and checks the holder's own descriptor membership.
+A bare-revision receipt skips membership because a revision does not name
+its signing key; key shape and runtime support still apply.
 
-## Stability
+Every preparation refusal occurs before `sign/2`. Limits cover the whole
+set read, including counterparties' artifacts, and the final compact.
+Malformed context types return `{:invalid_input, :invalid_type}`; malformed
+fields inside retained facts return CAP's typed context errors.
 
-The atom set is closed and additive-only within the 0.x line; a removal or
-rename is a breaking change and will follow the protocol package's
-compatibility discipline. `{:invalid_input, code}` tracks the protocol
-package's own gated vocabulary — codes appear here as CAP emits them, and
-CAP gates both directions (an undeclared emission fails CAP's build).
+CAP maps `:signing_refused` and `:signing_key_mismatch` to the refusal
+shape, `:signing_key_invalid` to `:invalid_key_handle`, and substrate errors
+to the top-level substrate reason. Every other preparation error is
+`{:invalid_input, code}`. Every finish error is `:verification_failed`.
+
+The vocabulary is additive within a minor line. Changed error shapes or
+codes require a minor release and an upgrade note.

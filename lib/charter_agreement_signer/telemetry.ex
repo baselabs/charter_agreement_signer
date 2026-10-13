@@ -135,22 +135,23 @@ defmodule CharterAgreementSigner.Telemetry do
     end
   end
 
-  # The translated classification over the signer's public outcomes and the
-  # two classified ahead of the signing path returning them. Error VALUES never ride along; the {:invalid_input,
-  # code} pair collapses to its class. The catch-all is unreachable per the
-  # entry points' closed @specs — an off-spec shape is a signing-path
-  # anomaly, never classified as success.
+  # Collapse codes into the closed, value-free classes.
   defp classify({:ok, _result}), do: :ok
   defp classify({:error, {:invalid_input, _code}}), do: :invalid_input
-  defp classify({:error, :invalid_key_handle}), do: :invalid_key_handle
-  defp classify({:error, :signing_failed}), do: :signing_failed
-  defp classify({:error, :verification_failed}), do: :verification_failed
+
+  defp classify({:error, code})
+       when code in [
+              :invalid_key_handle,
+              :signing_failed,
+              :verification_failed,
+              :algorithm_unsupported_on_substrate
+            ],
+       do: if(code == :algorithm_unsupported_on_substrate, do: :unsupported_substrate, else: code)
 
   defp classify({:error, {:refused, code}})
        when code in [:signing_refused, :signing_key_mismatch],
        do: :refused
 
-  defp classify({:error, :algorithm_unsupported_on_substrate}), do: :unsupported_substrate
   defp classify(_off_spec), do: :signing_failed
 
   defp validate_object(object) when object in @objects, do: :ok

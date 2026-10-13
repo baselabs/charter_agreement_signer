@@ -13,9 +13,10 @@ Amended 2026-10-13: the closed class list is `:ok`, `:invalid_input`,
 and `:unsupported_substrate`. The span classifies
 `{:error, :algorithm_unsupported_on_substrate}` as `:unsupported_substrate`
 and `{:error, {:refused, :signing_key_mismatch}}` as `:refused`. Neither
-outcome falls through to the custody class. The public span seam tests these
-mappings directly; signing entry point tests still cover their emitted
-outcomes.
+outcome falls through to the custody class. Real signing calls test mismatch and substrate mappings, with substrate
+calls on the capability-limited Linux job. The finish failure class uses
+the public span seam because a valid plan and custody signature cannot
+produce that result under CAP's contract.
 
 ## Context
 

@@ -17,7 +17,14 @@ defmodule CharterAgreementSigner.WrongKeyGateTest do
   use ExUnit.Case, async: true
 
   alias CharterAgreementProtocol, as: CAP
-  alias CharterAgreementSigner.{AcceptanceFixture, ChainFixture, Keys.RogueKey}
+
+  alias CharterAgreementSigner.{
+    AcceptanceFixture,
+    ChainFixture,
+    Keys.RogueKey,
+    ReceiptFixture,
+    TerminationFixture
+  }
 
   setup do
     setup = ChainFixture.base()
@@ -52,6 +59,35 @@ defmodule CharterAgreementSigner.WrongKeyGateTest do
 
     assert {:error, :signing_failed} =
              CharterAgreementSigner.sign_acceptance(claims, {RogueKey, rogue_handle}, set)
+  end
+
+  test "a wrong-key sign is signing_failed on the receipt path", %{
+    setup: setup,
+    rogue_handle: rogue_handle
+  } do
+    {:ok, revision} = CAP.decode_charter_revision(setup.genesis.bytes, CAP.Limits.default())
+    claims = ChainFixture.mint(ReceiptFixture.claims(setup.genesis))
+
+    assert {:error, :signing_failed} =
+             CharterAgreementSigner.sign_receipt(claims, {RogueKey, rogue_handle}, revision)
+  end
+
+  test "a wrong-key sign is signing_failed on the termination path", %{
+    setup: setup,
+    rogue_handle: rogue_handle
+  } do
+    {:ok, set} =
+      ChainFixture.raw_set(
+        setup,
+        [setup.genesis],
+        ChainFixture.dual_acceptances(setup.genesis, setup),
+        []
+      )
+
+    claims = ChainFixture.mint(TerminationFixture.claims(setup.genesis, setup.issuer, "issuer"))
+
+    assert {:error, :signing_failed} =
+             CharterAgreementSigner.sign_termination(claims, {RogueKey, rogue_handle}, set)
   end
 
   test "the rogue signature is structurally assemblable — the guard is the only pre-assembly rejection point",

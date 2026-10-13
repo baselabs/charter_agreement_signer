@@ -33,10 +33,10 @@ The result-class axis covers these closed span outcomes:
 | Class | Span result | Operator reading |
 |---|---|---|
 | `:ok` | `{:ok, %{...}}` | nothing |
-| `:invalid_input` | `{:error, {:invalid_input, code}}` | claims shape, opts, limits, or a set the protocol rejected — the code never rides along |
-| `:invalid_key_handle` | `{:error, :invalid_key_handle}` | caller wiring: the handle is malformed or its callback crashed |
+| `:invalid_input` | `{:error, {:invalid_input, code}}` | claims, context, options, limits or profile rejected before signing; the code never rides along |
+| `:invalid_key_handle` | `{:error, :invalid_key_handle}` | caller wiring: malformed handle, faulting identity callback or invalid snapshot key |
 | `:signing_failed` | `{:error, :signing_failed}` | custody misconfiguration or a wrong-key race — the highest-priority signal this surface offers |
-| `:verification_failed` | `{:error, :verification_failed}` | the assembled artifact failed the post-sign protocol verify (unpinned key, missing predecessor facts) |
+| `:verification_failed` | `{:error, :verification_failed}` | CAP finish rejected what preparation approved after the custody guard passed |
 | `:refused` | `{:error, {:refused, code}}` | claims contradict the supplied view (`signing_refused`) or the snapshot key does not match (`signing_key_mismatch`) |
 | `:unsupported_substrate` | `{:error, :algorithm_unsupported_on_substrate}` | the runtime cannot verify the required algorithm |
 
@@ -45,8 +45,11 @@ and `classes/0`); this section's tables are diffed against them by the test
 suite, in both directions — a value here that the module does not emit, or an
 axis member missing here, reds the build.
 
-The public `sign_span/2` seam classifies both refusal codes and the substrate
-outcome directly. Signing entry point return shapes are in
+Real signing calls exercise key mismatch and substrate classes. The
+capability-limited job exercises substrate failures on every signing kind.
+The finish failure class is tested at the public `sign_span/2` seam because
+CAP preparation plus the custody guard prevents a caller from producing
+that outcome under CAP's contract. Signing entry point return shapes are in
 [errors.md](errors.md). The TypeScript signer has no telemetry surface.
 
 ## Attaching

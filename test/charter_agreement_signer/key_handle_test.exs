@@ -10,6 +10,7 @@ defmodule CharterAgreementSigner.KeyHandleTest do
 
   alias CharterAgreementSigner.{
     ChainFixture,
+    DescriptorFixture,
     Keys.RawKey,
     Keys.RawMLDSA65,
     Keys.RogueKey
@@ -85,7 +86,9 @@ defmodule CharterAgreementSigner.KeyHandleTest do
     for module <- [ExitingSign, ThrowingSign, RejectingSign, ShortSignature] do
       assert {:error, :signing_failed} =
                CharterAgreementSigner.sign_descriptor(
-                 ChainFixture.mint(setup.issuer.claims),
+                 Map.put(ChainFixture.mint(setup.issuer.claims), "verification_keys", [
+                   DescriptorFixture.key({"key-001", RealKey.public_key(), nil})
+                 ]),
                  {module, :ref}
                )
     end

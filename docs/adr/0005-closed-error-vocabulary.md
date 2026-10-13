@@ -21,6 +21,14 @@ span seam, `:algorithm_unsupported_on_substrate` maps to
 `:refused`. The classes carry no error code or value. The signing entry
 points' current return shapes remain documented in `docs/errors.md`.
 
+Amended 2026-10-13 for CAP 0.6.0: preparation maps `signing_refused`
+and `signing_key_mismatch` to the refusal shape, `signing_key_invalid` to
+`invalid_key_handle`, and `algorithm_unsupported_on_substrate` to the
+same top-level atom. Every other preparation code uses `invalid_input`.
+Every finish error uses `verification_failed`, meaning CAP rejected what
+preparation approved after the custody signature passed the raw guard.
+The signer retains no context derivation or public verifier routing.
+
 ## Context
 
 CAP returns typed, value-free failures (`%CharterAgreementProtocol.Error{}`).
