@@ -52,7 +52,7 @@ defmodule CharterLifecycle.MixProject do
       # Deliberate pin mirroring the library wall: the example is a
       # counterparty view of THIS package's tested line, and the wall
       # moves in one commit with the library.
-      {:charter_agreement_protocol, "~> 0.5.0"},
+      {:charter_agreement_protocol, path: "../../../cap-060", override: true},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end

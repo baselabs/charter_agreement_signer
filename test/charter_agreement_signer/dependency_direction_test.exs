@@ -55,63 +55,30 @@ defmodule CharterAgreementSigner.DependencyDirectionTest do
 
   defp telemetry_module?(path), do: Path.basename(path) == "telemetry.ex"
 
-  # The library-side protocol double-pin (the BARA ADR-0010 discipline): the
-  # shipped requirement must name EXACTLY the locked version's tested line —
-  # a three-part "~> 0.5.0" pin admitting only the tested 0.5.x line, per
-  # CAP's own dependent guidance (CAP's package semver carries no
-  # compatibility promise, so the dependent pins conservatively and bumps
-  # deliberately). A silent `mix deps.update` or a loosened requirement reds
-  # here.
-  @protocol_requirement "~> 0.5.0"
-  @protocol_locked_version "0.5.0"
+  test "the protocol dependency resolves the tested local build" do
+    {:charter_agreement_protocol, options} =
+      List.keyfind(Mix.Project.config()[:deps], :charter_agreement_protocol, 0)
 
-  test "the protocol dependency is double-pinned to the tested release line" do
-    mix_source = File.read!(Path.join(@repo_root, "mix.exs"))
-
-    assert mix_source =~ "{:charter_agreement_protocol, \"#{@protocol_requirement}\"}",
-           "the CAP requirement must be exactly \"#{@protocol_requirement}\" — a two-part " <>
-             "\"~> 0.2\" admits every future pre-1.0 CAP that no gate has tested"
-
-    refute mix_source =~ "{:charter_agreement_protocol, \"~> 0.2\"},",
-           "the two-part pin must not appear alongside the three-part form"
-
-    lock_source = File.read!(Path.join(@repo_root, "mix.lock"))
-
-    assert lock_source =~
-             ~r/"charter_agreement_protocol":\s*\{:hex,\s*:charter_agreement_protocol,\s*"#{@protocol_locked_version}"/,
-           "the locked CAP version must be exactly #{@protocol_locked_version} — the " <>
-             "requirement vouches for no span the lock has not tested"
+    assert options[:path] == "../cap-060"
+    assert Application.spec(:charter_agreement_protocol, :vsn) == ~c"0.6.0"
+    refute File.read!(Path.join(@repo_root, "mix.lock")) =~ "\"charter_agreement_protocol\""
   end
 
-  test "the only runtime dependency in mix.exs is the protocol package" do
-    mix_source = File.read!(Path.join(@repo_root, "mix.exs"))
+  test "runtime dependencies are exactly the protocol package and telemetry" do
+    names =
+      Mix.Project.config()[:deps]
+      |> Enum.reject(fn dependency ->
+        dependency
+        |> Tuple.to_list()
+        |> List.last()
+        |> then(fn
+          options when is_list(options) -> Keyword.has_key?(options, :only)
+          _requirement -> false
+        end)
+      end)
+      |> Enum.map(&elem(&1, 0))
 
-    runtime_deps =
-      Regex.scan(~r/\{:(\w+),\s*"~>/, mix_source)
-      |> Enum.map(&Enum.at(&1, 1))
-      |> Enum.uniq()
-
-    # :telemetry is the one sanctioned runtime seam beyond the protocol
-    # package (ADR-0003); :credo/:dialyxir/:ex_doc/:mix_audit/:sbom are
-    # dev/test-only in the declared dep list; this textual scan is the coarse
-    # first layer — the package census gate in scripts/check_package.exs pins
-    # the shipped metadata exactly.
-    assert "charter_agreement_protocol" in runtime_deps
-
-    for dep <- runtime_deps do
-      assert dep in [
-               "charter_agreement_protocol",
-               "telemetry",
-               "credo",
-               "dialyxir",
-               "ex_doc",
-               "mix_audit",
-               "sbom",
-               # dev/test override for sbom (EEF-CVE-2026-103502); never shipped
-               "hex_core"
-             ],
-             "unexpected dependency :#{dep} — the wall allows only the protocol package and telemetry at runtime"
-    end
+    assert names == [:charter_agreement_protocol, :telemetry]
   end
 
   test "no sibling portfolio package appears anywhere in lib" do

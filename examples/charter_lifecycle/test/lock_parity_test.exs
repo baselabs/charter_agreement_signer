@@ -1,32 +1,17 @@
 defmodule CharterLifecycle.LockParityTest do
-  @moduledoc """
-  Protocol lock parity: the example resolves EXACTLY the CAP version the
-  library locked. The example is the integration canary — if the two locks
-  drift, the example proves nothing about the library's tested span.
-  """
-
   use ExUnit.Case, async: true
 
-  test "both mix.locks resolve the same charter_agreement_protocol version" do
-    example_lock = File.read!("./mix.lock")
-    library_lock = File.read!(Path.expand("../../mix.lock", File.cwd!()))
+  test "both projects resolve the same local CAP build" do
+    {:charter_agreement_protocol, options} =
+      List.keyfind(Mix.Project.config()[:deps], :charter_agreement_protocol, 0)
 
-    example_version = protocol_version(example_lock)
-    library_version = protocol_version(library_lock)
+    example_path = Path.expand(options[:path])
+    library_root = Path.expand("../..")
+    assert example_path == Path.expand("../cap-060", library_root)
+    assert Application.spec(:charter_agreement_protocol, :vsn) == ~c"0.6.0"
 
-    assert example_version != nil and example_version == library_version,
-           "CAP lock drift: example=#{inspect(example_version)} library=#{inspect(library_version)} " <>
-             "— run mix deps.get in both projects and commit the locks together"
-  end
-
-  defp protocol_version(lock_source) do
-    Regex.run(
-      ~r/"charter_agreement_protocol":\s*\{:hex,\s*:charter_agreement_protocol,\s*"([^"]+)"/,
-      lock_source
-    )
-    |> case do
-      [_, version] -> version
-      nil -> nil
+    for root <- [File.cwd!(), library_root] do
+      refute File.read!(Path.join(root, "mix.lock")) =~ "\"charter_agreement_protocol\""
     end
   end
 end

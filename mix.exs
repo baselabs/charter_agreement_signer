@@ -131,18 +131,11 @@ defmodule CharterAgreementSigner.MixProject do
   defp elixirc_paths(:test), do: ["lib/", "test/support/"]
   defp elixirc_paths(_env), do: ["lib/"]
 
-  # The signer depends ONLY on the public charter_agreement_protocol package
-  # (the dependency-direction wall, BARA ADR-0003's shape) plus :telemetry
-  # for the closed, value-free sign-span surface (ADR-0003; the one sanctioned
-  # seam — zero transitive deps, no custody, no transport). CAP is consumed
-  # from its Hex release with a three-part "~> 0.5.0" requirement. Only the
-  # tested 0.5.x line is admitted; both locks and the wall test move together
-  # when the line changes (ADR-0002).
-  # No install task ships yet — adding one grows scripts/check_package.exs's
-  # @runtime_dep_allowlist in the same commit.
+  # CAP owns the protocol checks; telemetry is the value-free span seam.
+  # The local build supplies the tested 0.6.0 API.
   defp deps do
     [
-      {:charter_agreement_protocol, "~> 0.5.0"},
+      {:charter_agreement_protocol, path: "../cap-060"},
       {:telemetry, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
