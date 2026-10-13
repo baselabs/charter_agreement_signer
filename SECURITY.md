@@ -31,7 +31,9 @@ Restated from the signer's boundary invariants, for reporting:
 
 ## Reporting a vulnerability
 
-Report privately to the repository maintainer. Do NOT open a public issue
+Report it privately through GitHub's private vulnerability reporting for
+`baselabs/charter_agreement_signer` (the repository's Security tab, then
+"Report a vulnerability"). Do NOT open a public issue
 containing an exploit, credential, private key, or unreleased vulnerability
 detail.
 

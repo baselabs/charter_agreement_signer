@@ -50,6 +50,8 @@ and this project adheres to
 
 ### Changed
 
+- SECURITY.md sends reports through GitHub private vulnerability reporting, now
+  enabled for this repository.
 - Remove the in-tree TypeScript copy and its old artifact check. The
   supply-chain battery uses the same pinned source steps as local CI.
 - Use `charter_agreement_protocol ~> 0.5.0`, locked to 0.5.0 in the
