@@ -93,6 +93,12 @@ profile, then algorithm, then the key snapshot. A call with bad options or
 limits and a bad key handle returns the options or limits error, where it
 used to return `:invalid_key_handle`.
 
+A short snapshot key plus bad claims now returns `{:invalid_input,
+:signing_input_invalid}` instead of `:invalid_key_handle`. The snapshot
+checks binary shape only; CAP builds claims before checking the selected
+algorithm's key length. Update matches that relied on key length taking
+precedence over bad claims.
+
 Telemetry's closed class list adds `:unsupported_substrate` for the
 `:algorithm_unsupported_on_substrate` span outcome. A
 `{:refused, :signing_key_mismatch}` outcome uses `:refused`. The telemetry

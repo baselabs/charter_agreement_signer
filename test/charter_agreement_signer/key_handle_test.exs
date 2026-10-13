@@ -49,6 +49,8 @@ defmodule CharterAgreementSigner.KeyHandleTest do
 
   defmodule ShortSignature do
     def key_identity(_handle), do: {:ok, {"key-001", RealKey.public_key()}}
+    def sign(message, :long), do: {:ok, RealKey.sign(message) <> <<0>>}
+    def sign(_message, :not_binary), do: {:ok, :invalid_signature}
     def sign(message, _handle), do: {:ok, binary_part(RealKey.sign(message), 0, 63)}
   end
 
@@ -83,13 +85,27 @@ defmodule CharterAgreementSigner.KeyHandleTest do
   end
 
   test "exit/throw/reject/short-signature on the sign path are :signing_failed", %{setup: setup} do
-    for module <- [ExitingSign, ThrowingSign, RejectingSign, ShortSignature] do
+    handles =
+      Enum.map([ExitingSign, ThrowingSign, RejectingSign, ShortSignature], &{&1, :ref}) ++
+        [{ShortSignature, :long}, {ShortSignature, :not_binary}]
+
+    for handle <- handles do
       assert {:error, :signing_failed} =
                CharterAgreementSigner.sign_descriptor(
                  Map.put(ChainFixture.mint(setup.issuer.claims), "verification_keys", [
                    DescriptorFixture.key({"key-001", RealKey.public_key(), nil})
                  ]),
-                 {module, :ref}
+                 handle
+               )
+    end
+
+    for length <- [0, 63, 65] do
+      assert {:error, %{code: :signature_invalid}} =
+               CharterAgreementProtocol.Signature.verify(
+                 "message",
+                 :binary.copy(<<0>>, length),
+                 RealKey.public_key(),
+                 "Ed25519"
                )
     end
   end

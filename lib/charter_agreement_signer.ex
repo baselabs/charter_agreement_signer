@@ -189,7 +189,7 @@ defmodule CharterAgreementSigner do
            "algorithm" => algorithm
          },
          {:ok, plan} <- mapped(CAP.prepare_signing(kind, input, context, limits, profile)),
-         {:ok, signature} <- sign_via_handle(key_handle, plan.signing_input.message, algorithm),
+         {:ok, signature} <- sign_via_handle(key_handle, plan.signing_input.message),
          :ok <- verify_signature(plan.signing_input.message, signature, public_key, algorithm),
          {:ok, compact} <- finish(plan, signature) do
       {:ok, %{result_key(kind) => compact}}
@@ -278,15 +278,11 @@ defmodule CharterAgreementSigner do
 
   defp resolve_key_identity(_handle), do: {:error, :invalid_key_handle}
 
-  defp sign_via_handle({module, handle}, message, algorithm)
+  defp sign_via_handle({module, handle}, message)
        when is_atom(module) and is_binary(message) do
-    signature_bytes = CAP.Algorithm.row_for(algorithm).signature_bytes
-
     case safe_callback(module, :sign, [message, handle]) do
       {:ok, signature} when is_binary(signature) ->
-        if byte_size(signature) == signature_bytes,
-          do: {:ok, signature},
-          else: {:error, :signing_failed}
+        {:ok, signature}
 
       _rejected_or_failed ->
         {:error, :signing_failed}

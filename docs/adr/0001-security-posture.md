@@ -39,11 +39,12 @@ one posture:
    artifact is `:signing_failed`, never a silent false-success. The gate is
    proven red-capable with its own non-vacuity proof (the rogue signature is
    shown structurally assemblable through CAP — the guard is the only
-   pre-assembly rejection point and the only `:signing_failed` producer).
-4. **Post-sign verification.** Every path runs the matching CAP public
-   verify function on the assembled artifact before returning it (per-party
-   descriptor-chain selection for the set-aware paths — the semantic choice
-   ADR-0004 records).
+   rejection point for a wrong-key signature before assembly).
+4. **CAP preparation and finish.** CAP checks the holder's own descriptor
+   key and derives the signing party's descriptor chain and revision before
+   custody. After the raw signature guard passes, `CAP.finish_signing/2`
+   assembles and runs the matching public verifier under the retained
+   context, limits and profile before the signer returns success.
 
 ## Consequences
 

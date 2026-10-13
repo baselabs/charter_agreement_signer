@@ -45,6 +45,10 @@ and this project adheres to
 - Checks run in a fixed order: options, limits, profile, algorithm, then the key
   snapshot. A call with bad options or limits and a bad key handle now
   returns the options or limits error instead of `:invalid_key_handle`.
+  A short snapshot key plus bad claims now returns
+  `{:invalid_input, :signing_input_invalid}` instead of `:invalid_key_handle`:
+  snapshot shape is checked first, then CAP builds claims before checking
+  the selected algorithm's key length. Update error matches for that pair.
 
 ### Added
 

@@ -32,12 +32,13 @@ compromised callback substituting its key) produces `:signing_failed` —
 the artifact is never returned. The test suite proves this gate red-capable:
 the wrong-key test mints a structurally assemblable rogue signature (CAP's
 own assembler accepts it — the framing layer cannot know which key was
-intended) and pins `:signing_failed` as the specific outcome. The guard is
-the only rejection point BEFORE assembly and the only producer of that
-error; the post-sign CAP verify is an independent second barrier, so a
-hypothetical guard removal degrades the descriptor path to
-`:verification_failed` — later and quieter — which is exactly why the gate
-test pins the error atom, not merely failure.
+intended) and pins `:signing_failed` as the specific outcome. CAP preparation checks the holder's own descriptor key before custody.
+The guard then rejects signatures that differ from the snapshot key before
+assembly. CAP's `finish_signing/2` runs public verification as a second
+barrier. Removing the guard would change the wrong-key outcome to the later
+`:verification_failed`, so the gate test pins `:signing_failed`. Faulting or
+rejecting custody callbacks also return `:signing_failed`. CAP's signature
+verifier owns the signature length check.
 
 ## What is deliberately NOT defended here
 

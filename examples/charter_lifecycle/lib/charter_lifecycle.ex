@@ -68,7 +68,7 @@ defmodule CharterLifecycle do
     {:ok, receipt} = sign_receipt(revision, issuer_handle)
 
     # 6. A mutual termination from the acceptor side — signed against the
-    #    ACCEPTED view (the producer's governing rule refuses every revision
+    #    ACCEPTED view (the CAP preparation's governing check refuses every revision
     #    that does not govern at the notice's effective time; an unaccepted
     #    set governs nothing).
     {:ok, termination} =

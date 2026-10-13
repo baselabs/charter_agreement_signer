@@ -4,7 +4,7 @@
 # this example never re-implements canonical bytes. All claims carry
 # protocol_revision 2: this is a greenfield flow, and CAP 0.2's emission rule
 # mints exactly ("Ed25519", 2) — a host hand-write of revision-1 claims would
-# be refused at the producer's provisional decode.
+# be refused during CAP preparation.
 defmodule CharterLifecycle.Charter do
   @moduledoc false
 

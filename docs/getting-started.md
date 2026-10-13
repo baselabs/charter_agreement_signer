@@ -79,8 +79,9 @@ claims = %{
   CharterAgreementSigner.sign_descriptor(claims, {MyApp.PartyHandle, ref})
 ```
 
-The returned compact is already verified: `CAP.verify_descriptor/3` ran
-inside `sign_descriptor/3` before returning. A counterparty verifies the same
+The returned compact is already verified: `CAP.finish_signing/2` assembled
+it and ran `CAP.verify_descriptor/4` under the retained predecessor, limits
+and profile before `sign_descriptor/3` returned. A counterparty verifies the same
 bytes with the protocol package alone.
 
 ## 4. Sign acceptances and terminations against your retained view
