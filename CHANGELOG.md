@@ -28,6 +28,9 @@ and this project adheres to
 
 ### Fixed
 
+- Run the coverage step of `mix ci` in a fresh Mix process. Its earlier
+  `test` step caused Mix to skip the second test invocation, so the listed
+  coverage floor did not run locally.
 - Refresh upgrade notes through CAP 0.5.0 and signer 0.4.1, record the
   CAP pin changes in ADR-0002, repair the README's cut sentence, complete
   the changelog release links, and correct stale pin and toolchain text.

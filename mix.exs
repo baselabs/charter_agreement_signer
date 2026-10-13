@@ -77,7 +77,9 @@ defmodule CharterAgreementSigner.MixProject do
         # floor, dialyzer (PLT + analysis under :test so test/support/ is in the
         # paths — the RA7 lesson), doc warnings, the advisory audits, and the
         # dependency-currency gate (scripts/check_deps_current.exs).
-        "test --cover",
+        # A fresh process is required: Mix skips a second test invocation
+        # in the same alias process after the plain test task has run.
+        "cmd mix test --cover",
         "dialyzer",
         "docs --warnings-as-errors",
         "hex.audit",
