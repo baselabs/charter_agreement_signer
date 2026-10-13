@@ -3,12 +3,10 @@
 ## Trust boundaries
 
 ```
-caller claims ──▶ CharterAgreementSigner ──▶ CAP producers (pure) ──▶ signing input
-                         │
-   {module, ref} ────────┘ sign/2 + key_identity/1 run against CALLER custody
-                         │  (HSM / KMS / key server / test process memory)
-                         ▼
-        wrong-key guard ──▶ CAP assembly ──▶ CAP post-sign verify ──▶ {:ok, compact}
+claims + context + options
+  -> option checks -> atomic snapshot -> CAP.prepare_signing
+  -> caller sign/2 -> raw wrong-key guard -> CAP.finish_signing
+  -> verified compact
 ```
 
 - **The library never sees a private key.** All key operations run inside the
@@ -48,10 +46,9 @@ test pins the error atom, not merely failure.
   contradictory artifacts can bypass this library entirely and hand-forge
   compacts — detection is the verifier's equivocation predicates, not the
   signer's job.
-- **Key identity in any registry.** The snapshot's `kid` names a key in the
-  party descriptor's `verification_keys`; whether that naming is truthful is
-  established by CAP's descriptor verification and the descriptor chain, not
-  by signing-time checks (the post-sign verify catches the mismatch locally).
+- **External key registries.** CAP checks the snapshot against the holder's
+  own active descriptor keys before custody. This library does not query
+  external registries or key stores. The caller supplies the handle and view.
 - **Descriptor freshness, legal effect, term evaluation, effect execution.**
   Host policy per the protocol's governance — this library signs and verifies
   bytes; it never authorizes anything.

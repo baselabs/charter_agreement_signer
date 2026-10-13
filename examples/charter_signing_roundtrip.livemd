@@ -11,7 +11,8 @@ DEMO-ONLY pairs.
 
 ```elixir
 Mix.install([
-  {:charter_agreement_signer, path: __DIR__ |> Path.join("..") |> Path.expand()}
+  {:charter_agreement_signer, path: __DIR__ |> Path.join("..") |> Path.expand()},
+  {:charter_agreement_protocol, path: __DIR__ |> Path.join("../../cap-060") |> Path.expand(), override: true}
 ])
 ```
 
@@ -63,21 +64,29 @@ descriptor_claims = fn {kid, public, _priv} ->
   }
 end
 
+{:ok, profile} = CAP.Capability.Profile.new(algorithms: ["Ed25519"], revisions: {1, 2})
+options = [profile: profile, limits: CAP.Limits.default()]
+
 {:ok, %{descriptor: issuer_descriptor}} =
-  Signer.sign_descriptor(descriptor_claims.(issuer), {Demo.Keys, issuer})
+  Signer.sign_descriptor(descriptor_claims.(issuer), {Demo.Keys, issuer}, options)
 
 {:ok, %{descriptor: acceptor_descriptor}} =
-  Signer.sign_descriptor(descriptor_claims.(acceptor), {Demo.Keys, acceptor})
+  Signer.sign_descriptor(descriptor_claims.(acceptor), {Demo.Keys, acceptor}, options)
 
 # The verifier's side needs ONLY the protocol package:
 {:ok, _facts} = CAP.verify_descriptor(issuer_descriptor, nil, CAP.Limits.default())
 {:ok, _facts} = CAP.verify_descriptor(acceptor_descriptor, nil, CAP.Limits.default())
 ```
 
+CAP checks the claims, holder's descriptor key, limits and profile before
+custody. `finish_signing/2` assembles and verifies the result. A missing or
+mismatched descriptor key returns `{:refused, :signing_key_mismatch}`
+without calling `sign/2`.
+
 ## 2. The wrong-key rejection
 
 A custody that advertises key A but signs with key B never gets an artifact
-out — the guard fires before anything is returned:
+out. The guard fires before anything is returned:
 
 ```elixir
 {_pub_b, priv_b} = :crypto.generate_key(:eddsa, :ed25519, <<9::256>>)

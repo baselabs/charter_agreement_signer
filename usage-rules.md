@@ -27,9 +27,9 @@ enforces most of them structurally, and the rest are posture.
    to force the signature through; that is exactly the dishonest-signer path
    the refusal boundary exists to make loud.
 
-5. **Supply real context for the post-sign verify.** A successor descriptor
-   needs `:predecessor` facts; a receipt needs the verified revision or chain
-   facts context. Signing without the context you will eventually verify
+5. **Supply real context for CAP preparation and finish.** A successor
+   descriptor needs `:predecessor` facts before custody; a receipt needs
+   the verified revision or chain facts context. Signing without the context you will eventually verify
    against trades a loud local failure for a silent downstream one.
 
 6. **Do not catch-and-continue on `:signing_failed`.** It means the custody
@@ -52,3 +52,9 @@ enforces most of them structurally, and the rest are posture.
    revision-1 claims are refused at the producer before the key is used.
    Retained revision-1 artifacts keep verifying (cross-revision
    composition); only NEW claims must carry a current pair's revision.
+
+All four entry points accept `:profile` and `:limits`. Profiles cover the
+artifact and context. Limits bound the whole set read and final compact.
+CAP checks the holder's own descriptor key before custody; a mismatch is
+`{:refused, :signing_key_mismatch}`. CAP owns context derivation and final
+public verification through `prepare_signing/5` and `finish_signing/2`.

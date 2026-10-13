@@ -8,6 +8,11 @@ Accepted. Reverses the scaffold's two-part pin — a real correction, not a
 formalization. Found by the release-readiness adversarial review (2026-08-26)
 on three authorities at once.
 
+Amended 2026-10-13 for CAP 0.6.0: the library resolves `../cap-060` and
+the example resolves the same local build with an override. The dependency
+test checks the compiled 0.6.0 version and path; both locks omit CAP's Hex
+entry. CI checks out the tested CAP source commit beside the signer.
+
 Amended 2026-10-13: use `~> 0.5.0`, locked to CAP 0.5.0. The library
 requirement, wall test, example requirement and both locks move together.
 CAP 0.5.0 requires distinct parties and rejects any held descriptor history

@@ -6,14 +6,11 @@ that governs how the library evolves alongside the protocol package.
 ## Versioning policy
 
 - **This library follows pre-1.0 SemVer §4 semantics**: anything may change
-  at a 0.x minor bump; pin `~> 0.4.0` (the three-part form) and read this
+  at a 0.x minor bump; pin `~> 0.5.0` (the three-part form) and read this
   page at every minor.
-- **The protocol dependency is double-pinned** to the tested `0.5.x` line
-  (`{:charter_agreement_protocol, "~> 0.5.0"}` + a lock parity gate). CAP's
-  package semver carries no compatibility promise (its governance: the
-  `protocol_revision` claim is the sole wire identity), so a CAP bump here is
-  always a deliberate, reviewed release of THIS library — never something a
-  bare `mix deps.update` can drift into.
+- **The protocol dependency is deliberately selected**: this tree and the
+  example resolve the same local CAP 0.6.0 build. The dependency test checks
+  its path and compiled version.
 - **The error vocabulary is closed and additive-only** within the 0.x line:
   new `{:invalid_input, code}` codes may appear as CAP's gated vocabulary
   grows; a removal or rename of any error shape is a breaking change that
@@ -22,20 +19,58 @@ that governs how the library evolves alongside the protocol package.
   appear in `docs/telemetry.md`'s tables (tied bidirectionally by the test
   suite) and in this page's notes.
 
-## Unreleased (CAP 0.5.0)
+## 0.4.1 to 0.5.0 (CAP 0.6.0)
 
-The protocol requirement is `~> 0.5.0`, locked to 0.5.0 in the library and
-example. CAP 0.5.0 requires distinct parties. Re-verify views stored under
-CAP 0.4.x: a revision repeating a `party_descriptor_digest` returns
-`:revision_invalid`; a view whose two roles resolve to one descriptor
-history, or which holds a history no revision names, returns `:chain_invalid`.
-The signer's acceptance and termination producers report these as
-`{:error, {:invalid_input, code}}` before signing.
+The library and example use CAP 0.6.0's `prepare_signing/5` and
+`finish_signing/2`. This tree resolves the local build at `../cap-060`.
 
-CAP also applies a narrowed verification profile to the context it verifies
-and reports profile rejections under their own codes. Calls under its full
-profile are unaffected apart from the distinct-party rule. This signer uses
-the full profile in its existing verify calls.
+Calls that used to sign and then return `:verification_failed` now reject
+before custody. Update error matches:
+
+- Snapshot kid or bytes absent from the holder's active descriptor keys:
+  `{:refused, :signing_key_mismatch}`.
+- Invalid public key for the selected algorithm: `:invalid_key_handle`.
+- Missing or wrong successor predecessor: `{:invalid_input,
+  :descriptor_chain_invalid}`.
+- An unheld descriptor named by acceptance or termination claims:
+  `{:invalid_input, :acceptance_claims_mismatch}` or
+  `{:invalid_input, :termination_claims_mismatch}`.
+- Final compact too large: `{:invalid_input, :signing_input_invalid}`;
+  retained context too large: `{:invalid_input, :limit_exceeded}`.
+- Receipt claims against their context: `{:invalid_input,
+  :receipt_claims_mismatch}`. Malformed context types use `:invalid_type`;
+  malformed retained fields use CAP's typed context codes.
+- Unsupported runtime for the artifact or any context artifact:
+  top-level `:algorithm_unsupported_on_substrate`.
+
+`:verification_failed` now means CAP finish rejected what preparation
+approved after the custody guard passed. The raw wrong-key guard still
+returns `:signing_failed`.
+
+Add `:profile` to calls that need narrowed verification. It is a
+`CAP.Capability.Profile.t()`, defaulting to `Profile.full()`. Malformed
+profiles return `{:invalid_input, :invalid_profile}`. Both axes apply to
+context as well as the artifact. A profile admitting only EdDSA, only
+ML-DSA-44/87, or revisions `{1, 1}` refuses every emission this signer can
+make. The same profile code covers an excluded artifact or context revision.
+
+CAP owns all set-to-context derivation. Limits now apply to every byte of
+the set read, including the counterparty's artifacts, and also to building
+and assembling the final compact. Raised limits work through both steps.
+The earlier signer decoded and selected retained revisions and descriptor
+chains itself under caller limits after a producer checked the set under
+default limits. That disagreement is removed. Supply only the documented
+context; CAP derives the signing party's chain from the verified set.
+
+This release also absorbs CAP 0.4 to 0.5 changes. CAP requires distinct
+parties: a revision repeating a descriptor digest fails with
+`:revision_invalid`; roles resolving to one history, or a held history no
+revision names, fail with `:chain_invalid`. Re-verify views stored under
+CAP 0.4.x. Narrowed profiles cover every context artifact and use
+`:algorithm_outside_profile` or `:revision_outside_profile`. The pinned
+TypeScript verifier source is 0.6.0, which includes these checks; the pinned
+TypeScript signer's own npm lock still uses verifier 0.5.0. Its independent
+suite does not certify parity with this signer's new request table.
 
 An absent or `nil` `:algorithm` selects Ed25519. Any other value outside
 `"Ed25519"` and `"ML-DSA-65"`, including a non-string, now returns
@@ -44,16 +79,16 @@ Callers that passed an atom or other non-string to select the default must
 omit the option, use `nil`, or pass `"Ed25519"`.
 
 Options must be a map or a keyword list whose keys are the function's option
-atoms, each at most once: `:algorithm` and `:limits`, plus `:predecessor`
-for `sign_descriptor/3`. A misspelled or unknown key, a string key, a
-struct, a repeated key, or a list that is not a keyword list returns
+atoms, each at most once: `:algorithm`, `:limits` and `:profile`, plus
+`:predecessor` for `sign_descriptor/3`. A misspelled or unknown key, a
+string key, a struct, a repeated key, or a list that is not a keyword list returns
 `{:error, {:invalid_input, :invalid_type}}` (a non-keyword list used to
 raise, and a misspelled `:algorithm` key used to sign with Ed25519).
 
 The checks now run in a fixed order: options, then limits, then the
-algorithm, then the key snapshot. A call with bad options or limits and a
-bad key handle returns the options or limits error, where it used to return
-`:invalid_key_handle`.
+profile, then algorithm, then the key snapshot. A call with bad options or
+limits and a bad key handle returns the options or limits error, where it
+used to return `:invalid_key_handle`.
 
 Telemetry's closed class list adds `:unsupported_substrate` for the
 `:algorithm_unsupported_on_substrate` span outcome. A

@@ -10,8 +10,28 @@ and this project adheres to
 
 ### Breaking
 
+- CAP 0.6.0 checks every request before custody. Snapshot key mismatches
+  now return `{:refused, :signing_key_mismatch}`; invalid keys for the
+  selected algorithm return `:invalid_key_handle`. Missing or wrong
+  predecessor facts return `{:invalid_input, :descriptor_chain_invalid}`.
+  Unheld party descriptors return `:acceptance_claims_mismatch` or
+  `:termination_claims_mismatch` in the invalid-input shape. These cases
+  previously signed and returned a later failure.
+- Narrow limits, receipt claims against context and malformed context now
+  fail before signing under CAP's typed preparation codes. Final compact
+  size uses `:signing_input_invalid`; context size uses `:limit_exceeded`.
+  Unsupported artifact or context algorithms return the top-level
+  `:algorithm_unsupported_on_substrate`.
+- All four functions accept `:profile`. Malformed profiles return
+  `{:invalid_input, :invalid_profile}`; excluded algorithms or revisions
+  use `:algorithm_outside_profile` or `:revision_outside_profile`.
+- CAP owns context derivation. Caller limits cover the whole set read and
+  final compact, replacing the signer's default-limit producer followed
+  by its own context decoding under caller limits. Raised limits now work.
+  `:verification_failed` means only CAP finish rejected what preparation
+  approved after the custody guard passed.
 - Options must be a map or a keyword list whose keys are the function's
-  option atoms, each at most once (`:algorithm`, `:limits`, plus
+  option atoms, each at most once (`:algorithm`, `:limits`, `:profile`, plus
   `:predecessor` for `sign_descriptor/3`). Anything else returns
   `{:error, {:invalid_input, :invalid_type}}`: a misspelled or unknown key,
   a string key, a struct, a repeated key, or a list that is not a keyword
@@ -22,12 +42,17 @@ and this project adheres to
   outside `"Ed25519"` and `"ML-DSA-65"`, including non-strings, returns
   `{:error, {:invalid_input, :algorithm_unsupported}}` before the key
   snapshot. Migration: omit the option, pass `nil`, or pass `"Ed25519"`.
-- Checks run in a fixed order: options, limits, algorithm, then the key
+- Checks run in a fixed order: options, limits, profile, algorithm, then the key
   snapshot. A call with bad options or limits and a bad key handle now
   returns the options or limits error instead of `:invalid_key_handle`.
 
 ### Added
 
+- A shared JSON signer request table with real base64url seeds, all four
+  kinds and both emission algorithms, callback counts, refusal codes,
+  exact Ed25519 compacts and verified ML-DSA results.
+- Real signing and telemetry refusal tests on the capability-limited
+  substrate, including the bare-revision receipt and context algorithms.
 - A Linux capability-limited CI job on Ubuntu 24.04 and OTP 28.5.0.3.
   It first asserts that ML-DSA is unverifiable and the classical rows are
   verifiable, then runs the existing suite with the ML-DSA mint test
@@ -56,19 +81,21 @@ and this project adheres to
 - Refresh upgrade notes through CAP 0.5.0 and signer 0.4.1, record the
   CAP pin changes in ADR-0002, repair the README's cut sentence, complete
   the changelog release links, and correct stale pin and toolchain text.
+
 ### Changed
 
 - SECURITY.md sends reports through GitHub private vulnerability reporting, now
   enabled for this repository.
 - Remove the in-tree TypeScript copy and its old artifact check. The
   supply-chain battery uses the same pinned source steps as local CI.
-- Use `charter_agreement_protocol ~> 0.5.0`, locked to 0.5.0 in the
-  library and example. The missing-descriptor test now uses a rotated
-  issuer history with an unheld successor.
+- Use the local CAP 0.6.0 build in the library and example. Signing uses
+  `prepare_signing/5`, the custody callback, the raw wrong-key guard and
+  `finish_signing/2`. Remove the signer's context derivation and verify
+  routing. Version the signer as 0.5.0.
 - CAP 0.5.0 requires distinct charter parties. Re-verify stored views:
   repeated descriptor digests fail with `:revision_invalid`; roles from
   one descriptor history or a supplied history no revision names fail
-  with `:chain_invalid`. Acceptance and termination producers return
+  with `:chain_invalid`. Acceptance and termination preparation returns
   these failures as `{:invalid_input, code}` before signing.
 
 ## [0.4.1] — 2026-10-04

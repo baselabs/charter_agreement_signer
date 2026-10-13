@@ -93,9 +93,8 @@ defmodule MyApp.KmsHandle do
     end
   end
 
-  # Optional self-check surface: compare against the party descriptor's
-  # verification_keys BEFORE signing, so a mismatched descriptor is caught
-  # by you — not by the post-sign verify.
+  # Optional caller self-check. CAP also checks the snapshot against the
+  # holder's own descriptor before the custody callback runs.
   @impl true
   def public_key(kms_ref), do: key_identity(kms_ref) |> then(fn
     {:ok, {_kid, public}} -> {:ok, public}
