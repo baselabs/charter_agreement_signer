@@ -7,6 +7,123 @@ defmodule CharterAgreementSigner.SignerCasesTest do
 
   @table File.read!(Path.expand("../fixtures/signer_cases.json", __DIR__)) |> JSON.decode!()
 
+  @required_ids ~w(
+    ed-descriptor-ok
+    ed-acceptance-ok
+    ed-termination-ok
+    ed-receipt-ok
+    ed-successor-ok
+    ml-descriptor-ok
+    ml-acceptance-ok
+    ml-termination-ok
+    ml-receipt-ok
+    ml-successor-ok
+    ed-receipt-chain-ok
+    ed-receipt-first-candidate-ok
+    ed-receipt-second-candidate-ok
+    descriptor-ed-other-mismatch
+    descriptor-ed-same-kid-mismatch
+    acceptance-ed-other-mismatch
+    acceptance-ed-same-kid-mismatch
+    termination-ed-other-mismatch
+    termination-ed-same-kid-mismatch
+    receipt-ed-other-mismatch
+    receipt-ed-same-kid-mismatch
+    descriptor-invalid-key
+    acceptance-other-role-key
+    termination-other-role-key
+    receipt-other-role-key
+    acceptance-false-coordinates
+    termination-unlisted-reason
+    receipt-claims-mismatch
+    acceptance-bad-set
+    ed-successor-missing
+    ed-successor-wrong
+    ml-successor-missing
+    ml-successor-wrong
+    descriptor-unknown-algorithm
+    descriptor-invalid-profile
+    descriptor-excluded-artifact
+    descriptor-excluded-revision
+    acceptance-unknown-algorithm
+    acceptance-invalid-profile
+    acceptance-excluded-artifact
+    acceptance-excluded-revision
+    termination-unknown-algorithm
+    termination-invalid-profile
+    termination-excluded-artifact
+    termination-excluded-revision
+    receipt-unknown-algorithm
+    receipt-invalid-profile
+    receipt-excluded-artifact
+    receipt-excluded-revision
+    descriptor-malformed-context
+    acceptance-malformed-context
+    termination-malformed-context
+    receipt-malformed-context
+    acceptance-excluded-context
+    descriptor-final-bound-minus-one
+    descriptor-final-bound-exact
+    acceptance-substrate-context
+    descriptor-wrong-kid
+    descriptor-non-string-algorithm
+    acceptance-wrong-kid
+    acceptance-non-string-algorithm
+    acceptance-final-bound-minus-one
+    termination-wrong-kid
+    termination-non-string-algorithm
+    termination-final-bound-minus-one
+    receipt-wrong-kid
+    receipt-non-string-algorithm
+    receipt-final-bound-minus-one
+    acceptance-unheld-successor
+    descriptor-excluded-context
+    descriptor-invalid-limits
+    descriptor-unknown-option
+    descriptor-limits-before-profile
+    descriptor-profile-before-algorithm
+    descriptor-algorithm-before-snapshot
+    descriptor-malformed-snapshot
+    descriptor-snapshot-before-claims
+    descriptor-snapshot-before-context
+    acceptance-invalid-limits
+    acceptance-unknown-option
+    acceptance-limits-before-profile
+    acceptance-profile-before-algorithm
+    acceptance-algorithm-before-snapshot
+    acceptance-malformed-snapshot
+    acceptance-snapshot-before-claims
+    acceptance-snapshot-before-context
+    termination-invalid-limits
+    termination-unknown-option
+    termination-limits-before-profile
+    termination-profile-before-algorithm
+    termination-algorithm-before-snapshot
+    termination-malformed-snapshot
+    termination-snapshot-before-claims
+    termination-snapshot-before-context
+    receipt-invalid-limits
+    receipt-unknown-option
+    receipt-limits-before-profile
+    receipt-profile-before-algorithm
+    receipt-algorithm-before-snapshot
+    receipt-malformed-snapshot
+    receipt-snapshot-before-claims
+    receipt-snapshot-before-context
+    ed-successor-key-mismatch
+    descriptor-wrong-key-guard
+    receipt-excluded-context
+    termination-excluded-context
+  )
+
+  test "the table retains every required case and unique ids" do
+    rows = @table["cases"]
+    assert length(rows) >= 106
+    ids = Enum.map(rows, & &1["id"])
+    assert Enum.uniq(ids) == ids
+    for id <- @required_ids, do: assert(id in ids, "missing required case: #{id}")
+  end
+
   setup do
     for module <- [RawKey, RawMLDSA65] do
       Code.ensure_loaded!(module)
@@ -25,8 +142,9 @@ defmodule CharterAgreementSigner.SignerCasesTest do
 
   for row <- @table["cases"] do
     @row row
-    if row["context"] in ["ml-predecessor", "ml-wrong-predecessor"],
-      do: @tag(:requires_mldsa_substrate)
+    if row["requires_mldsa_substrate"] == true or
+         row["context"] in ["ml-predecessor", "ml-wrong-predecessor"],
+       do: @tag(:requires_mldsa_substrate)
 
     test row["id"] do
       row = @row
@@ -47,6 +165,8 @@ defmodule CharterAgreementSigner.SignerCasesTest do
 
       assert outcome(result) == Map.take(expected, ["shape", "code"])
       assert {:call_count, called} = :erlang.trace_info({module, :sign, 2}, :call_count)
+      if match?({:error, {:refused, _}}, result), do: assert(called == 0)
+      if expected["shape"] == "refused", do: refute(expected["custody_called"])
       assert called == if(expected["custody_called"], do: 1, else: 0)
 
       assert {:call_count, snapshots} =
@@ -106,7 +226,8 @@ defmodule CharterAgreementSigner.SignerCasesTest do
   defp options(input) do
     Map.new(input, fn
       {"limits", values} ->
-        {:limits, struct!(Limits.default(), atom_keys(values))}
+        {:limits,
+         if(is_map(values), do: struct!(Limits.default(), atom_keys(values)), else: values)}
 
       {"profile", %{"algorithms" => names, "revisions" => [low, high]}} ->
         {:profile, %Profile{algorithms: names, revisions: {low, high}}}
@@ -116,6 +237,9 @@ defmodule CharterAgreementSigner.SignerCasesTest do
 
       {"algorithm", value} ->
         {:algorithm, value}
+
+      {"unexpected_option", value} ->
+        {:unexpected_option, value}
     end)
   end
 

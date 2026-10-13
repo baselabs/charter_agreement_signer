@@ -46,3 +46,16 @@ callback counts and independently verifies every success. The table also
 includes both same-kid receipt candidates in a view with two accepted
 revisions. The exact Ed25519 compacts were generated with CAP's canonical
 framing and real seed signatures independently of the signer under test.
+
+The runner requires at least 106 rows, unique ids, and every id in its
+explicit required list. It checks that refusals never call custody even
+if a row's expected callback count says otherwise. Fault pairs pin each
+adjacent signer step: limits before profile, profile before algorithm,
+algorithm before snapshot, and snapshot before claims or context. Single
+fault rows cover invalid limits, unknown options and malformed snapshots.
+
+The successor key row checks a key absent from the predecessor. The
+wrong-key row uses a real seed that differs from the snapshot key and
+expects `signing_failed` after one custody call. Receipt and termination
+rows also exclude context algorithms. A verified ML-DSA chain context
+requires a capable runtime.
