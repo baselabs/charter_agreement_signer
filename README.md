@@ -14,7 +14,8 @@ HSM, a KMS, or an in-process key in test).
 Verifiers depend only on the protocol package, never on this signer. This
 package occupies the seat the protocol's governance reserved for a companion
 signer (the `bounded_authority_report_adapter` pattern applied to CAP), and it
-depends on exactly one package: the public `charter_agreement_protocol`.
+uses the public `charter_agreement_protocol` and `:telemetry` for its closed
+signing-span events.
 
 ## Installation
 
@@ -142,21 +143,17 @@ emission pair additionally needs the OTP runtime linked against
 OpenSSL ≥ 3.5 — FIPS 204 reached OpenSSL in 3.5.0, and a runtime linked
 against OpenSSL 3.0.x cannot generate or verify ML-DSA keys.
 
-## What this is not
+## Scope
 
-This library never verifies third-party artifacts (verifiers use only the
+Verifiers use the protocol package. This signer produces artifacts through
+a caller's key handle. It has no transport or persistence layer and does
+not evaluate charter terms or authorize operations.
 
-## The 0.4.x ecosystem
+## Protocol dependency
 
-This package tracks the published protocol line: as of 0.4.0 it depends on
-`charter_agreement_protocol ~> 0.4.0` (locked 0.4.1). CAP 0.4.x added
-consumer-side surfaces only (a capability profile on the verify paths, an
-honest substrate diagnostic, facts-record scalars, a versioned release
-manifest) - the producer surface this signer uses is unchanged, and
-artifacts minted by this signer verify identically under every CAP
-0.3.x/0.4.x verifier. The producer-side capability alignment (a mirrored
-`capabilities()` probe with refuse-before-mint, declared minting metadata,
-a profile-bound signing mode) is the next feature release on this line.
-protocol package), never transports or persists anything, never evaluates
-charter terms, and never authorizes anything — CAP never authorizes, and
-neither does its signer.
+This tree uses `charter_agreement_protocol ~> 0.5.0`, locked to 0.5.0 in the
+library and example. CAP 0.5.0 requires distinct charter parties and rejects
+held descriptor histories that no revision names. Re-verify stored views
+when upgrading from CAP 0.4.x. The producer API and emitted signing bytes
+are unchanged; [docs/upgrading.md](docs/upgrading.md) explains the changed
+verdicts and the algorithm option migration.

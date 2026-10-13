@@ -28,6 +28,9 @@ and this project adheres to
 
 ### Fixed
 
+- Refresh upgrade notes through CAP 0.5.0 and signer 0.4.1, record the
+  CAP pin changes in ADR-0002, repair the README's cut sentence, complete
+  the changelog release links, and correct stale pin and toolchain text.
 - An absent or `nil` `:algorithm` selects Ed25519. Every other value
   outside `"Ed25519"` and `"ML-DSA-65"`, including non-strings, returns
   `{:error, {:invalid_input, :algorithm_unsupported}}` before the key
@@ -343,7 +346,13 @@ algorithm-aware signing for CAP's revision-3 ML-DSA registry act:
   wall, shipped-artifact package census + consumer smoke, and the
   release-candidate reproducibility gate (`mix ci` mirrors CI step-for-step).
 
-[Unreleased]: https://github.com/baselabs/charter_agreement_signer/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/baselabs/charter_agreement_signer/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.4.1
+[0.4.0]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.4.0
+[0.3.5]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.3.5
+[0.3.4]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.3.4
+[0.3.3]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.3.3
+[0.3.2]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.3.2
 [0.3.1]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.3.1
 [0.3.0]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.3.0
 [0.2.1]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.2.1

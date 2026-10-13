@@ -6,10 +6,10 @@ that governs how the library evolves alongside the protocol package.
 ## Versioning policy
 
 - **This library follows pre-1.0 SemVer §4 semantics**: anything may change
-  at a 0.x minor bump; pin `~> 0.3.0` (the three-part form) and read this
+  at a 0.x minor bump; pin `~> 0.4.0` (the three-part form) and read this
   page at every minor.
-- **The protocol dependency is double-pinned** to the tested `0.3.x` line
-  (`{:charter_agreement_protocol, "~> 0.3.0"}` + a lock parity gate). CAP's
+- **The protocol dependency is double-pinned** to the tested `0.5.x` line
+  (`{:charter_agreement_protocol, "~> 0.5.0"}` + a lock parity gate). CAP's
   package semver carries no compatibility promise (its governance: the
   `protocol_revision` claim is the sole wire identity), so a CAP bump here is
   always a deliberate, reviewed release of THIS library — never something a
@@ -21,6 +21,75 @@ that governs how the library evolves alongside the protocol package.
 - **Telemetry axes are closed and additive-only**: new objects or classes
   appear in `docs/telemetry.md`'s tables (tied bidirectionally by the test
   suite) and in this page's notes.
+
+## Unreleased (CAP 0.5.0)
+
+The protocol requirement is `~> 0.5.0`, locked to 0.5.0 in the library and
+example. CAP 0.5.0 requires distinct parties. Re-verify views stored under
+CAP 0.4.x: a revision repeating a `party_descriptor_digest` returns
+`:revision_invalid`; a view whose two roles resolve to one descriptor
+history, or which holds a history no revision names, returns `:chain_invalid`.
+The signer's acceptance and termination producers report these as
+`{:error, {:invalid_input, code}}` before signing.
+
+CAP also applies a narrowed verification profile to the context it verifies
+and reports profile rejections under their own codes. Calls under its full
+profile are unaffected apart from the distinct-party rule. This signer uses
+the full profile in its existing verify calls.
+
+An absent or `nil` `:algorithm` selects Ed25519. Any other value outside
+`"Ed25519"` and `"ML-DSA-65"`, including a non-string, now returns
+`{:error, {:invalid_input, :algorithm_unsupported}}` before the key snapshot.
+Callers that passed an atom or other non-string to select the default must
+omit the option, use `nil`, or pass `"Ed25519"`.
+
+Telemetry's closed class list adds `:unsupported_substrate` for the
+`:algorithm_unsupported_on_substrate` span outcome. A
+`{:refused, :signing_key_mismatch}` outcome uses `:refused`. The telemetry
+guide lists all seven classes; the public signing functions retain the
+return shapes in [errors.md](errors.md).
+
+The in-tree TypeScript copy is removed. Local CI now fetches pinned public
+sources, builds them and runs the pinned signer's own suite using its npm
+lockfile. See the README for cached materialization and stamp checks.
+
+## 0.4.1 - 2026-10-04
+
+Documentation records macOS and Linux as the developer platforms. Windows
+developers use WSL2 and the Linux commands. CI runs on Linux only.
+
+## 0.4.0 - 2026-09-24
+
+The CAP requirement moved to `~> 0.4.0`, locked to 0.4.1 in both projects.
+CAP added verification capability profiles, substrate reports and facts
+fields. The signer continued using the same producers and public function
+shapes; there was no signing behavior change.
+
+## 0.3.5 - 2026-09-24
+
+Documentation describes CAP 0.4.0's consumer surfaces. The library still
+required `~> 0.3.0` and locked CAP 0.3.1; no signing behavior changed.
+
+## 0.3.4 - 2026-09-17
+
+The CI alias requires `MIX_ENV=test` at entry instead of re-executing each
+step through a POSIX `env` command. The dependency-currency script became
+Elixir, and package checks gained portable command and cleanup handling.
+The developer-platform instructions from this release are superseded by
+0.4.1.
+
+## 0.3.3 - 2026-09-16
+
+The supported Elixir range widened to `~> 1.19`, covering tested 1.19.x and
+1.20.x releases on OTP 28/29. Elixir 1.19.x uses the OTP 28 lane. The
+library, example and CI matrix moved together.
+
+## 0.3.2 - 2026-09-16
+
+The library and example began checking their Elixir and OTP ranges before
+compilation. The dependency-currency gate became part of the battery, and
+the coverage floor rose to 100.0%. Unreachable defensive branches were
+removed; reachable signing results stayed unchanged.
 
 ## 0.3.1 — 2026-09-15
 

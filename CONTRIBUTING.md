@@ -9,11 +9,11 @@ status of `test/support/` (nothing there ships).
 ## Toolchain
 
 The supported toolchain is enforced in code, before anything compiles: the
-tested Elixir 1.20.x line (mix.exs's `~> 1.20` — anything outside refuses
+tested Elixir 1.19.x and 1.20.x lines (mix.exs's `~> 1.19`; anything outside refuses
 with `Mix.ElixirVersionError`) on Erlang/OTP 28 or 29 (config/config.exs
 refuses any other OTP major). You cannot compile on a wrong toolchain by
 accident. `.tool-versions` pins the dev lane (asdf); CI covers both
-supported lanes. Lockstep: mix.exs's range, config/config.exs's supported-OTP
+supported pairs, including Elixir 1.19.x on OTP 28. Lockstep: mix.exs's range, config/config.exs's supported-OTP
 set, `.tool-versions`, and CI's matrix lanes move together in ONE commit —
 divergence between them is a defect.
 
