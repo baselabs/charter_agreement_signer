@@ -8,6 +8,13 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- An absent or `nil` `:algorithm` selects Ed25519. Every other value
+  outside `"Ed25519"` and `"ML-DSA-65"`, including non-strings, returns
+  `{:error, {:invalid_input, :algorithm_unsupported}}` before the key
+  snapshot on all four entry points.
+
 ### Changed
 
 - Use `charter_agreement_protocol ~> 0.5.0`, locked to 0.5.0 in the

@@ -116,7 +116,9 @@ defmodule CharterAgreementSigner do
       the verified predecessor's facts for a successor descriptor.
     * `:algorithm` — `"Ed25519"` (default) or `"ML-DSA-65"`: the emission
       pair CAP's producer mints (`protocol_revision` 2 or 3; claims must
-      carry the matching revision).
+      carry the matching revision). Absent or `nil` selects the default;
+      any other value returns `{:invalid_input, :algorithm_unsupported}`
+      before the key snapshot.
     * `:limits` — `CAP.Limits.t()` (default `CAP.Limits.default()`).
 
   ## Example
@@ -131,12 +133,13 @@ defmodule CharterAgreementSigner do
   end
 
   defp do_sign_descriptor(claims, key_handle, opts) do
-    with {:ok, {kid, public_key}} <- resolve_key_identity(key_handle),
-         {:ok, opts} <- normalize_opts(opts),
-         {:ok, limits} <- resolve_limits(opts) do
+    with {:ok, opts} <- normalize_opts(opts),
+         {:ok, limits} <- resolve_limits(opts),
+         {:ok, algorithm} <- resolve_algorithm(Map.get(opts, :algorithm)),
+         {:ok, {kid, public_key}} <- resolve_key_identity(key_handle) do
       sign_common(:descriptor, claims, kid, key_handle, public_key, limits,
         context: Map.get(opts, :predecessor),
-        algorithm: Map.get(opts, :algorithm)
+        algorithm: algorithm
       )
     end
   end
@@ -156,7 +159,9 @@ defmodule CharterAgreementSigner do
 
     * `:algorithm` — `"Ed25519"` (default) or `"ML-DSA-65"`: the emission
       pair CAP's producer mints (`protocol_revision` 2 or 3; claims must
-      carry the matching revision).
+      carry the matching revision). Absent or `nil` selects the default;
+      any other value returns `{:invalid_input, :algorithm_unsupported}`
+      before the key snapshot.
     * `:limits` — `CAP.Limits.t()` (default `CAP.Limits.default()`).
   """
   @spec sign_receipt(map(), key_handle(), CAP.ChainFacts.t() | CAP.CharterRevision.t(), opts()) ::
@@ -166,12 +171,13 @@ defmodule CharterAgreementSigner do
   end
 
   defp do_sign_receipt(claims, key_handle, context, opts) do
-    with {:ok, {kid, public_key}} <- resolve_key_identity(key_handle),
-         {:ok, opts} <- normalize_opts(opts),
-         {:ok, limits} <- resolve_limits(opts) do
+    with {:ok, opts} <- normalize_opts(opts),
+         {:ok, limits} <- resolve_limits(opts),
+         {:ok, algorithm} <- resolve_algorithm(Map.get(opts, :algorithm)),
+         {:ok, {kid, public_key}} <- resolve_key_identity(key_handle) do
       sign_common(:receipt, claims, kid, key_handle, public_key, limits,
         context: context,
-        algorithm: Map.get(opts, :algorithm)
+        algorithm: algorithm
       )
     end
   end
@@ -196,7 +202,9 @@ defmodule CharterAgreementSigner do
 
     * `:algorithm` — `"Ed25519"` (default) or `"ML-DSA-65"`: the emission
       pair CAP's producer mints (`protocol_revision` 2 or 3; claims must
-      carry the matching revision).
+      carry the matching revision). Absent or `nil` selects the default;
+      any other value returns `{:invalid_input, :algorithm_unsupported}`
+      before the key snapshot.
     * `:limits` — `CAP.Limits.t()` (default `CAP.Limits.default()`).
   """
   @spec sign_acceptance(map(), key_handle(), ArtifactSet.t(), opts()) ::
@@ -206,12 +214,13 @@ defmodule CharterAgreementSigner do
   end
 
   defp do_sign_acceptance(claims, key_handle, set, opts) do
-    with {:ok, {kid, public_key}} <- resolve_key_identity(key_handle),
-         {:ok, opts} <- normalize_opts(opts),
-         {:ok, limits} <- resolve_limits(opts) do
+    with {:ok, opts} <- normalize_opts(opts),
+         {:ok, limits} <- resolve_limits(opts),
+         {:ok, algorithm} <- resolve_algorithm(Map.get(opts, :algorithm)),
+         {:ok, {kid, public_key}} <- resolve_key_identity(key_handle) do
       sign_common(:acceptance, claims, kid, key_handle, public_key, limits,
         context: {:set, set, claims},
-        algorithm: Map.get(opts, :algorithm)
+        algorithm: algorithm
       )
     end
   end
@@ -233,7 +242,9 @@ defmodule CharterAgreementSigner do
 
     * `:algorithm` — `"Ed25519"` (default) or `"ML-DSA-65"`: the emission
       pair CAP's producer mints (`protocol_revision` 2 or 3; claims must
-      carry the matching revision).
+      carry the matching revision). Absent or `nil` selects the default;
+      any other value returns `{:invalid_input, :algorithm_unsupported}`
+      before the key snapshot.
     * `:limits` — `CAP.Limits.t()` (default `CAP.Limits.default()`).
   """
   @spec sign_termination(map(), key_handle(), ArtifactSet.t(), opts()) ::
@@ -243,12 +254,13 @@ defmodule CharterAgreementSigner do
   end
 
   defp do_sign_termination(claims, key_handle, set, opts) do
-    with {:ok, {kid, public_key}} <- resolve_key_identity(key_handle),
-         {:ok, opts} <- normalize_opts(opts),
-         {:ok, limits} <- resolve_limits(opts) do
+    with {:ok, opts} <- normalize_opts(opts),
+         {:ok, limits} <- resolve_limits(opts),
+         {:ok, algorithm} <- resolve_algorithm(Map.get(opts, :algorithm)),
+         {:ok, {kid, public_key}} <- resolve_key_identity(key_handle) do
       sign_common(:termination, claims, kid, key_handle, public_key, limits,
         context: {:set, set, claims},
-        algorithm: Map.get(opts, :algorithm)
+        algorithm: algorithm
       )
     end
   end
@@ -268,8 +280,7 @@ defmodule CharterAgreementSigner do
          context: context,
          algorithm: algorithm
        ) do
-    with {:ok, algorithm} <- resolve_algorithm(algorithm),
-         {:ok, signing_input} <- produce(kind, claims, kid, context, algorithm),
+    with {:ok, signing_input} <- produce(kind, claims, kid, context, algorithm),
          {:ok, signature} <- sign_via_handle(key_handle, signing_input.message, algorithm),
          :ok <- verify_signature(signing_input.message, signature, public_key, algorithm),
          compact = assemble(signing_input, signature),
@@ -284,10 +295,10 @@ defmodule CharterAgreementSigner do
   defp resolve_algorithm(algorithm) when algorithm in ["Ed25519", "ML-DSA-65"],
     do: {:ok, algorithm}
 
-  defp resolve_algorithm(algorithm) when is_binary(algorithm),
-    do: {:error, {:invalid_input, :algorithm_unsupported}}
+  defp resolve_algorithm(nil), do: {:ok, "Ed25519"}
 
-  defp resolve_algorithm(_no_selection), do: {:ok, "Ed25519"}
+  defp resolve_algorithm(_unsupported),
+    do: {:error, {:invalid_input, :algorithm_unsupported}}
 
   defp result_key(:descriptor), do: :descriptor
   defp result_key(:receipt), do: :receipt
@@ -491,8 +502,7 @@ defmodule CharterAgreementSigner do
   defp registry_key_lengths,
     do: Enum.map(CAP.Algorithm.registry(), & &1.public_key_bytes)
 
-  # No malformed-handle fallback: resolve_key_identity (the with-chain's
-  # FIRST step) already gates the handle to exactly this shape and returns
+  # No malformed-handle fallback: resolve_key_identity already gates the handle to exactly this shape and returns
   # the closed :invalid_key_handle for anything else, and the message is
   # the producer's binary. A guard miss here is an internal-contract break —
   # a loud FunctionClauseError, never a mislabeled custody error.
