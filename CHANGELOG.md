@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Use `charter_agreement_protocol ~> 0.5.0`, locked to 0.5.0 in the
+  library and example. The missing-descriptor test now uses a rotated
+  issuer history with an unheld successor.
+- CAP 0.5.0 requires distinct charter parties. Re-verify stored views:
+  repeated descriptor digests fail with `:revision_invalid`; roles from
+  one descriptor history or a supplied history no revision names fail
+  with `:chain_invalid`. Acceptance and termination producers return
+  these failures as `{:invalid_input, code}` before signing.
+
 ## [0.4.1] — 2026-10-04
 
 Documentation release: the developer-platform direction, recorded. No

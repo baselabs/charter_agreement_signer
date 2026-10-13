@@ -245,41 +245,72 @@ defmodule CharterAgreementSignerTest do
   end
 
   test "a revision party with no descriptor in the set is :verification_failed, never a crash" do
-    # The producer's R1 binds the claims' party digest to the RETAINED
-    # REVISION'S parties list — NOT to the set's descriptors. A genesis
-    # whose parties name a digest the set carries no descriptor for passes
-    # every producer refusal; the post-sign verify's chain selection must
-    # map that to the closed :verification_failed atom (reviewer-caught
-    # reachable input: the fixture parties' synthetic digests are exactly
-    # this shape when the descriptor is withheld from the set).
     setup = ChainFixture.base()
+    second_handle = RawKey.generate("issuer-key-002", <<3::256>>)
+    third_handle = RawKey.generate("issuer-key-003", <<4::256>>)
 
-    synthetic_issuer =
-      CharterAgreementSigner.CharterRevisionFixture.party("issuer")
-      |> Map.fetch!("party_descriptor_digest")
+    second_claims =
+      Map.merge(setup.issuer.claims, %{
+        "descriptor_number" => 2,
+        "party_id" => setup.issuer.digest,
+        "prev_descriptor_digest" => setup.issuer.digest,
+        "verification_keys" => [DescriptorFixture.key(second_handle)],
+        "effective_from" => "2026-08-25T10:01:00Z"
+      })
 
-    genesis =
-      CharterAgreementSigner.CharterRevisionFixture.genesis(
-        claims: %{
-          "parties" => [
-            %{"party_descriptor_digest" => synthetic_issuer, "role" => "issuer"},
-            %{"party_descriptor_digest" => setup.acceptor.digest, "role" => "acceptor"}
-          ]
-        }
+    second =
+      DescriptorFixture.compact(second_claims, setup.issuer.kid, elem(setup.issuer_handle, 2))
+
+    third_claims =
+      Map.merge(second_claims, %{
+        "descriptor_number" => 3,
+        "prev_descriptor_digest" => second.digest,
+        "verification_keys" => [DescriptorFixture.key(third_handle)],
+        "effective_from" => "2026-08-25T10:02:00Z"
+      })
+
+    third =
+      DescriptorFixture.compact(third_claims, elem(second_handle, 0), elem(second_handle, 2))
+
+    revision_claims =
+      Map.merge(setup.genesis.claims, %{
+        "revision_number" => 2,
+        "charter_id" => setup.genesis.charter_id,
+        "prev_revision_digest" => setup.genesis.digest,
+        "effective_from" => "2026-08-25T12:01:00Z",
+        "parties" => [
+          %{"party_descriptor_digest" => third.digest, "role" => "issuer"},
+          %{"party_descriptor_digest" => setup.acceptor.digest, "role" => "acceptor"}
+        ]
+      })
+
+    revision =
+      CharterRevisionFixture.from_claims(revision_claims, setup.genesis.legal_text,
+        charter_id: setup.genesis.charter_id
       )
 
-    # The set carries BOTH descriptors (the bilateral two-chain shape the
-    # set verifier requires) — but the issuer party the claims name was
-    # never pinned by any descriptor digest in this view.
-    {:ok, set} = ChainFixture.raw_set(setup, [genesis], [], [])
+    # The genesis names both held histories. Revision 2 names descriptor 3,
+    # while the issuer history in this view stops at descriptor 2.
+    descriptors = [setup.issuer.compact, second.compact, setup.acceptor.compact]
+    revisions = [setup.genesis.bytes, revision.bytes]
+    {:ok, set} = ArtifactSet.build(revisions, [], [], descriptors)
+    claims = ChainFixture.mint(AcceptanceFixture.claims(revision, third, "issuer"))
+    handle = {RawKey, third_handle}
 
-    synthetic_party = %{setup.issuer | digest: synthetic_issuer, party_id: synthetic_issuer}
-
-    claims =
-      ChainFixture.mint(AcceptanceFixture.claims(genesis, synthetic_party, "issuer"))
+    assert {:ok, _input} =
+             CAP.acceptance_signing_input(
+               %{"kid" => elem(third_handle, 0), "claims" => claims},
+               set
+             )
 
     assert {:error, :verification_failed} =
-             CharterAgreementSigner.sign_acceptance(claims, {RawKey, setup.issuer_handle}, set)
+             CharterAgreementSigner.sign_acceptance(claims, handle, set)
+
+    # Holding descriptor 3 makes the same request succeed.
+    {:ok, complete} = ArtifactSet.build(revisions, [], [], descriptors ++ [third.compact])
+
+    assert {:ok, %{acceptance: _compact}} =
+             CharterAgreementSigner.sign_acceptance(claims, handle, complete)
   end
 
   test "keyword-list options work and malformed options return the closed error" do

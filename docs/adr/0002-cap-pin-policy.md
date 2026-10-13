@@ -8,6 +8,16 @@ Accepted. Reverses the scaffold's two-part pin — a real correction, not a
 formalization. Found by the release-readiness adversarial review (2026-08-26)
 on three authorities at once.
 
+Amended 2026-10-13: use `~> 0.5.0`, locked to CAP 0.5.0. The library
+requirement, wall test, example requirement and both locks move together.
+CAP 0.5.0 requires distinct parties and rejects any held descriptor history
+that no revision names. Stored views need re-verification; the producer
+failures remain `{:invalid_input, code}` in the signer.
+
+Amended 2026-09-24: use `~> 0.4.0`, locked to CAP 0.4.1, in the library
+and example. CAP added consumer capability profiles and substrate reports;
+the signer's producer calls and public function shapes stayed unchanged.
+
 Amended 2026-09-14: the second deliberate line move — `~> 0.2.1` →
 `~> 0.3.0` for CAP's revision-3 ML-DSA registry act (RFC 9964). This move
 carries a real `lib/` delta: the signer is algorithm-aware — the emission

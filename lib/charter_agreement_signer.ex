@@ -392,13 +392,9 @@ defmodule CharterAgreementSigner do
   end
 
   defp party_chain(pairs, party_digest) do
-    # The nil arm is REACHABLE and load-bearing: the producer's R1 binds the
-    # claims' party digest to the RETAINED REVISION'S parties list, never to
-    # the set's descriptors, and Chain.verify checks only that the set holds
-    # exactly two well-formed descriptor chains — nothing binds the two. A
-    # genesis may name a party digest no set descriptor pins (a party that
-    # never pinned itself in this view), and that selection failure must be
-    # the closed :verification_failed, never a crash out of the sign path.
+    # R1 binds the claims to the retained revision's parties. A revision
+    # can name a successor beyond the held descriptor history, so this
+    # selection failure must return the closed :verification_failed atom.
     target =
       Enum.find(pairs, fn {_compact, descriptor} ->
         CAP.descriptor_digest(descriptor) == party_digest
