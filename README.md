@@ -122,15 +122,18 @@ The TypeScript repositories and full commit hashes are in
 [`priv/signer-source.json`](https://github.com/baselabs/charter_agreement_signer/blob/master/priv/signer-source.json) and
 [`priv/verifier-source.json`](https://github.com/baselabs/charter_agreement_signer/blob/master/priv/verifier-source.json).
 `MIX_ENV=test mix typescript.sources` fetches public `main`, refuses a pin
-outside that branch or behind the previous pin, and extracts both source
-trees under `_build/`. `mix typescript.sources --cached` uses the last
-fetched public refs without a network fetch; it still checks reachability
-and forward movement. `mix typescript.sources --check` checks the stamps.
-`mix typescript.check` requires current stamps and builds both sources.
-It runs the signer's own tests with the npm dependencies in its committed
-lockfile (verifier 0.5.0 at the current signer pin). The separate verifier
-source pin names 0.6.0. This check does not compare Elixir and TypeScript
-artifacts or refusals.
+outside that branch, refuses a newest pin change that moves backward on the
+first-parent history (so it needs a full git clone), and extracts both
+source trees under `_build/`. `mix typescript.sources --cached` uses the
+last fetched public refs without a network fetch; it still checks
+reachability and forward movement. `mix typescript.sources --check` checks
+the stamps. `mix typescript.check` requires current stamps and builds both
+sources. It runs the signer's own tests with the npm dependencies in its
+committed lockfile (verifier 0.5.0 at the current signer pin) and requires
+at least the pin's `minimum_tests` to run, all passing. It then signs a
+descriptor with the pinned TypeScript signer and verifies it under CAP. The
+separate verifier source pin names 0.6.0. These checks do not compare what
+the two signers produce or refuse.
 
 Supported toolchain, enforced in code before anything compiles: the tested
 Elixir 1.19.x–1.20.x lines (`~> 1.19` — anything outside the range refuses

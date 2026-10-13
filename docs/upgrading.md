@@ -43,9 +43,12 @@ An absent or `nil` `:algorithm` selects Ed25519. Any other value outside
 Callers that passed an atom or other non-string to select the default must
 omit the option, use `nil`, or pass `"Ed25519"`.
 
-Options must be an atom-keyed map or a keyword list with each key once. A
-string key, a repeated key, or a list that is not a keyword list returns
-`{:error, {:invalid_input, :invalid_type}}` (a non-keyword list used to raise).
+Options must be a map or a keyword list whose keys are the function's option
+atoms, each at most once: `:algorithm` and `:limits`, plus `:predecessor`
+for `sign_descriptor/3`. A misspelled or unknown key, a string key, a
+struct, a repeated key, or a list that is not a keyword list returns
+`{:error, {:invalid_input, :invalid_type}}` (a non-keyword list used to
+raise, and a misspelled `:algorithm` key used to sign with Ed25519).
 
 The checks now run in a fixed order: options, then limits, then the
 algorithm, then the key snapshot. A call with bad options or limits and a

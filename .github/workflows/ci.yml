@@ -22,7 +22,7 @@ jobs:
     # with nothing bundled, and ubuntu-24.04 ships OpenSSL 3.0.x, which
     # cannot generate or verify ML-DSA keys (EVP "Bad key type"). ubuntu-26.04
     # ships OpenSSL 3.5.x; setup-beam resolves the matching bob build per
-    # distro, so both matrix lanes keep their pinned versions.
+    # distro, so every matrix lane keeps its pinned versions.
     runs-on: ubuntu-26.04
 
     # `mix ci` runs this battery on the local toolchain, plus the example
@@ -111,7 +111,7 @@ jobs:
     # OpenSSL >= 3.5 that ubuntu-26.04 provides.
     runs-on: ubuntu-26.04
 
-    # Same two-cell matrix as the gate job: the example app is part of the
+    # Same three-cell matrix as the gate job: the example app is part of the
     # supported surface (its lock parity with the library must hold on every
     # lane). LOCKSTEP: lanes stay inside the range declared in code (its own
     # mix.exs + config/config.exs supported-OTP set).

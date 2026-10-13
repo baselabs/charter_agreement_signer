@@ -52,13 +52,19 @@ defmodule CharterAgreementSigner do
   alias CharterAgreementProtocol.{ArtifactSet, Error, Limits, SigningInput}
   alias CharterAgreementSigner.Telemetry
 
+  @descriptor_options [:algorithm, :limits, :predecessor]
+  @signing_options [:algorithm, :limits]
+
   @typedoc "A caller-supplied key handle: a module implementing the callbacks plus its ref."
   @type key_handle :: {module(), term()}
 
   @typedoc """
-  Per-call options — a map or a keyword list. Any other shape is rejected as
-  `{:error, {:invalid_input, :invalid_type}}` (the closed-vocabulary posture:
-  a malformed opts argument is a returned error, never a raised exception).
+  Per-call options: a map or a keyword list whose keys are the function's
+  option atoms (listed in each function's docs), each at most once. Any
+  other shape or key (a string key, a struct, a misspelled or repeated key, a
+  list that is not a keyword list) is
+  `{:error, {:invalid_input, :invalid_type}}`: a malformed opts argument is a
+  returned error, never a raised exception.
   """
   @type opts :: map() | keyword()
 
@@ -110,7 +116,8 @@ defmodule CharterAgreementSigner do
 
   ## Options
 
-  Options may be given as a map or a keyword list.
+  Options may be given as a map or a keyword list with these atom keys,
+  each at most once; any other key is `{:error, {:invalid_input, :invalid_type}}`.
 
     * `:predecessor` — `nil | CAP.DescriptorFacts.t()` (default `nil`):
       the verified predecessor's facts for a successor descriptor.
@@ -133,7 +140,7 @@ defmodule CharterAgreementSigner do
   end
 
   defp do_sign_descriptor(claims, key_handle, opts) do
-    with {:ok, opts} <- normalize_opts(opts),
+    with {:ok, opts} <- normalize_opts(opts, @descriptor_options),
          {:ok, limits} <- resolve_limits(opts),
          {:ok, algorithm} <- resolve_algorithm(Map.get(opts, :algorithm)),
          {:ok, {kid, public_key}} <- resolve_key_identity(key_handle) do
@@ -155,7 +162,8 @@ defmodule CharterAgreementSigner do
 
   ## Options
 
-  Options may be given as a map or a keyword list.
+  Options may be given as a map or a keyword list with these atom keys,
+  each at most once; any other key is `{:error, {:invalid_input, :invalid_type}}`.
 
     * `:algorithm` — `"Ed25519"` (default) or `"ML-DSA-65"`: the emission
       pair CAP's producer mints (`protocol_revision` 2 or 3; claims must
@@ -171,7 +179,7 @@ defmodule CharterAgreementSigner do
   end
 
   defp do_sign_receipt(claims, key_handle, context, opts) do
-    with {:ok, opts} <- normalize_opts(opts),
+    with {:ok, opts} <- normalize_opts(opts, @signing_options),
          {:ok, limits} <- resolve_limits(opts),
          {:ok, algorithm} <- resolve_algorithm(Map.get(opts, :algorithm)),
          {:ok, {kid, public_key}} <- resolve_key_identity(key_handle) do
@@ -198,7 +206,8 @@ defmodule CharterAgreementSigner do
 
   ## Options
 
-  Options may be given as a map or a keyword list.
+  Options may be given as a map or a keyword list with these atom keys,
+  each at most once; any other key is `{:error, {:invalid_input, :invalid_type}}`.
 
     * `:algorithm` — `"Ed25519"` (default) or `"ML-DSA-65"`: the emission
       pair CAP's producer mints (`protocol_revision` 2 or 3; claims must
@@ -214,7 +223,7 @@ defmodule CharterAgreementSigner do
   end
 
   defp do_sign_acceptance(claims, key_handle, set, opts) do
-    with {:ok, opts} <- normalize_opts(opts),
+    with {:ok, opts} <- normalize_opts(opts, @signing_options),
          {:ok, limits} <- resolve_limits(opts),
          {:ok, algorithm} <- resolve_algorithm(Map.get(opts, :algorithm)),
          {:ok, {kid, public_key}} <- resolve_key_identity(key_handle) do
@@ -238,7 +247,8 @@ defmodule CharterAgreementSigner do
 
   ## Options
 
-  Options may be given as a map or a keyword list.
+  Options may be given as a map or a keyword list with these atom keys,
+  each at most once; any other key is `{:error, {:invalid_input, :invalid_type}}`.
 
     * `:algorithm` — `"Ed25519"` (default) or `"ML-DSA-65"`: the emission
       pair CAP's producer mints (`protocol_revision` 2 or 3; claims must
@@ -254,7 +264,7 @@ defmodule CharterAgreementSigner do
   end
 
   defp do_sign_termination(claims, key_handle, set, opts) do
-    with {:ok, opts} <- normalize_opts(opts),
+    with {:ok, opts} <- normalize_opts(opts, @signing_options),
          {:ok, limits} <- resolve_limits(opts),
          {:ok, algorithm} <- resolve_algorithm(Map.get(opts, :algorithm)),
          {:ok, {kid, public_key}} <- resolve_key_identity(key_handle) do
@@ -461,22 +471,25 @@ defmodule CharterAgreementSigner do
       else: {:cont, acc}
   end
 
-  # Options are an atom-keyed map or a keyword list with each key once. A
-  # string key or a repeated key would otherwise be ignored or silently
-  # overridden, and a list that is not a keyword list would raise.
-  defp normalize_opts(opts) when is_map(opts) do
-    if opts |> Map.keys() |> Enum.all?(&is_atom/1),
+  # Options are a map or a keyword list whose keys are the function's known
+  # option atoms, each once. A misspelled or unknown key, a string key, a
+  # struct, or a repeated key would otherwise be ignored or silently win, and
+  # a list that is not a keyword list would raise.
+  defp normalize_opts(opts, allowed) when is_map(opts) do
+    if opts |> Map.keys() |> Enum.all?(&(&1 in allowed)),
       do: {:ok, opts},
       else: {:error, {:invalid_input, :invalid_type}}
   end
 
-  defp normalize_opts(opts) when is_list(opts) do
-    if Keyword.keyword?(opts) and Enum.uniq(Keyword.keys(opts)) == Keyword.keys(opts),
+  defp normalize_opts(opts, allowed) when is_list(opts) do
+    keys = if Keyword.keyword?(opts), do: Keyword.keys(opts), else: nil
+
+    if is_list(keys) and Enum.uniq(keys) == keys and Enum.all?(keys, &(&1 in allowed)),
       do: {:ok, Map.new(opts)},
       else: {:error, {:invalid_input, :invalid_type}}
   end
 
-  defp normalize_opts(_opts), do: {:error, {:invalid_input, :invalid_type}}
+  defp normalize_opts(_opts, _allowed), do: {:error, {:invalid_input, :invalid_type}}
 
   defp resolve_limits(opts) do
     case Map.get(opts, :limits, Limits.default()) do

@@ -35,9 +35,13 @@ mix test
 ```
 
 Then run the whole-repo check, which aborts at the first failing step.
-It includes the library and example batteries and the pinned TypeScript
-signer suite; CI also checks matrix breadth and the limited substrate. It must boot under `MIX_ENV=test`; a bare
-`mix ci` refuses with the per-shell invocation in the message:
+It includes the library and example batteries, the pinned TypeScript
+signer suite (at least the pin's `minimum_tests`, all passing) and a check
+that a descriptor the pinned TypeScript signer signs verifies under CAP. The
+pin check walks the first-parent history, so work in a full clone. CI also
+checks matrix breadth and the limited substrate. It must boot under
+`MIX_ENV=test`; a bare `mix ci` refuses with the per-shell invocation in the
+message:
 
 ```sh
 MIX_ENV=test mix ci

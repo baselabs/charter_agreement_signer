@@ -15,12 +15,13 @@ defmodule CharterAgreementSigner.Telemetry do
 
   ## The translated axis (why this is not a copy of the BARA surface)
 
-  The class axis covers THIS library's public outcomes, including two that
-  the signing path returns only once the pre-sign check lands — `:ok`, `:invalid_input` (every `{:invalid_input, code}`
-  collapses to the class; the code never rides along), `:invalid_key_handle`,
-  `:signing_failed`, `:verification_failed`, `:refused`, and
-  `:unsupported_substrate`. The substrate outcome is
-  `:algorithm_unsupported_on_substrate`; a key mismatch uses `:refused`.
+  The class axis has seven classes: `:ok`, `:invalid_input` (every
+  `{:invalid_input, code}` collapses to the class; the code never rides
+  along), `:invalid_key_handle`, `:signing_failed`, `:verification_failed`,
+  `:refused` and `:unsupported_substrate`. `:unsupported_substrate` classifies
+  `:algorithm_unsupported_on_substrate`, and `:refused` also classifies a
+  `{:refused, :signing_key_mismatch}` outcome; the signing functions in this
+  release do not return those two outcomes.
   An operator reading `:signing_failed` is being told "custody
   misconfiguration or a wrong-key race"; a refusal storm or a post-sign verify
   failure is a DIFFERENT operational condition and must not wear that label.
@@ -134,9 +135,8 @@ defmodule CharterAgreementSigner.Telemetry do
     end
   end
 
-  # The translated classification over the signer's public outcomes (two
-  # of them are produced by the signing path only once the pre-sign check
-  # lands). Error VALUES never ride along; the {:invalid_input,
+  # The translated classification over the signer's public outcomes and the
+  # two classified ahead of the signing path returning them. Error VALUES never ride along; the {:invalid_input,
   # code} pair collapses to its class. The catch-all is unreachable per the
   # entry points' closed @specs — an off-spec shape is a signing-path
   # anomaly, never classified as success.

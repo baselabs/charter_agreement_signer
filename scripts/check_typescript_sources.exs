@@ -49,8 +49,8 @@ unless tests >= minimum and passed == tests and failed == 0 do
   )
 end
 
-# Interop until the shared case table lands: a descriptor the pinned
-# TypeScript signer signs with a real Ed25519 key must verify under CAP.
+# Interop: a descriptor the pinned TypeScript signer signs with a real
+# Ed25519 key must verify under CAP.
 alias CharterAgreementProtocol.{Limits, PartyDescriptor}
 
 seed = :binary.copy(<<6>>, 32)
@@ -84,7 +84,6 @@ import("./dist/index.js").then(async (m) => {
 {compact, sign_status} =
   System.cmd("node", ["-e", sign_script],
     cd: signer,
-    stderr_to_stdout: true,
     env: [{"CAS_SEED_HEX", Base.encode16(seed, case: :lower)}]
   )
 

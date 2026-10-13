@@ -123,22 +123,26 @@ defmodule CharterAgreementSigner.TypeScriptSources do
     end
   end
 
-  # Every pin this repository has committed must descend from the one before
-  # it, and the pin being materialized from the newest committed one. This
-  # walks the whole pin history, so a backward pin fails in CI too, where the
-  # working tree always equals HEAD. It needs full history.
+  # The newest pin change must move forward: the pin being materialized must
+  # descend from the newest committed pin, and the newest committed pin from
+  # the distinct pin before it on the first-parent history. A backward commit
+  # therefore fails in its own CI run, where the working tree equals HEAD,
+  # and a later forward commit repairs it. This needs a full git clone.
   defp forward_only!(kind, cache, commit) do
-    (committed_pins(kind) ++ [commit])
-    |> Enum.dedup()
-    |> Enum.chunk_every(2, 1, :discard)
-    |> Enum.each(fn [older, newer] ->
-      reachable!(
-        cache,
-        older,
-        newer,
-        "the pin history moves backward: #{newer} does not descend from"
-      )
-    end)
+    [newest | older] = Enum.dedup([commit | committed_pins(kind)])
+
+    case older do
+      [previous | _rest] ->
+        reachable!(
+          cache,
+          previous,
+          newest,
+          "the newest pin change moves backward: #{newest} does not descend from"
+        )
+
+      [] ->
+        :ok
+    end
 
     case File.read(Path.join(@root, stamp_path(kind))) do
       {:ok, previous} ->
@@ -155,7 +159,16 @@ defmodule CharterAgreementSigner.TypeScriptSources do
     end
   end
 
+  # Pin values along the first-parent history, newest first.
   defp committed_pins(kind) do
+    case System.cmd("git", ["rev-parse", "--is-inside-work-tree"],
+           cd: @root,
+           stderr_to_stdout: true
+         ) do
+      {"true\n", 0} -> :ok
+      _not_a_checkout -> raise("typescript source: the pin history check needs a git checkout")
+    end
+
     case System.cmd("git", ["rev-parse", "--is-shallow-repository"], cd: @root) do
       {"false\n", 0} ->
         :ok
@@ -165,19 +178,34 @@ defmodule CharterAgreementSigner.TypeScriptSources do
     end
 
     {log, 0} =
-      System.cmd("git", ["log", "--reverse", "--format=%H", "--", pin_path(kind)], cd: @root)
+      System.cmd("git", ["log", "--first-parent", "--format=%H", "--", pin_path(kind)], cd: @root)
 
     log
     |> String.split()
-    |> Enum.flat_map(fn sha ->
-      case System.cmd("git", ["show", "#{sha}:#{pin_path(kind)}"],
-             cd: @root,
-             stderr_to_stdout: true
-           ) do
-        {bytes, 0} -> [Map.fetch!(:json.decode(bytes), "commit")]
-        _deleted_at_sha -> []
-      end
-    end)
+    |> Enum.flat_map(fn sha -> pin_at(sha, kind) end)
+  end
+
+  # A commit in the log either changed the pin file or deleted it.
+  defp pin_at(sha, kind) do
+    case System.cmd("git", ["cat-file", "-e", "#{sha}:#{pin_path(kind)}"],
+           cd: @root,
+           stderr_to_stdout: true
+         ) do
+      {_out, 0} ->
+        case System.cmd("git", ["show", "#{sha}:#{pin_path(kind)}"],
+               cd: @root,
+               stderr_to_stdout: true
+             ) do
+          {bytes, 0} ->
+            [Map.fetch!(:json.decode(bytes), "commit")]
+
+          {out, status} ->
+            raise("typescript source: git show failed at #{sha} (#{status}): #{out}")
+        end
+
+      _deleted_at_sha ->
+        []
+    end
   end
 
   defp extract!(kind, cache, commit) do

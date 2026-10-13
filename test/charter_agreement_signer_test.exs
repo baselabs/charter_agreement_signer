@@ -334,6 +334,27 @@ defmodule CharterAgreementSignerTest do
     end
   end
 
+  test "unknown option keys are invalid_type, so a typo never falls back to the default" do
+    setup = ChainFixture.base()
+    handle = {RawKey, setup.issuer_handle}
+    claims = ChainFixture.mint(setup.issuer.claims)
+
+    for bad_opts <- [
+          %{algoritm: "ML-DSA-65"},
+          [algorithm: "Ed25519", extra: true],
+          CAP.Limits.default(),
+          %{nil => 1}
+        ] do
+      assert {:error, {:invalid_input, :invalid_type}} =
+               CharterAgreementSigner.sign_descriptor(claims, handle, bad_opts),
+             inspect(bad_opts)
+    end
+
+    # :predecessor belongs to descriptors only
+    assert {:error, {:invalid_input, :invalid_type}} =
+             CharterAgreementSigner.sign_receipt(%{}, handle, nil, predecessor: nil)
+  end
+
   test "options that are not a keyword list or an atom-keyed map are invalid_type, never a raise" do
     setup = ChainFixture.base()
     handle = {RawKey, setup.issuer_handle}

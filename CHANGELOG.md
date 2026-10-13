@@ -8,6 +8,24 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Breaking
+
+- Options must be a map or a keyword list whose keys are the function's
+  option atoms, each at most once (`:algorithm`, `:limits`, plus
+  `:predecessor` for `sign_descriptor/3`). Anything else returns
+  `{:error, {:invalid_input, :invalid_type}}`: a misspelled or unknown key,
+  a string key, a struct, a repeated key, or a list that is not a keyword
+  list. These used to raise, be ignored, or let the last value win, so a
+  misspelled `:algorithm` key signed with Ed25519. Migration: pass only the
+  documented keys.
+- An absent or `nil` `:algorithm` selects Ed25519. Every other value
+  outside `"Ed25519"` and `"ML-DSA-65"`, including non-strings, returns
+  `{:error, {:invalid_input, :algorithm_unsupported}}` before the key
+  snapshot. Migration: omit the option, pass `nil`, or pass `"Ed25519"`.
+- Checks run in a fixed order: options, limits, algorithm, then the key
+  snapshot. A call with bad options or limits and a bad key handle now
+  returns the options or limits error instead of `:invalid_key_handle`.
+
 ### Added
 
 - A Linux capability-limited CI job on Ubuntu 24.04 and OTP 28.5.0.3.
@@ -21,15 +39,10 @@ and this project adheres to
   the TypeScript signer's own test suite with its locked npm dependencies.
   The suite must run at least the pin's `minimum_tests` with none failing,
   and a descriptor signed by the pinned TypeScript signer must verify under
-  CAP. Forward-only movement is checked over the whole pin history, so a
-  committed backward pin fails in CI too.
-- Options must be an atom-keyed map or a keyword list with each key once;
-  anything else returns `{:error, {:invalid_input, :invalid_type}}` (a
-  non-keyword list used to raise, a string key was ignored, and a repeated
-  key let the last value win). Checks run in a fixed order: options,
-  limits, algorithm, then the key snapshot.
-  README and
-  `mix ci` descriptions now state exactly which checks run.
+  CAP. The newest pin change on the first-parent history must move forward,
+  so a committed backward pin fails in its own CI run and a later forward
+  commit repairs it; the check needs a full clone. README and `mix ci`
+  descriptions state exactly which checks run.
 - The telemetry class `:unsupported_substrate` for
   `:algorithm_unsupported_on_substrate`. A `:signing_key_mismatch` refusal
   uses `:refused`. ADR-0003, ADR-0005 and the telemetry guide now list all
@@ -43,11 +56,6 @@ and this project adheres to
 - Refresh upgrade notes through CAP 0.5.0 and signer 0.4.1, record the
   CAP pin changes in ADR-0002, repair the README's cut sentence, complete
   the changelog release links, and correct stale pin and toolchain text.
-- An absent or `nil` `:algorithm` selects Ed25519. Every other value
-  outside `"Ed25519"` and `"ML-DSA-65"`, including non-strings, returns
-  `{:error, {:invalid_input, :algorithm_unsupported}}` before the key
-  snapshot on all four entry points.
-
 ### Changed
 
 - SECURITY.md sends reports through GitHub private vulnerability reporting, now
