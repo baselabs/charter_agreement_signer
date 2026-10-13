@@ -124,7 +124,7 @@ defmodule CharterAgreementSigner.MixProject do
   # The local build supplies the tested 0.6.0 API.
   defp deps do
     [
-      {:charter_agreement_protocol, path: "../cap-060"},
+      {:charter_agreement_protocol, path: "../cap-060-fix"},
       {:telemetry, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},

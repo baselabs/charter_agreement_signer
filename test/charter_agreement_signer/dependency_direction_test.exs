@@ -59,7 +59,7 @@ defmodule CharterAgreementSigner.DependencyDirectionTest do
     {:charter_agreement_protocol, options} =
       List.keyfind(Mix.Project.config()[:deps], :charter_agreement_protocol, 0)
 
-    assert options[:path] == "../cap-060"
+    assert options[:path] == "../cap-060-fix"
     assert Application.spec(:charter_agreement_protocol, :vsn) == ~c"0.6.0"
     refute File.read!(Path.join(@repo_root, "mix.lock")) =~ "\"charter_agreement_protocol\""
   end
