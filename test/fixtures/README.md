@@ -47,7 +47,7 @@ includes both same-kid receipt candidates in a view with two accepted
 revisions. The exact Ed25519 compacts were generated with CAP's canonical
 framing and real seed signatures independently of the signer under test.
 
-The runner requires at least 106 rows, unique ids, and every id in its
+The runner requires at least 113 rows, unique ids, and every id in its
 explicit required list. It checks that refusals never call custody even
 if a row's expected callback count says otherwise. Fault pairs pin each
 adjacent signer step: limits before profile, profile before algorithm,
@@ -59,3 +59,25 @@ wrong-key row uses a real seed that differs from the snapshot key and
 expects `signing_failed` after one custody call. Receipt and termination
 rows also exclude context algorithms. A verified ML-DSA chain context
 requires a capable runtime.
+
+For acceptance and termination, profile rows admit the revision, the
+signing party's own descriptor chain and the new artifact. Excluding only
+the counterparty's descriptor algorithm must still sign. The rest of the
+set is checked under the full profile. Excluding the signing party's own
+chain or the revision rejects before custody. A receipt's profile covers
+the whole retained set; a descriptor's covers its predecessor history.
+
+The two counterparty rows carry `requires_cap_profile_fix`, excluded by
+default while this tree uses the read-only CAP build. Run them with
+`mix test --only requires_cap_profile_fix`. They currently return
+`algorithm_outside_profile` instead of signing. The malformed limits tests
+carry `requires_cap_limits_fix`; `mix test --only requires_cap_limits_fix`
+currently raises in CAP's limits validator. The signer's improper profile
+list check remains active and its regression is not excluded.
+
+A real termination call cannot reach `termination_claims_mismatch` for an
+unheld descriptor in a valid set. A governing revision must be accepted;
+its verified acceptances already require the named party descriptor in a
+held chain. An unheld successor in an unaccepted revision fails the earlier
+governing check with `signing_refused`, pinned by
+`termination-unheld-successor`. No synthetic facts bypass that check here.

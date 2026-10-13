@@ -49,8 +49,11 @@ returns `:signing_failed`.
 
 Add `:profile` to calls that need narrowed verification. It is a
 `CAP.Capability.Profile.t()`, defaulting to `Profile.full()`. Malformed
-profiles return `{:invalid_input, :invalid_profile}`. Both axes apply to
-context as well as the artifact. A profile admitting only EdDSA, only
+profiles return `{:invalid_input, :invalid_profile}`. For acceptance and termination, both axes cover the revision, the signing
+party's own descriptor chain and the new artifact. CAP checks the rest of
+the set under the full profile. A receipt's profile covers the whole
+retained set; a descriptor's covers its predecessor history and new
+artifact. A profile admitting only EdDSA, only
 ML-DSA-44/87, or revisions `{1, 1}` refuses every emission this signer can
 make. The same profile code covers an excluded artifact or context revision.
 
@@ -66,8 +69,8 @@ This release also absorbs CAP 0.4 to 0.5 changes. CAP requires distinct
 parties: a revision repeating a descriptor digest fails with
 `:revision_invalid`; roles resolving to one history, or a held history no
 revision names, fail with `:chain_invalid`. Re-verify views stored under
-CAP 0.4.x. Narrowed profiles cover every context artifact and use
-`:algorithm_outside_profile` or `:revision_outside_profile`. The pinned
+CAP 0.4.x. Profile exclusions within the scope above use `:algorithm_outside_profile`
+or `:revision_outside_profile`. The pinned
 TypeScript verifier source is 0.6.0, which includes these checks; the pinned
 TypeScript signer's own npm lock still uses verifier 0.5.0. Its independent
 suite does not certify parity with this signer's new request table.

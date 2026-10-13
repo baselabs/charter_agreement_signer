@@ -50,8 +50,11 @@ with CAP's retained context and profile before a success returns.
 
 All four functions accept `:algorithm`, `:limits` and `:profile` in a map
 or keyword list. Only descriptors accept `:predecessor`. A successor must
-supply verified predecessor facts. Profiles apply to the artifact and the
-context; limits bound the whole retained set read and the final compact.
+supply verified predecessor facts. For acceptance and termination, the caller's profile covers the revision,
+the signing party's own descriptor chain and the new artifact. CAP checks
+the rest of the set under the full profile. A receipt's profile covers the
+whole retained set; a descriptor's covers its predecessor history and new
+artifact. Limits bound the whole set read and the final compact.
 Malformed profiles return `{:error, {:invalid_input, :invalid_profile}}`.
 
 ```elixir

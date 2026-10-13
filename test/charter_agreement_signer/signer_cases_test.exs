@@ -114,11 +114,18 @@ defmodule CharterAgreementSigner.SignerCasesTest do
     descriptor-wrong-key-guard
     receipt-excluded-context
     termination-excluded-context
+    acceptance-profile-counterparty
+    acceptance-profile-own-chain
+    acceptance-profile-context-revision
+    termination-profile-counterparty
+    termination-profile-own-chain
+    termination-profile-context-revision
+    termination-unheld-successor
   )
 
   test "the table retains every required case and unique ids" do
     rows = @table["cases"]
-    assert length(rows) >= 106
+    assert length(rows) >= 113
     ids = Enum.map(rows, & &1["id"])
     assert Enum.uniq(ids) == ids
     for id <- @required_ids, do: assert(id in ids, "missing required case: #{id}")
@@ -142,6 +149,8 @@ defmodule CharterAgreementSigner.SignerCasesTest do
 
   for row <- @table["cases"] do
     @row row
+    if row["requires_cap_profile_fix"], do: @tag(:requires_cap_profile_fix)
+
     if row["requires_mldsa_substrate"] == true or
          row["context"] in ["ml-predecessor", "ml-wrong-predecessor"],
        do: @tag(:requires_mldsa_substrate)

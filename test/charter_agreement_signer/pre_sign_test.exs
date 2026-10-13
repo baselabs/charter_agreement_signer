@@ -124,6 +124,45 @@ defmodule CharterAgreementSigner.PreSignTest do
     refute_signed()
   end
 
+  @tag :requires_cap_limits_fix
+  test "a limits struct with no fields rejects before custody", %{calls: calls, setup: setup} do
+    for call <- calls do
+      assert {:error, {:invalid_input, :invalid_limits}} =
+               call.({RawKey, setup.issuer_handle}, limits: %{__struct__: Limits})
+    end
+
+    assert {:call_count, 0} = :erlang.trace_info({RawKey, :key_identity, 1}, :call_count)
+    refute_signed()
+  end
+
+  @tag :requires_cap_limits_fix
+  test "limits missing max_bytes reject before custody", %{calls: calls, setup: setup} do
+    for call <- calls do
+      assert {:error, {:invalid_input, :invalid_limits}} =
+               call.({RawKey, setup.issuer_handle},
+                 limits: Map.delete(Limits.default(), :max_bytes)
+               )
+    end
+
+    assert {:call_count, 0} = :erlang.trace_info({RawKey, :key_identity, 1}, :call_count)
+    refute_signed()
+  end
+
+  test "an improper profile algorithms list rejects before the snapshot", %{
+    calls: calls,
+    setup: setup
+  } do
+    for call <- calls do
+      assert {:error, {:invalid_input, :invalid_profile}} =
+               call.({RawKey, setup.issuer_handle},
+                 profile: %Profile{algorithms: ["Ed25519" | :invalid], revisions: {1, 3}}
+               )
+    end
+
+    assert {:call_count, 0} = :erlang.trace_info({RawKey, :key_identity, 1}, :call_count)
+    refute_signed()
+  end
+
   test "profile excludes predecessor history before signing", %{
     descriptor: descriptor,
     predecessor: predecessor,

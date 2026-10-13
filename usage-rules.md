@@ -49,12 +49,16 @@ enforces most of them structurally, and the rest are posture.
    carry `"protocol_revision" => 2` for the default `Ed25519` emission, or
    `3` when you select the `ML-DSA-65` emission pair via the `:algorithm`
    option — CAP 0.3's emission rule mints exactly those two pairs, and
-   revision-1 claims are refused at the producer before the key is used.
+   revision-1 claims are refused during CAP preparation before custody.
    Retained revision-1 artifacts keep verifying (cross-revision
    composition); only NEW claims must carry a current pair's revision.
 
-All four entry points accept `:profile` and `:limits`. Profiles cover the
-artifact and context. Limits bound the whole set read and final compact.
+All four entry points accept `:profile` and `:limits`. For acceptance and
+termination, the caller's profile covers the revision, the signing party's
+own descriptor chain and the new artifact. CAP checks the rest of the set
+under the full profile. A receipt's profile covers the whole retained set;
+a descriptor's covers its predecessor history and new artifact. Limits
+bound the whole set read and final compact.
 CAP checks the holder's own descriptor key before custody; a mismatch is
 `{:refused, :signing_key_mismatch}`. CAP owns context derivation and final
 public verification through `prepare_signing/5` and `finish_signing/2`.

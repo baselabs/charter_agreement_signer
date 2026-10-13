@@ -137,9 +137,11 @@ defmodule CharterAgreementSigner do
   a key mismatch gives `{:refused, :signing_key_mismatch}`.
 
   Options: `:algorithm`, `:limits`, `:profile`, as in `sign_descriptor/3`.
-  Limits bound the whole set read and the final compact. The full caller
-  profile applies to set verification and the artifact. `:predecessor` is
-  descriptor-only. Invalid profile returns `{:invalid_input, :invalid_profile}`.
+  Limits bound the whole set read and the final compact. The caller's
+  profile covers the revision, the signing party's own descriptor chain and
+  the new artifact. CAP checks the rest of the set under the full profile.
+  `:predecessor` is descriptor-only. Invalid profile returns
+  `{:invalid_input, :invalid_profile}`.
   """
   @spec sign_acceptance(map(), key_handle(), ArtifactSet.t(), opts()) ::
           {:ok, %{acceptance: binary()}} | {:error, sign_error()}
@@ -159,9 +161,11 @@ defmodule CharterAgreementSigner do
   `{:refused, :signing_key_mismatch}`.
 
   Options: `:algorithm`, `:limits`, `:profile`, as in `sign_descriptor/3`.
-  Limits bound the whole set read and the final compact. The full caller
-  profile applies to set verification and the artifact. `:predecessor` is
-  descriptor-only. Invalid profile returns `{:invalid_input, :invalid_profile}`.
+  Limits bound the whole set read and the final compact. The caller's
+  profile covers the revision, the signing party's own descriptor chain and
+  the new artifact. CAP checks the rest of the set under the full profile.
+  `:predecessor` is descriptor-only. Invalid profile returns
+  `{:invalid_input, :invalid_profile}`.
   """
   @spec sign_termination(map(), key_handle(), ArtifactSet.t(), opts()) ::
           {:ok, %{termination: binary()}} | {:error, sign_error()}
