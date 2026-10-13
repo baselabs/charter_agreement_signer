@@ -8,6 +8,15 @@ Accepted. Deliberately REVERSES the scaffold's recorded "no telemetry surface
 in v0.1.0" scope decision (mix.exs comment at commit `aff42eb`) — the
 release pass chose family-surface uniformity over the smaller dep set.
 
+Amended 2026-10-13: the closed class list is `:ok`, `:invalid_input`,
+`:invalid_key_handle`, `:signing_failed`, `:verification_failed`, `:refused`,
+and `:unsupported_substrate`. The span classifies
+`{:error, :algorithm_unsupported_on_substrate}` as `:unsupported_substrate`
+and `{:error, {:refused, :signing_key_mismatch}}` as `:refused`. Neither
+outcome falls through to the custody class. The public span seam tests these
+mappings directly; signing entry point tests still cover their emitted
+outcomes.
+
 ## Context
 
 BARA ships a closed, value-free telemetry surface for its signing entry
@@ -26,7 +35,7 @@ has no purity clause).
 1. **The class axis is TRANSLATED, never ported.** It is the exact image of
    this signer's public error vocabulary: `:ok`, `:invalid_input`,
    `:invalid_key_handle`, `:signing_failed`, `:verification_failed`,
-   `:refused`. An exact structural port of BARA's classify would fold
+   `:refused`, `:unsupported_substrate`. An exact structural port of BARA's classify would fold
    refusal storms and post-sign verify failures into `:signing_failed` —
    sending operators down the custody-misconfiguration path for conditions
    that are not custody failures — while a docs-table parity test stays

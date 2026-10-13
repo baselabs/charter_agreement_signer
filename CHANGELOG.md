@@ -8,6 +8,13 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- The telemetry class `:unsupported_substrate` for
+  `:algorithm_unsupported_on_substrate`. A `:signing_key_mismatch` refusal
+  uses `:refused`. ADR-0003, ADR-0005 and the telemetry guide now list all
+  seven closed classes.
+
 ### Fixed
 
 - An absent or `nil` `:algorithm` selects Ed25519. Every other value

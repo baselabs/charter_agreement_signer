@@ -18,8 +18,9 @@ defmodule CharterAgreementSigner.Telemetry do
   The class axis is the exact image of THIS library's public error
   vocabulary — `:ok`, `:invalid_input` (every `{:invalid_input, code}`
   collapses to the class; the code never rides along), `:invalid_key_handle`,
-  `:signing_failed`, `:verification_failed`, and `:refused` (the honest-signer
-  refusal). An operator reading `:signing_failed` is being told "custody
+  `:signing_failed`, `:verification_failed`, `:refused`, and
+  `:unsupported_substrate`. The substrate outcome is
+  `:algorithm_unsupported_on_substrate`; a key mismatch uses `:refused`. An operator reading `:signing_failed` is being told "custody
   misconfiguration or a wrong-key race"; a refusal storm or a post-sign verify
   failure is a DIFFERENT operational condition and must not wear that label.
 
@@ -52,7 +53,8 @@ defmodule CharterAgreementSigner.Telemetry do
     :invalid_key_handle,
     :signing_failed,
     :verification_failed,
-    :refused
+    :refused,
+    :unsupported_substrate
   ]
 
   @doc "The closed object axis (one atom per signing entry point)."
@@ -141,7 +143,12 @@ defmodule CharterAgreementSigner.Telemetry do
   defp classify({:error, :invalid_key_handle}), do: :invalid_key_handle
   defp classify({:error, :signing_failed}), do: :signing_failed
   defp classify({:error, :verification_failed}), do: :verification_failed
-  defp classify({:error, {:refused, :signing_refused}}), do: :refused
+
+  defp classify({:error, {:refused, code}})
+       when code in [:signing_refused, :signing_key_mismatch],
+       do: :refused
+
+  defp classify({:error, :algorithm_unsupported_on_substrate}), do: :unsupported_substrate
   defp classify(_off_spec), do: :signing_failed
 
   defp validate_object(object) when object in @objects, do: :ok

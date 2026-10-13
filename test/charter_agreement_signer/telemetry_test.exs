@@ -283,6 +283,35 @@ defmodule CharterAgreementSigner.TelemetryTest do
     :telemetry.detach("telemetry-crash-sign")
   end
 
+  test "a substrate outcome has its own class and keeps the result unchanged" do
+    outcome = {:error, :algorithm_unsupported_on_substrate}
+
+    for object <- Telemetry.objects() do
+      {result, events} =
+        capture_events(fn -> Telemetry.sign_span(object, fn -> outcome end) end)
+
+      assert result == outcome
+
+      assert [
+               {@prefix ++ [:start], %{count: 1}, %{object: ^object}},
+               {@prefix ++ [:stop], %{duration: duration},
+                %{object: ^object, result_class: :unsupported_substrate}}
+             ] = events
+
+      assert is_integer(duration) and duration >= 0
+    end
+  end
+
+  test "a key mismatch uses the refusal class" do
+    outcome = {:error, {:refused, :signing_key_mismatch}}
+
+    {result, events} =
+      capture_events(fn -> Telemetry.sign_span(:descriptor, fn -> outcome end) end)
+
+    assert result == outcome
+    assert [{_start, _, _}, {@prefix ++ [:stop], _, %{result_class: :refused}}] = events
+  end
+
   test "an off-spec span result classifies as :signing_failed, never success" do
     # sign_span/2 is the public seam: a fun returning outside the signer's
     # closed vocabulary is a signing-path anomaly — the classify catch-all
@@ -298,7 +327,7 @@ defmodule CharterAgreementSigner.TelemetryTest do
            ] = events
   end
 
-  test "the closed axes are exactly the four objects and six classes" do
+  test "the closed axes are exactly the four objects and seven classes" do
     assert Telemetry.objects() == [:descriptor, :receipt, :acceptance, :termination]
 
     assert Telemetry.classes() == [
@@ -307,7 +336,8 @@ defmodule CharterAgreementSigner.TelemetryTest do
              :invalid_key_handle,
              :signing_failed,
              :verification_failed,
-             :refused
+             :refused,
+             :unsupported_substrate
            ]
   end
 

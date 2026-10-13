@@ -28,22 +28,26 @@ The object axis — one atom per signing entry point:
 | `:acceptance` | `sign_acceptance/4` |
 | `:termination` | `sign_termination/4` |
 
-The result-class axis — the exact image of the signer's public error
-vocabulary:
+The result-class axis covers these closed span outcomes:
 
-| Class | Fires when the entry point returned | Operator reading |
+| Class | Span result | Operator reading |
 |---|---|---|
 | `:ok` | `{:ok, %{...}}` | nothing |
 | `:invalid_input` | `{:error, {:invalid_input, code}}` | claims shape, opts, limits, or a set the protocol rejected — the code never rides along |
 | `:invalid_key_handle` | `{:error, :invalid_key_handle}` | caller wiring: the handle is malformed or its callback crashed |
 | `:signing_failed` | `{:error, :signing_failed}` | custody misconfiguration or a wrong-key race — the highest-priority signal this surface offers |
 | `:verification_failed` | `{:error, :verification_failed}` | the assembled artifact failed the post-sign protocol verify (unpinned key, missing predecessor facts) |
-| `:refused` | `{:error, {:refused, :signing_refused}}` | the honest-signer refusal: the claims contradict the caller's own verified view — NOT a custody condition |
+| `:refused` | `{:error, {:refused, code}}` | claims contradict the supplied view (`signing_refused`) or the snapshot key does not match (`signing_key_mismatch`) |
+| `:unsupported_substrate` | `{:error, :algorithm_unsupported_on_substrate}` | the runtime cannot verify the required algorithm |
 
 The axes are the single source of truth (`CharterAgreementSigner.Telemetry.objects/0`
 and `classes/0`); this section's tables are diffed against them by the test
 suite, in both directions — a value here that the module does not emit, or an
 axis member missing here, reds the build.
+
+The public `sign_span/2` seam classifies both refusal codes and the substrate
+outcome directly. Signing entry point return shapes are in
+[errors.md](errors.md). The TypeScript signer has no telemetry surface.
 
 ## Attaching
 

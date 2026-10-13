@@ -13,6 +13,14 @@ registry row (64 bytes for `Ed25519`, 3309 for `ML-DSA-65`) instead of the
 literal 64 bytes, and the key-identity snapshot accepts any registry key
 length. The closed-vocabulary decision itself is unchanged.
 
+Amended 2026-10-13: telemetry recognizes these seven classes: `:ok`,
+`:invalid_input`, `:invalid_key_handle`, `:signing_failed`,
+`:verification_failed`, `:refused`, `:unsupported_substrate`. At the public
+span seam, `:algorithm_unsupported_on_substrate` maps to
+`:unsupported_substrate`, and `{:refused, :signing_key_mismatch}` maps to
+`:refused`. The classes carry no error code or value. The signing entry
+points' current return shapes remain documented in `docs/errors.md`.
+
 ## Context
 
 CAP returns typed, value-free failures (`%CharterAgreementProtocol.Error{}`).
