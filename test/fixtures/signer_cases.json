@@ -3247,9 +3247,9 @@
       },
       "context": "ml-context-ed-request",
       "expected": {
-        "code": "algorithm_outside_profile",
+        "code": "signing_refused",
         "custody_called": false,
-        "shape": "invalid_input",
+        "shape": "refused",
         "snapshot_called": true
       },
       "id": "termination-excluded-context",
@@ -3298,8 +3298,7 @@
             3
           ]
         }
-      },
-      "requires_cap_profile_fix": true
+      }
     },
     {
       "claims": {
@@ -3397,8 +3396,7 @@
             3
           ]
         }
-      },
-      "requires_cap_profile_fix": true
+      }
     },
     {
       "claims": {

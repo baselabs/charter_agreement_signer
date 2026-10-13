@@ -124,7 +124,6 @@ defmodule CharterAgreementSigner.PreSignTest do
     refute_signed()
   end
 
-  @tag :requires_cap_limits_fix
   test "a limits struct with no fields rejects before custody", %{calls: calls, setup: setup} do
     for call <- calls do
       assert {:error, {:invalid_input, :invalid_limits}} =
@@ -135,7 +134,6 @@ defmodule CharterAgreementSigner.PreSignTest do
     refute_signed()
   end
 
-  @tag :requires_cap_limits_fix
   test "limits missing max_bytes reject before custody", %{calls: calls, setup: setup} do
     for call <- calls do
       assert {:error, {:invalid_input, :invalid_limits}} =
@@ -213,9 +211,9 @@ defmodule CharterAgreementSigner.PreSignTest do
     bad_chain = %{chain | acceptance_facts: [corrupted | rest]}
 
     for {context, code} <- [
-          {%{chain | descriptor_chains: [nil]}, :receipt_invalid},
-          {%{chain | revision_facts: [nil | 42]}, :receipt_invalid},
-          {bad_chain, :receipt_invalid},
+          {%{chain | descriptor_chains: [nil]}, :invalid_type},
+          {%{chain | revision_facts: [nil | 42]}, :invalid_type},
+          {bad_chain, :invalid_type},
           {%{revision | canonical_bytes: 42}, :invalid_type}
         ] do
       assert {:error, {:invalid_input, ^code}} =
@@ -246,7 +244,7 @@ defmodule CharterAgreementSigner.PreSignTest do
           %{predecessor | descriptor: nil},
           %{predecessor | descriptor_number: :bad}
         ] do
-      assert {:error, {:invalid_input, :descriptor_chain_invalid}} =
+      assert {:error, {:invalid_input, :invalid_type}} =
                CharterAgreementSigner.sign_descriptor(claims, {RawKey, setup.issuer_handle},
                  predecessor: bad
                )

@@ -150,7 +150,6 @@ defmodule CharterAgreementSigner.SignerCasesTest do
 
   for row <- @table["cases"] do
     @row row
-    if row["requires_cap_profile_fix"], do: @tag(:requires_cap_profile_fix)
 
     if row["requires_mldsa_substrate"] == true or
          row["context"] in ["ml-predecessor", "ml-wrong-predecessor"],
@@ -294,7 +293,7 @@ defmodule CharterAgreementSigner.SignerCasesTest do
     do:
       CAP.verify_chain(
         set.revisions,
-        set.acceptances ++ [compact],
+        Enum.uniq(set.acceptances ++ [compact]),
         set.descriptors,
         set.terminations,
         Limits.default()

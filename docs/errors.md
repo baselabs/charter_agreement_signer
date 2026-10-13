@@ -28,8 +28,8 @@ its signing key; key shape and runtime support still apply.
 
 Every preparation refusal occurs before `sign/2`. Limits cover the whole
 set read, including counterparties' artifacts, and the final compact.
-Malformed context types return `{:invalid_input, :invalid_type}`; malformed
-fields inside retained facts return CAP's typed context errors.
+Malformed context types and malformed fields inside retained facts return
+`{:invalid_input, :invalid_type}`.
 
 CAP maps `:signing_refused` and `:signing_key_mismatch` to the refusal
 shape, `:signing_key_invalid` to `:invalid_key_handle`, and substrate errors

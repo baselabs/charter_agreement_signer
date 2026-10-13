@@ -251,18 +251,10 @@ defmodule CharterAgreementSigner do
   defp resolve_profile(opts) do
     profile = Map.get(opts, :profile, Profile.full())
 
-    valid =
-      case profile do
-        %Profile{algorithms: algorithms} -> proper_list?(algorithms) and Profile.valid?(profile)
-        _malformed -> false
-      end
-
-    if valid, do: {:ok, profile}, else: {:error, {:invalid_input, :invalid_profile}}
+    if Profile.valid?(profile),
+      do: {:ok, profile},
+      else: {:error, {:invalid_input, :invalid_profile}}
   end
-
-  defp proper_list?([]), do: true
-  defp proper_list?([_head | tail]), do: proper_list?(tail)
-  defp proper_list?(_other), do: false
 
   # One snapshot call. CAP owns algorithm-specific shape and membership checks.
   defp resolve_key_identity({module, handle}) when is_atom(module) do

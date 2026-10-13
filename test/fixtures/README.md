@@ -68,13 +68,15 @@ chain or the revision rejects before custody. A receipt's profile covers
 the whole retained set, pinned by `receipt-profile-counterparty`; a
 descriptor's covers its predecessor history.
 
-The two counterparty rows carry `requires_cap_profile_fix`, excluded by
-default while this tree uses the read-only CAP build. Run them with
-`mix test --only requires_cap_profile_fix`. They currently return
-`algorithm_outside_profile` instead of signing. The malformed limits tests
-carry `requires_cap_limits_fix`; `mix test --only requires_cap_limits_fix`
-currently raises in CAP's limits validator. The signer's improper profile
-list check remains active and its regression is not excluded.
+The profile and malformed limits regressions run in both runtime suites.
+CAP validates incomplete limits structs and improper profile lists without
+raising. Malformed retained context fields use `invalid_type`.
+
+`termination-excluded-context` returns `signing_refused`: its changed
+revision has no matching acceptances, so it cannot govern. The full-profile
+set check reaches that refusal before the caller's narrowed profile.
+`termination-profile-own-chain` separately pins exclusion of the signing
+party's descriptor history.
 
 A real termination call cannot reach `termination_claims_mismatch` for an
 unheld descriptor in a valid set. A governing revision must be accepted;
