@@ -17,7 +17,7 @@ supported lanes. Lockstep: mix.exs's range, config/config.exs's supported-OTP
 set, `.tool-versions`, and CI's matrix lanes move together in ONE commit —
 divergence between them is a defect.
 
-Dependency currency is mechanical: `scripts/check_deps_current.sh` (wired
+Dependency currency is mechanical: `scripts/check_deps_current.exs` (wired
 into CI and `mix ci`) exits nonzero on any resolvable `mix hex.outdated`
 drift; anything deliberately below latest carries an inline reason in
 mix.exs. `mix hex.audit` runs in the battery after every dependency move.
@@ -33,8 +33,9 @@ mix credo --strict
 mix test
 ```
 
-Then the one-command whole-repo check (every gate, aborts at the first red
-step — the local parity of CI). It must boot under `MIX_ENV=test`; a bare
+Then run the whole-repo check, which aborts at the first failing step.
+It includes the library and example batteries and the pinned TypeScript
+signer suite; CI also checks matrix breadth and the limited substrate. It must boot under `MIX_ENV=test`; a bare
 `mix ci` refuses with the per-shell invocation in the message:
 
 ```sh

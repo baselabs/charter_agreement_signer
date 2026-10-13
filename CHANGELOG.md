@@ -10,6 +10,13 @@ and this project adheres to
 
 ### Added
 
+- Public commit pins for the TypeScript signer and verifier, with source
+  materialization, cached mode, public `main` reachability, forward-only
+  movement, archive blob checks and current-stamp checks.
+- A Linux CI job and `mix ci` steps that build both pinned sources and run
+  the TypeScript signer's own test suite with its locked npm dependencies.
+  README and
+  `mix ci` descriptions now state exactly which checks run.
 - The telemetry class `:unsupported_substrate` for
   `:algorithm_unsupported_on_substrate`. A `:signing_key_mismatch` refusal
   uses `:refused`. ADR-0003, ADR-0005 and the telemetry guide now list all
@@ -24,6 +31,8 @@ and this project adheres to
 
 ### Changed
 
+- Remove the in-tree TypeScript copy and its old artifact check. The
+  supply-chain battery uses the same pinned source steps as local CI.
 - Use `charter_agreement_protocol ~> 0.5.0`, locked to 0.5.0 in the
   library and example. The missing-descriptor test now uses a rotated
   issuer history with an unheld successor.

@@ -108,15 +108,28 @@ maintained. Developer portability across macOS and Linux is a property of the
 developer setup, proven on a developer machine, not a CI leg: CI runs on Linux
 only.
 
-`mix ci` reproduces the CI pipeline locally for BOTH projects: format,
-warnings-as-errors compilation, Credo, the full test suite (including the
-wrong-key gate, the refusal battery, and the dependency-direction wall), the
-coverage floor, Dialyzer, doc warnings, dependency audits, the
-dependency-currency gate (no resolvable `mix hex.outdated` drift), the
-shipped-artifact package census with a consumer smoke against the unpacked
-package, the release-candidate reproducibility gate, and the
-`examples/charter_lifecycle` battery (its own audits, format, compile,
-lint, and the bilateral round-trip tests).
+`MIX_ENV=test mix ci` runs the library checks (format, warnings as errors,
+Credo, tests, 100.0% coverage, Dialyzer, docs, dependency audits and currency,
+package census and consumer smoke, and archive reproducibility), the
+`examples/charter_lifecycle` battery, and the pinned TypeScript signer's own
+suite, plus a build of the pinned verifier. It needs Node 24.8 or newer, Git,
+tar, and network access to Hex, GitHub and npm. CI runs these checks in
+separate Linux jobs; setup, the Elixir/OTP matrix and the capability-limited
+substrate job are additional CI checks.
+
+The TypeScript repositories and full commit hashes are in
+[`priv/signer-source.json`](priv/signer-source.json) and
+[`priv/verifier-source.json`](priv/verifier-source.json).
+`MIX_ENV=test mix typescript.sources` fetches public `main`, refuses a pin
+outside that branch or behind the previous pin, and extracts both source
+trees under `_build/`. `mix typescript.sources --cached` uses the last
+fetched public refs without a network fetch; it still checks reachability
+and forward movement. `mix typescript.sources --check` checks the stamps.
+`mix typescript.check` requires current stamps and builds both sources.
+It runs the signer's own tests with the npm dependencies in its committed
+lockfile (verifier 0.5.0 at the current signer pin). The separate verifier
+source pin names 0.6.0. This check does not compare Elixir and TypeScript
+artifacts or refusals.
 
 Supported toolchain, enforced in code before anything compiles: the tested
 Elixir 1.19.x–1.20.x lines (`~> 1.19` — anything outside the range refuses

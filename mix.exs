@@ -56,17 +56,15 @@ defmodule CharterAgreementSigner.MixProject do
     ]
   end
 
-  # `mix ci` — local CI parity: reproduces .github/workflows/ci.yml step-for-step
-  # (the library steps + the gate battery + the shipped-artifact gates + the
-  # example battery) with zero GitHub Actions spend. The workflow exports
-  # MIX_ENV: test at the JOB level; locally the same environment variable must
-  # be set BEFORE mix boots — the first alias step refuses a :dev boot (it
-  # would skip test/support, the warnings trap) with the fix in hand. This
-  # guard replaced the former `env MIX_ENV=test mix ...` re-exec per step.
-  # `mix cmd` aborts on the first non-zero step, like a failed CI job.
-  # Not reproduced locally: checkout/setup-beam (asdf here).
+  # `mix ci` runs the library and example batteries plus the pinned
+  # TypeScript signer suite and the pinned verifier build. CI runs these
+  # in separate Linux jobs. Setup, matrix breadth and the capability-limited
+  # substrate check remain CI-specific. The first step requires MIX_ENV=test;
+  # every later step shares that environment and aborts on failure.
   defp aliases do
     [
+      "typescript.sources": "run --no-start scripts/materialize_typescript_sources.exs",
+      "typescript.check": "run --no-start scripts/check_typescript_sources.exs",
       ci: [
         &enforce_test_env!/1,
         "deps.get",
@@ -88,9 +86,9 @@ defmodule CharterAgreementSigner.MixProject do
         # The shipped-artifact gate: builds the exact Hex archive, proves its
         # census/metadata, and compiles + smoke-runs a consumer against the
         # UNPACKED package (scripts/check_package.exs; scratch-cleaned).
-        # Cross-implementation gate: TypeScript-signed artifacts must verify
-        # under the Elixir reference (typescript/ dist must be built first).
-        "run --no-start scripts/check_typescript_signer.exs",
+        # Public source pins and the TypeScript signer's own test suite.
+        "typescript.sources",
+        "typescript.check",
         "run --no-start scripts/check_package.exs",
         # Two cache-isolated builds of the exact archive must agree byte for
         # byte (the release-candidate reproducibility gate).

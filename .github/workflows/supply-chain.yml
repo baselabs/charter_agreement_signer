@@ -47,14 +47,6 @@ jobs:
         with:
           node-version: "24.8"
 
-      - name: Build the TypeScript companion signer
-        # mix ci's cross-implementation gate imports typescript/dist, which
-        # is gitignored — build it before the battery runs.
-        working-directory: typescript
-        run: |
-          npm ci
-          npm run build
-
       - name: Install dependencies
         run: mix deps.get
 

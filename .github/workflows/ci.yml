@@ -25,8 +25,8 @@ jobs:
     # distro, so both matrix lanes keep their pinned versions.
     runs-on: ubuntu-26.04
 
-    # Local parity: `mix ci` reproduces these steps step-for-step on the
-    # DEV lane only (asdf .tool-versions). The matrix is CI-side breadth
+    # `mix ci` runs this battery on the local toolchain, plus the example
+    # and TypeScript source checks. The matrix is CI-side breadth
     # across supported Elixir/OTP pairs; every cell runs the identical
     # battery. LOCKSTEP: the lanes stay inside the supported range declared
     # in code — mix.exs's Elixir range + config/config.exs's supported-OTP
@@ -77,8 +77,7 @@ jobs:
       - name: Test (includes the wrong-key gate and the refusal battery)
         run: mix test
 
-      # The gate battery (parity with mix ci, which reproduces these steps
-      # step-for-step locally):
+      # These library checks also run in mix ci:
       - name: Coverage floor
         run: mix test --cover
 
@@ -168,3 +167,30 @@ jobs:
 
       - name: Test (the bilateral round-trip + the counterparty isolation + lock parity)
         run: mix test
+  typescript:
+    name: Pinned TypeScript signer suite
+    runs-on: ubuntu-26.04
+    env:
+      MIX_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.20.3"
+          otp-version: "29.0.3"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.8"
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Materialize pinned public sources
+        run: mix typescript.sources
+
+      - name: Build pinned sources and run the signer suite
+        run: mix typescript.check
