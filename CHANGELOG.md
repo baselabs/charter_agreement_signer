@@ -10,6 +10,10 @@ and this project adheres to
 
 ### Added
 
+- A Linux capability-limited CI job on Ubuntu 24.04 and OTP 28.5.0.3.
+  It first asserts that ML-DSA is unverifiable and the classical rows are
+  verifiable, then runs the existing suite with the ML-DSA mint test
+  excluded.
 - Public commit pins for the TypeScript signer and verifier, with source
   materialization, cached mode, public `main` reachability, forward-only
   movement, archive blob checks and current-stamp checks.

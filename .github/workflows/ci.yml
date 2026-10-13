@@ -194,3 +194,25 @@ jobs:
 
       - name: Build pinned sources and run the signer suite
         run: mix typescript.check
+
+  capability-limited:
+    name: Capability-limited substrate
+    runs-on: ubuntu-24.04
+    env:
+      MIX_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.20.3"
+          otp-version: "28.5.0.3"
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Assert ML-DSA is unverifiable on this lane
+        run: mix run --no-start scripts/assert_limited_substrate.exs
+
+      - name: Run the suite without ML-DSA minting
+        run: mix test --exclude requires_mldsa_substrate
