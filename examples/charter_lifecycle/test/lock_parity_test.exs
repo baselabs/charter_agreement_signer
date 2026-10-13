@@ -7,7 +7,7 @@ defmodule CharterLifecycle.LockParityTest do
 
     example_path = Path.expand(options[:path])
     library_root = Path.expand("../..")
-    assert example_path == Path.expand("../cap-060", library_root)
+    assert example_path == Path.expand("../cap-060-fix", library_root)
     assert Application.spec(:charter_agreement_protocol, :vsn) == ~c"0.6.0"
 
     for root <- [File.cwd!(), library_root] do
