@@ -25,6 +25,22 @@ and this project adheres to
 - All four functions accept `:profile`. Malformed profiles return
   `{:invalid_input, :invalid_profile}`; excluded algorithms or revisions
   use `:algorithm_outside_profile` or `:revision_outside_profile`.
+- For acceptance and termination, the caller's profile covers the selected
+  revision, signing party's descriptor history and new artifact. CAP checks
+  the rest of the set under the full profile, so a counterparty descriptor
+  outside the caller's profile can still sign. The runtime must still
+  verify every algorithm in the set. A receipt's profile covers
+  the whole retained set; a descriptor's covers its predecessor history
+  and new artifact.
+- CAP fully decodes Ed25519 snapshot keys. Non-canonical y values, bytes
+  that do not encode a curve point, zero x with the sign bit set and
+  small-order points return `:invalid_key_handle` before custody.
+  Mixed-order points remain admitted and can sign.
+- Malformed fields inside caller-built context now return
+  `{:invalid_input, :invalid_type}` on every signing surface, replacing
+  context-specific errors or exceptions. Incomplete limits structs and
+  improper profile lists return `:invalid_limits` and `:invalid_profile`
+  in the invalid-input shape without raising.
 - CAP owns context derivation. Caller limits cover the whole set read and
   final compact, replacing the signer's default-limit producer followed
   by its own context decoding under caller limits. Raised limits now work.

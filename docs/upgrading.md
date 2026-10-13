@@ -39,9 +39,22 @@ before custody. Update error matches:
   retained context too large: `{:invalid_input, :limit_exceeded}`.
 - Receipt claims against their context: `{:invalid_input,
   :receipt_claims_mismatch}`. Malformed context types use `:invalid_type`;
-  malformed retained fields use CAP's typed context codes.
+  malformed retained fields use the same `:invalid_type` code.
 - Unsupported runtime for the artifact or any context artifact:
   top-level `:algorithm_unsupported_on_substrate`.
+
+CAP fully decodes Ed25519 snapshot keys before custody. It rejects
+non-canonical y values, bytes with no curve point, zero x with the sign bit
+set (the two negative-zero encodings) and small-order points with
+`:invalid_key_handle`. Valid mixed-order points remain admitted and can sign.
+
+Malformed fields inside caller-built context consistently return
+`{:invalid_input, :invalid_type}` on every signing surface. Update matches
+that expected `:receipt_invalid` or `:descriptor_chain_invalid` for these
+field-type errors. Incomplete limits structs and malformed profile fields,
+including improper algorithm lists, return `{:invalid_input, :invalid_limits}`
+or `{:invalid_input, :invalid_profile}` without raising. CAP owns these
+validation rules.
 
 `:verification_failed` now means CAP finish rejected what preparation
 approved after the custody guard passed. The raw wrong-key guard still
@@ -51,7 +64,9 @@ Add `:profile` to calls that need narrowed verification. It is a
 `CAP.Capability.Profile.t()`, defaulting to `Profile.full()`. Malformed
 profiles return `{:invalid_input, :invalid_profile}`. For acceptance and termination, both axes cover the revision, the signing
 party's own descriptor chain and the new artifact. CAP checks the rest of
-the set under the full profile. A receipt's profile covers the whole
+the set under the full profile, so a counterparty descriptor outside the
+caller's profile can still sign. The runtime must still verify every
+algorithm in the set. A receipt's profile covers the whole
 retained set; a descriptor's covers its predecessor history and new
 artifact. A profile admitting only EdDSA, only
 ML-DSA-44/87, or revisions `{1, 1}` refuses every emission this signer can
