@@ -47,7 +47,7 @@ includes both same-kid receipt candidates in a view with two accepted
 revisions. The exact Ed25519 compacts were generated with CAP's canonical
 framing and real seed signatures independently of the signer under test.
 
-The runner requires at least 113 rows, unique ids, and every id in its
+The runner requires at least 114 rows, unique ids, and every id in its
 explicit required list. It checks that refusals never call custody even
 if a row's expected callback count says otherwise. Fault pairs pin each
 adjacent signer step: limits before profile, profile before algorithm,
@@ -65,7 +65,8 @@ signing party's own descriptor chain and the new artifact. Excluding only
 the counterparty's descriptor algorithm must still sign. The rest of the
 set is checked under the full profile. Excluding the signing party's own
 chain or the revision rejects before custody. A receipt's profile covers
-the whole retained set; a descriptor's covers its predecessor history.
+the whole retained set, pinned by `receipt-profile-counterparty`; a
+descriptor's covers its predecessor history.
 
 The two counterparty rows carry `requires_cap_profile_fix`, excluded by
 default while this tree uses the read-only CAP build. Run them with

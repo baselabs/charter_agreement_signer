@@ -121,11 +121,12 @@ defmodule CharterAgreementSigner.SignerCasesTest do
     termination-profile-own-chain
     termination-profile-context-revision
     termination-unheld-successor
+    receipt-profile-counterparty
   )
 
   test "the table retains every required case and unique ids" do
     rows = @table["cases"]
-    assert length(rows) >= 113
+    assert length(rows) >= 114
     ids = Enum.map(rows, & &1["id"])
     assert Enum.uniq(ids) == ids
     for id <- @required_ids, do: assert(id in ids, "missing required case: #{id}")
