@@ -1702,6 +1702,12 @@
         "shape": "invalid_input",
         "snapshot_called": true
       },
+      "expected_limited": {
+        "code": "algorithm_unsupported_on_substrate",
+        "custody_called": false,
+        "shape": "algorithm_unsupported_on_substrate",
+        "snapshot_called": true
+      },
       "id": "acceptance-excluded-context",
       "key": "ed-issuer",
       "kind": "acceptance",
@@ -3252,6 +3258,12 @@
         "shape": "refused",
         "snapshot_called": true
       },
+      "expected_limited": {
+        "code": "algorithm_unsupported_on_substrate",
+        "custody_called": false,
+        "shape": "algorithm_unsupported_on_substrate",
+        "snapshot_called": true
+      },
       "id": "termination-excluded-context",
       "key": "ed-issuer",
       "kind": "termination",
@@ -3532,6 +3544,139 @@
           ]
         }
       }
+    },
+    {
+      "claims": {
+        "attestation_hints": [],
+        "descriptor_number": 1,
+        "effective_from": "2026-08-25T10:00:00Z",
+        "extensions": {
+          "critical": {},
+          "optional": {}
+        },
+        "protocol_revision": 2,
+        "verification_keys": [
+          {
+            "algorithm": "Ed25519",
+            "key_id": "issuer-key",
+            "public_key": "AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "status": "active"
+          }
+        ]
+      },
+      "context": null,
+      "expected": {
+        "code": "invalid_key_handle",
+        "custody_called": false,
+        "shape": "invalid_key_handle",
+        "snapshot_called": true
+      },
+      "id": "descriptor-no-curve-point",
+      "key": "ed-no-curve-point",
+      "kind": "descriptor",
+      "options": {
+        "algorithm": "Ed25519"
+      }
+    },
+    {
+      "claims": {
+        "attestation_hints": [],
+        "descriptor_number": 1,
+        "effective_from": "2026-08-25T10:00:00Z",
+        "extensions": {
+          "critical": {},
+          "optional": {}
+        },
+        "protocol_revision": 2,
+        "verification_keys": [
+          {
+            "algorithm": "Ed25519",
+            "key_id": "issuer-key",
+            "public_key": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIA",
+            "status": "active"
+          }
+        ]
+      },
+      "context": null,
+      "expected": {
+        "code": "invalid_key_handle",
+        "custody_called": false,
+        "shape": "invalid_key_handle",
+        "snapshot_called": true
+      },
+      "id": "descriptor-identity-negative-zero",
+      "key": "ed-identity-negative-zero",
+      "kind": "descriptor",
+      "options": {
+        "algorithm": "Ed25519"
+      }
+    },
+    {
+      "claims": {
+        "attestation_hints": [],
+        "descriptor_number": 1,
+        "effective_from": "2026-08-25T10:00:00Z",
+        "extensions": {
+          "critical": {},
+          "optional": {}
+        },
+        "protocol_revision": 2,
+        "verification_keys": [
+          {
+            "algorithm": "Ed25519",
+            "key_id": "issuer-key",
+            "public_key": "7P________________________________________8",
+            "status": "active"
+          }
+        ]
+      },
+      "context": null,
+      "expected": {
+        "code": "invalid_key_handle",
+        "custody_called": false,
+        "shape": "invalid_key_handle",
+        "snapshot_called": true
+      },
+      "id": "descriptor-order-two-negative-zero",
+      "key": "ed-order-two-negative-zero",
+      "kind": "descriptor",
+      "options": {
+        "algorithm": "Ed25519"
+      }
+    },
+    {
+      "claims": {
+        "attestation_hints": [],
+        "descriptor_number": 1,
+        "effective_from": "2026-08-25T10:00:00Z",
+        "extensions": {
+          "critical": {},
+          "optional": {}
+        },
+        "protocol_revision": 2,
+        "verification_keys": [
+          {
+            "algorithm": "Ed25519",
+            "key_id": "issuer-key",
+            "public_key": "Y3ccIov2DmoCrSTSw0WijTWY9kDia-3kDIt3_kvwkKM",
+            "status": "active"
+          }
+        ]
+      },
+      "context": null,
+      "expected": {
+        "code": null,
+        "compact": "eyJhbGciOiJFZDI1NTE5Iiwia2lkIjoiaXNzdWVyLWtleSIsInR5cCI6ImNhcCtwYXJ0eSJ9.eyJhdHRlc3RhdGlvbl9oaW50cyI6W10sImRlc2NyaXB0b3JfbnVtYmVyIjoxLCJlZmZlY3RpdmVfZnJvbSI6IjIwMjYtMDgtMjVUMTA6MDA6MDBaIiwiZXh0ZW5zaW9ucyI6eyJjcml0aWNhbCI6e30sIm9wdGlvbmFsIjp7fX0sInByb3RvY29sX3JldmlzaW9uIjoyLCJ2ZXJpZmljYXRpb25fa2V5cyI6W3siYWxnb3JpdGhtIjoiRWQyNTUxOSIsImtleV9pZCI6Imlzc3Vlci1rZXkiLCJwdWJsaWNfa2V5IjoiWTNjY0lvdjJEbW9DclNUU3cwV2lqVFdZOWtEaWEtM2tESXQzX2t2d2tLTSIsInN0YXR1cyI6ImFjdGl2ZSJ9XX0.prOCY0hjN-5LLhrBbqI0YZmzBRXjTqKFcTScvcMYTyc_QdJEu4kDvnn488v5udaere2tCFhS_9SAjyXhZLElDQ",
+        "custody_called": true,
+        "shape": "ok",
+        "snapshot_called": true
+      },
+      "id": "descriptor-mixed-order",
+      "key": "ed-mixed-order",
+      "kind": "descriptor",
+      "options": {
+        "algorithm": "Ed25519"
+      }
     }
   ],
   "contexts": {
@@ -3787,6 +3932,12 @@
       "public_key": "gTl3Dqh9F19Wo1Rmw0x-zMuNipG07jeiXfYPW4_Js5Q",
       "seed": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI"
     },
+    "ed-identity-negative-zero": {
+      "algorithm": "Ed25519",
+      "kid": "issuer-key",
+      "public_key": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIA",
+      "seed": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE"
+    },
     "ed-invalid": {
       "algorithm": "Ed25519",
       "kid": "issuer-key",
@@ -3809,6 +3960,25 @@
       "algorithm": "Ed25519",
       "kid": "",
       "public_key": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w",
+      "seed": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE"
+    },
+    "ed-mixed-order": {
+      "algorithm": "Ed25519",
+      "kid": "issuer-key",
+      "mixed_order": true,
+      "public_key": "Y3ccIov2DmoCrSTSw0WijTWY9kDia-3kDIt3_kvwkKM",
+      "seed": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE"
+    },
+    "ed-no-curve-point": {
+      "algorithm": "Ed25519",
+      "kid": "issuer-key",
+      "public_key": "AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "seed": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE"
+    },
+    "ed-order-two-negative-zero": {
+      "algorithm": "Ed25519",
+      "kid": "issuer-key",
+      "public_key": "7P________________________________________8",
       "seed": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE"
     },
     "ed-other": {

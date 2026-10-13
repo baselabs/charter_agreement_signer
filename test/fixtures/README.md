@@ -6,7 +6,8 @@ values. All key bytes and seeds use unpadded canonical base64url. Seeds are
 public test material: 32-byte Ed25519 seeds or 32-byte FIPS 204 ML-DSA-65
 seeds. They belong only to the test custody handles.
 
-Each key entry contains `algorithm`, `kid`, `seed` and `public_key`. A
+Each key entry contains `algorithm`, `kid`, `seed` and `public_key`. The
+optional `mixed_order: true` selects real mixed-order signing in `RawKey`. A
 snapshot returns the entry's kid and public key; signing uses its seed.
 Some refusal entries intentionally advertise a different public key.
 
@@ -47,7 +48,7 @@ includes both same-kid receipt candidates in a view with two accepted
 revisions. The exact Ed25519 compacts were generated with CAP's canonical
 framing and real seed signatures independently of the signer under test.
 
-The runner requires at least 114 rows, unique ids, and every id in its
+The runner requires at least 118 rows, unique ids, and every id in its
 explicit required list. It checks that refusals never call custody even
 if a row's expected callback count says otherwise. Fault pairs pin each
 adjacent signer step: limits before profile, profile before algorithm,
@@ -68,6 +69,13 @@ chain or the revision rejects before custody. A receipt's profile covers
 the whole retained set, pinned by `receipt-profile-counterparty`; a
 descriptor's covers its predecessor history.
 
+The key rows reject a public key with no curve point and both negative-zero
+encodings before custody. The mixed-order row signs with the seed's public
+point plus the order-two point. The existing `RawKey` handle computes a real
+signature with an even challenge, which cancels that order-two component.
+CAP checks the raw signature and the finished descriptor. The compact was
+built through CAP with a signature checked by independent Edwards arithmetic.
+
 The profile and malformed limits regressions run in both runtime suites.
 CAP validates incomplete limits structs and improper profile lists without
 raising. Malformed retained context fields use `invalid_type`.
@@ -76,7 +84,10 @@ raising. Malformed retained context fields use `invalid_type`.
 revision has no matching acceptances, so it cannot govern. The full-profile
 set check reaches that refusal before the caller's narrowed profile.
 `termination-profile-own-chain` separately pins exclusion of the signing
-party's descriptor history.
+party's descriptor history. Both `acceptance-excluded-context` and
+`termination-excluded-context` return `algorithm_unsupported_on_substrate`
+on the limited runtime: the full-profile set check needs ML-DSA verification
+before a later profile exclusion or signing refusal.
 
 A real termination call cannot reach `termination_claims_mismatch` for an
 unheld descriptor in a valid set. A governing revision must be accepted;

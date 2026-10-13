@@ -30,6 +30,10 @@ defmodule CharterAgreementSigner.SignerCasesTest do
     receipt-ed-other-mismatch
     receipt-ed-same-kid-mismatch
     descriptor-invalid-key
+    descriptor-no-curve-point
+    descriptor-identity-negative-zero
+    descriptor-order-two-negative-zero
+    descriptor-mixed-order
     acceptance-other-role-key
     termination-other-role-key
     receipt-other-role-key
@@ -126,7 +130,7 @@ defmodule CharterAgreementSigner.SignerCasesTest do
 
   test "the table retains every required case and unique ids" do
     rows = @table["cases"]
-    assert length(rows) >= 114
+    assert length(rows) >= 118
     ids = Enum.map(rows, & &1["id"])
     assert Enum.uniq(ids) == ids
     for id <- @required_ids, do: assert(id in ids, "missing required case: #{id}")
@@ -161,6 +165,7 @@ defmodule CharterAgreementSigner.SignerCasesTest do
       module = if key["algorithm"] == "Ed25519", do: RawKey, else: RawMLDSA65
       seed = Base.url_decode64!(key["seed"], padding: false)
       private = if module == RawKey, do: seed, else: {:seed, seed}
+      private = if key["mixed_order"], do: {:mixed_order, seed}, else: private
       public = Base.url_decode64!(key["public_key"], padding: false)
       handle = {module, {key["kid"], public, private}}
       context = context(row["context"])
@@ -289,15 +294,18 @@ defmodule CharterAgreementSigner.SignerCasesTest do
   defp verify("receipt", compact, context),
     do: CAP.verify_receipt(compact, context, Limits.default())
 
-  defp verify("acceptance", compact, set),
-    do:
-      CAP.verify_chain(
-        set.revisions,
-        Enum.uniq(set.acceptances ++ [compact]),
-        set.descriptors,
-        set.terminations,
-        Limits.default()
-      )
+  defp verify("acceptance", compact, set) do
+    acceptances =
+      if compact in set.acceptances, do: set.acceptances, else: set.acceptances ++ [compact]
+
+    CAP.verify_chain(
+      set.revisions,
+      acceptances,
+      set.descriptors,
+      set.terminations,
+      Limits.default()
+    )
+  end
 
   defp verify("termination", compact, set),
     do:

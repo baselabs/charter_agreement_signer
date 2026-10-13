@@ -26,17 +26,48 @@ defmodule CharterAgreementSigner.Keys.RawKey do
 
   @behaviour CharterAgreementSigner
 
+  @subgroup_order 2 ** 252 + 27_742_317_777_372_353_535_851_937_790_883_648_493
+
   def generate(kid, seed) when is_binary(kid) do
     {public, private} = :crypto.generate_key(:eddsa, :ed25519, seed)
     {kid, public, private}
   end
 
   @impl true
+  def sign(message, {_kid, public, {:mixed_order, seed}}) when is_binary(message) do
+    <<_scalar::binary-size(32), prefix::binary-size(32)>> = :crypto.hash(:sha512, seed)
+    {:ok, mixed_signature(message, public, private_scalar(seed), prefix, 0)}
+  end
+
   def sign(message, {_kid, _public, private}) when is_binary(message) do
     {:ok, :crypto.sign(:eddsa, :none, message, [private, :ed25519])}
   end
 
   def sign(_message, _handle), do: {:error, :invalid_handle}
+
+  # The mixed public point is aB + T, with T of order two. An even challenge
+  # cancels T, so the real signature satisfies SB = R + kA without cofactoring.
+  defp mixed_signature(message, public, scalar, prefix, attempt) do
+    seed = :crypto.hash(:sha256, prefix <> message <> <<attempt::32>>)
+    {point, _private} = :crypto.generate_key(:eddsa, :ed25519, seed)
+
+    challenge =
+      :crypto.hash(:sha512, point <> public <> message)
+      |> :binary.decode_unsigned(:little)
+      |> rem(@subgroup_order)
+
+    if rem(challenge, 2) == 0 do
+      response = Integer.mod(private_scalar(seed) + challenge * scalar, @subgroup_order)
+      point <> <<response::little-unsigned-size(256)>>
+    else
+      mixed_signature(message, public, scalar, prefix, attempt + 1)
+    end
+  end
+
+  defp private_scalar(seed) do
+    <<scalar::little-unsigned-size(256), _prefix::binary-size(32)>> = :crypto.hash(:sha512, seed)
+    Bitwise.band(scalar, 2 ** 254 - 8) + 2 ** 254
+  end
 
   @impl true
   def key_identity({kid, public, _private})
