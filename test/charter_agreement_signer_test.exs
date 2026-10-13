@@ -245,6 +245,8 @@ defmodule CharterAgreementSignerTest do
 
     assert {:error, {:refused, :signing_refused}} =
              CharterAgreementSigner.sign_termination(claims, {RawKey, setup.issuer_handle}, set)
+
+    refute_signed()
   end
 
   test "an unheld successor descriptor rejects acceptance before signing" do

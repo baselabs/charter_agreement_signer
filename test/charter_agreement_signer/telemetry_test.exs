@@ -131,16 +131,22 @@ defmodule CharterAgreementSigner.TelemetryTest do
   end
 
   test ":refused class fires for an unpinned snapshot key through the real entry point" do
+    Code.ensure_loaded!(RawKey)
+    :erlang.trace_pattern({RawKey, :sign, 2}, true, [:call_count])
+    on_exit(fn -> :erlang.trace_pattern({RawKey, :sign, 2}, false, [:call_count]) end)
     setup = ChainFixture.base()
     stranger = RawKey.generate("stranger-key-001", <<7::256>>)
 
-    {_result, events} =
+    {result, events} =
       capture_events(fn ->
         CharterAgreementSigner.sign_descriptor(
           ChainFixture.mint(setup.issuer.claims),
           {RawKey, stranger}
         )
       end)
+
+    assert result == {:error, {:refused, :signing_key_mismatch}}
+    assert {:call_count, 0} = :erlang.trace_info({RawKey, :sign, 2}, :call_count)
 
     assert [{_start, _, _}, {@prefix ++ [:stop], _, %{result_class: :refused}}] =
              events

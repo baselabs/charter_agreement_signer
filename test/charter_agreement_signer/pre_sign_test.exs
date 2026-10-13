@@ -13,13 +13,15 @@ defmodule CharterAgreementSigner.PreSignTest do
   }
 
   setup do
-    Code.ensure_loaded!(RawKey)
-    :erlang.trace_pattern({RawKey, :sign, 2}, true, [:call_count])
-    :erlang.trace_pattern({RawKey, :key_identity, 1}, true, [:call_count])
+    for module <- [RawKey, RawMLDSA65] do
+      Code.ensure_loaded!(module)
+      :erlang.trace_pattern({module, :sign, 2}, true, [:call_count])
+      :erlang.trace_pattern({module, :key_identity, 1}, true, [:call_count])
+    end
 
     on_exit(fn ->
-      for {function, arity} <- [sign: 2, key_identity: 1] do
-        :erlang.trace_pattern({RawKey, function, arity}, false, [:call_count])
+      for module <- [RawKey, RawMLDSA65], {function, arity} <- [sign: 2, key_identity: 1] do
+        :erlang.trace_pattern({module, function, arity}, false, [:call_count])
       end
     end)
 
@@ -229,6 +231,7 @@ defmodule CharterAgreementSigner.PreSignTest do
                {RawMLDSA65, {kid, "short", private}}
              )
 
+    assert {:call_count, 0} = :erlang.trace_info({RawMLDSA65, :sign, 2}, :call_count)
     refute_signed()
   end
 

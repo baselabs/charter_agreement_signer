@@ -6,7 +6,7 @@ defmodule CharterAgreementSigner.KeyHandleTest do
   escape, never key material in the error.
   """
 
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias CharterAgreementSigner.{
     ChainFixture,
@@ -95,6 +95,10 @@ defmodule CharterAgreementSigner.KeyHandleTest do
   end
 
   test "bad identity snapshot shapes are :invalid_key_handle", %{setup: setup} do
+    Code.ensure_loaded!(BadSnapshots)
+    :erlang.trace_pattern({BadSnapshots, :sign, 2}, true, [:call_count])
+    on_exit(fn -> :erlang.trace_pattern({BadSnapshots, :sign, 2}, false, [:call_count]) end)
+
     for ref <- [:empty_kid, :short_key, :not_a_tuple, :crashed] do
       assert {:error, :invalid_key_handle} =
                CharterAgreementSigner.sign_descriptor(
@@ -102,6 +106,8 @@ defmodule CharterAgreementSigner.KeyHandleTest do
                  {BadSnapshots, ref}
                )
     end
+
+    assert {:call_count, 0} = :erlang.trace_info({BadSnapshots, :sign, 2}, :call_count)
   end
 
   test "the RawKey reference handle satisfies the full behaviour" do
