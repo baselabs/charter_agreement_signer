@@ -1,6 +1,6 @@
 # This lane must verify the classical rows and lack ML-DSA verification.
 report = CharterAgreementProtocol.capabilities()
-IO.inspect(report, structs: false, width: 120)
+IO.puts(inspect(report, structs: false, width: 120))
 
 {mldsa, classical} =
   Enum.split_with(report.algorithms, &String.starts_with?(&1.name, "ML-DSA-"))

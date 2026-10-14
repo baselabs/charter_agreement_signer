@@ -35,7 +35,7 @@ defmodule CharterAgreementSigner.TypeScriptSources do
           not (commit =~ ~r/\A[0-9a-f]{40}\z/) ->
             raise("typescript source pin: commit must be a full lowercase SHA-1")
 
-          kind == :signer and not (is_integer(pin["minimum_tests"]) and pin["minimum_tests"] > 0) ->
+          not valid_minimum?(kind, pin) ->
             raise("typescript source pin: minimum_tests must be a positive integer")
 
           true ->
@@ -48,6 +48,11 @@ defmodule CharterAgreementSigner.TypeScriptSources do
         )
     end
   end
+
+  defp valid_minimum?(:signer, %{"minimum_tests" => minimum}),
+    do: is_integer(minimum) and minimum > 0
+
+  defp valid_minimum?(:verifier, _pin), do: true
 
   def current!(kind) do
     %{"commit" => commit} = pin!(kind)
