@@ -30,8 +30,12 @@ before custody. Update error matches:
 - Snapshot kid or bytes absent from the holder's active descriptor keys:
   `{:refused, :signing_key_mismatch}`.
 - Invalid public key for the selected algorithm: `:invalid_key_handle`.
-- Missing or wrong successor predecessor: `{:invalid_input,
-  :descriptor_chain_invalid}`.
+- Successor predecessor errors use two codes:
+  `{:invalid_input, :descriptor_chain_invalid}` for no predecessor (`nil`),
+  verified facts that do not link to the successor, an unverifiable nonempty
+  binary lineage, or a retained digest inconsistent with that lineage;
+  `{:invalid_input, :invalid_type}` for a non-facts value or malformed retained
+  field types, including empty, non-list, improper or nonbinary lineage.
 - An unheld descriptor named by acceptance or termination claims:
   `{:invalid_input, :acceptance_claims_mismatch}` or
   `{:invalid_input, :termination_claims_mismatch}`.

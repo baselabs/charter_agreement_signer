@@ -12,8 +12,13 @@ and this project adheres to
 
 - CAP 0.6.0 checks every request before custody. Snapshot key mismatches
   now return `{:refused, :signing_key_mismatch}`; invalid keys for the
-  selected algorithm return `:invalid_key_handle`. Missing or wrong
-  predecessor facts return `{:invalid_input, :descriptor_chain_invalid}`.
+  selected algorithm return `:invalid_key_handle`. A successor with no
+  predecessor (`nil`), verified facts that do not link to it, an unverifiable
+  nonempty binary lineage, or a retained digest inconsistent with that
+  lineage returns `{:invalid_input, :descriptor_chain_invalid}`.
+  A non-facts predecessor or malformed retained field types, including
+  empty, non-list, improper or nonbinary lineage, returns
+  `{:invalid_input, :invalid_type}`.
   Unheld party descriptors return `:acceptance_claims_mismatch` or
   `:termination_claims_mismatch` in the invalid-input shape. These cases
   previously signed and returned a later failure.
