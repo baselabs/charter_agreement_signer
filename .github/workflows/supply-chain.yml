@@ -47,7 +47,7 @@ jobs:
         with:
           node-version: "24.8"
 
-      - name: Install dependencies
+      - name: Install dependencies from Hex
         run: mix deps.get
 
       - name: Run the full gate battery

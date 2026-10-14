@@ -55,13 +55,32 @@ defmodule CharterAgreementSigner.DependencyDirectionTest do
 
   defp telemetry_module?(path), do: Path.basename(path) == "telemetry.ex"
 
-  test "the protocol dependency resolves the tested local build" do
-    {:charter_agreement_protocol, options} =
-      List.keyfind(Mix.Project.config()[:deps], :charter_agreement_protocol, 0)
+  # The library-side protocol double-pin (the BARA ADR-0010 discipline): the
+  # shipped requirement must name EXACTLY the locked version's tested line;
+  # a three-part "~> 0.6.0" pin admitting only the tested 0.6.x line, per
+  # CAP's own dependent guidance (CAP's package semver carries no
+  # compatibility promise, so the dependent pins conservatively and bumps
+  # deliberately). A silent `mix deps.update` or a loosened requirement reds
+  # here.
+  @protocol_requirement "~> 0.6.0"
+  @protocol_locked_version "0.6.0"
 
-    assert options[:path] == "../cap-060-fix"
-    assert Application.spec(:charter_agreement_protocol, :vsn) == ~c"0.6.0"
-    refute File.read!(Path.join(@repo_root, "mix.lock")) =~ "\"charter_agreement_protocol\""
+  test "the protocol dependency is double-pinned to the tested release line" do
+    mix_source = File.read!(Path.join(@repo_root, "mix.exs"))
+
+    assert mix_source =~ "{:charter_agreement_protocol, \"#{@protocol_requirement}\"}",
+           "the CAP requirement must be exactly \"#{@protocol_requirement}\"; a two-part " <>
+             "\"~> 0.2\" admits every future pre-1.0 CAP that no gate has tested"
+
+    refute mix_source =~ "{:charter_agreement_protocol, \"~> 0.2\"},",
+           "the two-part pin must not appear alongside the three-part form"
+
+    lock_source = File.read!(Path.join(@repo_root, "mix.lock"))
+
+    assert lock_source =~
+             ~r/"charter_agreement_protocol":\s*\{:hex,\s*:charter_agreement_protocol,\s*"#{@protocol_locked_version}"/,
+           "the locked CAP version must be exactly #{@protocol_locked_version}; the " <>
+             "requirement vouches for no span the lock has not tested"
   end
 
   test "runtime dependencies are exactly the protocol package and telemetry" do

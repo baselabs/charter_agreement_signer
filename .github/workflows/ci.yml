@@ -14,9 +14,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  CAP_SOURCE_COMMIT: "40e1f2b62911d5f2e9cbb15e41f7f42e47fd8cca"
-
 jobs:
   gate:
     name: Gate battery (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
@@ -53,12 +50,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Check out the tested CAP build
-        working-directory: ${{ github.workspace }}
-        run: |
-          git clone --no-checkout https://github.com/baselabs/charter_agreement_protocol.git ../cap-060
-          git -C ../cap-060 checkout --detach "$CAP_SOURCE_COMMIT"
 
       - uses: erlef/setup-beam@v1
         with:
@@ -150,12 +141,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check out the tested CAP build
-        working-directory: ${{ github.workspace }}
-        run: |
-          git clone --no-checkout https://github.com/baselabs/charter_agreement_protocol.git ../cap-060
-          git -C ../cap-060 checkout --detach "$CAP_SOURCE_COMMIT"
-
       - uses: erlef/setup-beam@v1
         with:
           elixir-version: ${{ matrix.elixir }}
@@ -197,12 +182,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check out the tested CAP build
-        working-directory: ${{ github.workspace }}
-        run: |
-          git clone --no-checkout https://github.com/baselabs/charter_agreement_protocol.git ../cap-060
-          git -C ../cap-060 checkout --detach "$CAP_SOURCE_COMMIT"
-
       - uses: erlef/setup-beam@v1
         with:
           elixir-version: "1.20.3"
@@ -228,12 +207,6 @@ jobs:
       MIX_ENV: test
     steps:
       - uses: actions/checkout@v4
-
-      - name: Check out the tested CAP build
-        working-directory: ${{ github.workspace }}
-        run: |
-          git clone --no-checkout https://github.com/baselabs/charter_agreement_protocol.git ../cap-060
-          git -C ../cap-060 checkout --detach "$CAP_SOURCE_COMMIT"
 
       - uses: erlef/setup-beam@v1
         with:
@@ -264,11 +237,6 @@ jobs:
       MIX_ENV: test
     steps:
       - uses: actions/checkout@v4
-
-      - name: Check out the tested CAP build
-        run: |
-          git clone --no-checkout https://github.com/baselabs/charter_agreement_protocol.git ../cap-060
-          git -C ../cap-060 checkout --detach "$CAP_SOURCE_COMMIT"
 
       - uses: erlef/setup-beam@v1
         with:

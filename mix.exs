@@ -82,7 +82,7 @@ defmodule CharterAgreementSigner.MixProject do
         "typescript.check",
         "run --no-start scripts/check_package.exs",
         # Two cache-isolated builds of the exact archive must agree byte for
-        # byte (the release-candidate reproducibility gate).
+        # byte (the release reproducibility gate).
         "run --no-start scripts/check_reproducible.exs",
         # job: example (the workflow's working-directory: examples/charter_lifecycle)
         "cmd --cd examples/charter_lifecycle mix deps.get",
@@ -121,10 +121,9 @@ defmodule CharterAgreementSigner.MixProject do
   defp elixirc_paths(_env), do: ["lib/"]
 
   # CAP owns the protocol checks; telemetry is the value-free span seam.
-  # The local build supplies the tested 0.6.0 API.
   defp deps do
     [
-      {:charter_agreement_protocol, path: "../cap-060-fix"},
+      {:charter_agreement_protocol, "~> 0.6.0"},
       {:telemetry, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
