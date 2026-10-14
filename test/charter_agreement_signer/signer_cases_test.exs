@@ -194,7 +194,9 @@ defmodule CharterAgreementSigner.SignerCasesTest do
 
       if expected["shape"] == "ok" do
         {:ok, result} = result
-        compact = result |> Map.values() |> hd()
+        result_key = String.to_existing_atom(row["kind"])
+        assert Map.keys(result) == [result_key]
+        compact = Map.fetch!(result, result_key)
 
         if key["algorithm"] == "Ed25519", do: assert(compact == expected["compact"])
         assert {:ok, _facts} = verify(row["kind"], compact, context)
