@@ -84,6 +84,7 @@ defmodule CharterAgreementSigner.SignerCasesTest do
     descriptor-excluded-context
     descriptor-invalid-limits
     descriptor-unknown-option
+    descriptor-options-before-limits
     descriptor-limits-before-profile
     descriptor-profile-before-algorithm
     descriptor-algorithm-before-snapshot
@@ -92,6 +93,7 @@ defmodule CharterAgreementSigner.SignerCasesTest do
     descriptor-snapshot-before-context
     acceptance-invalid-limits
     acceptance-unknown-option
+    acceptance-options-before-limits
     acceptance-limits-before-profile
     acceptance-profile-before-algorithm
     acceptance-algorithm-before-snapshot
@@ -100,6 +102,7 @@ defmodule CharterAgreementSigner.SignerCasesTest do
     acceptance-snapshot-before-context
     termination-invalid-limits
     termination-unknown-option
+    termination-options-before-limits
     termination-limits-before-profile
     termination-profile-before-algorithm
     termination-algorithm-before-snapshot
@@ -108,6 +111,7 @@ defmodule CharterAgreementSigner.SignerCasesTest do
     termination-snapshot-before-context
     receipt-invalid-limits
     receipt-unknown-option
+    receipt-options-before-limits
     receipt-limits-before-profile
     receipt-profile-before-algorithm
     receipt-algorithm-before-snapshot
@@ -130,7 +134,7 @@ defmodule CharterAgreementSigner.SignerCasesTest do
 
   test "the table retains every required case and unique ids" do
     rows = @table["cases"]
-    assert length(rows) >= 118
+    assert length(rows) >= 122
     ids = Enum.map(rows, & &1["id"])
     assert Enum.uniq(ids) == ids
     for id <- @required_ids, do: assert(id in ids, "missing required case: #{id}")
