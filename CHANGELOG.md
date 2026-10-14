@@ -88,8 +88,10 @@ and this project adheres to
 - A Linux CI job and `mix ci` steps that build both pinned sources and run
   the TypeScript signer's own test suite with its locked npm dependencies.
   The suite must run at least the pin's `minimum_tests` with none failing,
-  and a descriptor signed by the pinned TypeScript signer must verify under
-  CAP. The newest pin change on the first-parent history must move forward,
+  and all four descriptor interop checks must run and pass: TypeScript
+  signer to CAP verification and Elixir signer to the pinned TypeScript
+  verifier, each with Ed25519 at revision 2 and ML-DSA-65 at revision 3.
+  The newest pin change on the first-parent history must move forward,
   so a committed backward pin fails in its own CI run and a later forward
   commit repairs it; the check needs a full clone. README and `mix ci`
   descriptions state exactly which checks run.

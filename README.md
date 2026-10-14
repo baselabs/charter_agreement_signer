@@ -142,9 +142,11 @@ reachability and forward movement. `mix typescript.sources --check` checks
 the stamps. `mix typescript.check` requires current stamps and builds both
 sources. It runs the signer's own tests with the npm dependencies in its
 committed lockfile (verifier 0.5.0 at the current signer pin) and requires
-at least the pin's `minimum_tests` to run, all passing. It then signs a
-descriptor with the pinned TypeScript signer and verifies it under CAP. The
-separate verifier source pin names 0.6.0. The Elixir suite also runs the
+at least the pin's `minimum_tests` to run, all passing. It then requires
+four descriptor interop checks to run and pass: TypeScript signer to CAP
+verification and Elixir signer to the pinned TypeScript verifier, each with
+Ed25519 at revision 2 and ML-DSA-65 at revision 3. The separate verifier
+source pin names 0.6.0. The Elixir suite also runs the
 language-neutral [signer case table](test/fixtures/README.md), checking
 callback counts, refusal codes, exact Ed25519 compacts and verified ML-DSA
 successes. The pinned TypeScript suite does not execute that table.

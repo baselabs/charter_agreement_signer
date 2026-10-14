@@ -11,40 +11,69 @@ defmodule CharterAgreementSigner.TypeScriptInterop do
     unless Mix.env() == :test, do: raise("typescript interop requires MIX_ENV=test")
     table = @table |> File.read!() |> :json.decode()
 
-    for {id, module} <- [{"ed-descriptor-ok", RawKey}, {"ml-descriptor-ok", RawMLDSA65}] do
-      row = Enum.find(table["cases"], &(&1["id"] == id))
-      key = Map.fetch!(table["keys"], row["key"])
-      algorithm = key["algorithm"]
-      public = Base.url_decode64!(key["public_key"], padding: false)
-      seed = Base.url_decode64!(key["seed"], padding: false)
-      private = if module == RawKey, do: seed, else: {:seed, seed}
-      handle = {module, {key["kid"], public, private}}
+    checks =
+      for {id, module} <- [{"ed-descriptor-ok", RawKey}, {"ml-descriptor-ok", RawMLDSA65}] do
+        row = Enum.find(table["cases"], &(&1["id"] == id))
+        key = Map.fetch!(table["keys"], row["key"])
 
-      compact =
-        node!(signer, sign_script(), [
-          {"CAS_INTEROP_KEY", JSON.encode!(key)},
-          {"CAS_INTEROP_CLAIMS", JSON.encode!(row["claims"])}
-        ])
+        [
+          typescript_to_cap!(signer, row, key),
+          elixir_to_typescript!(verifier, row, key, module)
+        ]
+      end
+      |> List.flatten()
 
-      {:ok, facts} = CAP.verify_descriptor(compact, nil, Limits.default())
-      true = facts.descriptor.envelope.alg == algorithm
-      true = facts.descriptor.protocol_revision == row["claims"]["protocol_revision"]
-      declared = Enum.find(facts.descriptor.verification_keys, &(&1.key_id == key["kid"]))
-      true = declared.public_key == public
-      IO.puts("typescript interop: TS -> CAP #{algorithm} verified")
+    required = [
+      {:typescript_to_cap, "Ed25519"},
+      {:typescript_to_cap, "ML-DSA-65"},
+      {:elixir_to_typescript, "Ed25519"},
+      {:elixir_to_typescript, "ML-DSA-65"}
+    ]
 
-      {:ok, %{descriptor: compact}} =
-        CharterAgreementSigner.sign_descriptor(row["claims"], handle, algorithm: algorithm)
-
-      "verified" =
-        node!(verifier, verify_script(), [
-          {"CAS_INTEROP_COMPACT", compact},
-          {"CAS_INTEROP_ALGORITHM", algorithm},
-          {"CAS_INTEROP_REVISION", Integer.to_string(row["claims"]["protocol_revision"])}
-        ])
-
-      IO.puts("typescript interop: Elixir -> TS #{algorithm} verified")
+    unless Enum.sort(checks) == Enum.sort(required) do
+      raise("typescript interop: expected all four checks to pass; got #{inspect(checks)}")
     end
+
+    IO.puts("typescript interop: all four checks passed")
+  end
+
+  defp typescript_to_cap!(signer, row, key) do
+    compact =
+      node!(signer, sign_script(), [
+        {"CAS_INTEROP_KEY", JSON.encode!(key)},
+        {"CAS_INTEROP_CLAIMS", JSON.encode!(row["claims"])}
+      ])
+
+    algorithm = key["algorithm"]
+    public = Base.url_decode64!(key["public_key"], padding: false)
+    {:ok, facts} = CAP.verify_descriptor(compact, nil, Limits.default())
+    true = facts.descriptor.envelope.alg == algorithm
+    true = facts.descriptor.protocol_revision == row["claims"]["protocol_revision"]
+    declared = Enum.find(facts.descriptor.verification_keys, &(&1.key_id == key["kid"]))
+    true = declared.public_key == public
+    IO.puts("typescript interop: TS -> CAP #{algorithm} verified")
+    {:typescript_to_cap, algorithm}
+  end
+
+  defp elixir_to_typescript!(verifier, row, key, module) do
+    algorithm = key["algorithm"]
+    public = Base.url_decode64!(key["public_key"], padding: false)
+    seed = Base.url_decode64!(key["seed"], padding: false)
+    private = if module == RawKey, do: seed, else: {:seed, seed}
+    handle = {module, {key["kid"], public, private}}
+
+    {:ok, %{descriptor: compact}} =
+      CharterAgreementSigner.sign_descriptor(row["claims"], handle, algorithm: algorithm)
+
+    "verified" =
+      node!(verifier, verify_script(), [
+        {"CAS_INTEROP_COMPACT", compact},
+        {"CAS_INTEROP_ALGORITHM", algorithm},
+        {"CAS_INTEROP_REVISION", Integer.to_string(row["claims"]["protocol_revision"])}
+      ])
+
+    IO.puts("typescript interop: Elixir -> TS #{algorithm} verified")
+    {:elixir_to_typescript, algorithm}
   end
 
   defp node!(directory, script, env) do
