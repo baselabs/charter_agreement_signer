@@ -24,9 +24,9 @@ end
 
 ## What it is
 
-A charter party proves mutual assent by signing offers, acceptances and
-countersignatures with the party key its descriptor pins. This
-signer is what a host calls to *produce* those signatures. Every path runs
+A charter party signs descriptors, acceptances, termination notices and
+receipts with a key its descriptor pins. A host calls this signer to
+produce those signatures. Every path runs
 the same shared tail:
 
 | Function | Artifact | Post-sign verify |
@@ -65,7 +65,7 @@ Malformed profiles return `{:error, {:invalid_input, :invalid_profile}}`.
   limits: CharterAgreementProtocol.Limits.default())
 ```
 
-Claims you sign mint at the protocol's current revision; CAP 0.3's emission
+Claims you sign mint at the protocol's current revision; CAP 0.6.0's emission
 rule is exactly (`"Ed25519"`, `protocol_revision` 2) or (`"ML-DSA-65"`,
 `protocol_revision` 3), selected by the `:algorithm` option (default
 `"Ed25519"`); claims carry the matching `"protocol_revision"`, and retained
@@ -141,15 +141,16 @@ last fetched public refs without a network fetch; it still checks
 reachability and forward movement. `mix typescript.sources --check` checks
 the stamps. `mix typescript.check` requires current stamps and builds both
 sources. It runs the signer's own tests with the npm dependencies in its
-committed lockfile (verifier 0.5.0 at the current signer pin) and requires
-at least the pin's `minimum_tests` to run, all passing. It then requires
+committed lockfile (verifier 0.7.0 at the signer 0.3.0 pin) and requires
+at least 377 tests, as recorded in the pin's `minimum_tests`, all passing. It then requires
 four descriptor interop checks to run and pass: TypeScript signer to CAP
 verification and Elixir signer to the pinned TypeScript verifier, each with
 Ed25519 at revision 2 and ML-DSA-65 at revision 3. The separate verifier
-source pin names 0.6.0. The Elixir suite also runs the
+source pin names verifier 0.7.0. The Elixir suite also runs the
 language-neutral [signer case table](test/fixtures/README.md), checking
 callback counts, refusal codes, exact Ed25519 compacts and verified ML-DSA
-successes. The pinned TypeScript suite does not execute that table.
+successes. The pinned TypeScript suite executes all 121 rows from the
+same table, checks its source hash and allows no excluded rows.
 
 Supported toolchain, enforced in code before anything compiles: the tested
 Elixir 1.19.x–1.20.x lines (`~> 1.19`; anything outside the range refuses
@@ -170,8 +171,8 @@ not evaluate charter terms or authorize operations.
 
 ## Protocol dependency
 
-This tree uses the local CAP 0.6.0 build at `../cap-060`; the example resolves
-the same build. CAP owns pre-sign checks, context derivation and final
-verification. CAP 0.5.0's distinct-party checks also apply: re-verify views
+Signer 0.5.0 requires CAP `~> 0.6.0` from Hex, locked to 0.6.0
+in this library and the example. CAP owns pre-sign checks, context
+derivation and final verification. CAP 0.5.0's distinct-party checks also apply: re-verify views
 stored under CAP 0.4.x. [docs/upgrading.md](docs/upgrading.md) lists the
 changed outcomes and migration requirements.

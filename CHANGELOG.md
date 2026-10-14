@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] — 2026-10-14
 
 ### Breaking
 
@@ -105,17 +105,20 @@ and this project adheres to
 - Run the coverage step of `mix ci` in a fresh Mix process. Its earlier
   `test` step caused Mix to skip the second test invocation, so the listed
   coverage floor did not run locally.
-- Refresh upgrade notes through CAP 0.5.0 and signer 0.4.1, record the
+- Refresh upgrade notes through CAP 0.6.0 and signer 0.5.0, record the
   CAP pin changes in ADR-0002, repair the README's cut sentence, complete
   the changelog release links, and correct stale pin and toolchain text.
 
 ### Changed
 
+- Pin the published TypeScript verifier 0.7.0 and signer 0.3.0 sources.
+  Require all 377 signer tests and the four descriptor interop checks.
 - SECURITY.md sends reports through GitHub private vulnerability reporting, now
   enabled for this repository.
 - Remove the in-tree TypeScript copy and its old artifact check. The
   supply-chain battery uses the same pinned source steps as local CI.
-- Use the local CAP 0.6.0 build in the library and example. Signing uses
+- Require CAP `~> 0.6.0` from Hex, locked to 0.6.0 in the library
+  and example. Signing uses
   `prepare_signing/5`, the custody callback, the raw wrong-key guard and
   `finish_signing/2`. Remove the signer's context derivation and verify
   routing. Version the signer as 0.5.0.
@@ -422,7 +425,8 @@ algorithm-aware signing for CAP's revision-3 ML-DSA registry act:
   wall, shipped-artifact package census + consumer smoke, and the
   release-candidate reproducibility gate (`mix ci` mirrors CI step-for-step).
 
-[Unreleased]: https://github.com/baselabs/charter_agreement_signer/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/baselabs/charter_agreement_signer/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.5.0
 [0.4.1]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.4.1
 [0.4.0]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.4.0
 [0.3.5]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.3.5

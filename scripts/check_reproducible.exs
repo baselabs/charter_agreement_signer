@@ -1,16 +1,16 @@
-# Release-candidate reproducibility gate (adapted from the BARA sibling's
+# Release reproducibility gate (adapted from the BARA sibling's
 # check_reproducible.exs, read first-hand, which adapted the BAP sibling's
 # before it).
 #
-# Builds the unpublished candidate archive TWICE, each in a fresh COPY of the
+# Builds the unpublished release archive TWICE, each in a fresh COPY of the
 # source tree under a temp dir, and asserts the two archives are byte-identical
-# (SHA-256 equal). Two independently-built archives — never a shared-cache
+# (SHA-256 equal). Two independently-built archives; never a shared-cache
 # self-comparison. Cache isolation: each copy gets its own deps.get +
 # hex.build; the developer's _build/deps are never mutated (copies removed in
 # after).
 #
 # Honest scope: hex.build packages SOURCE files (the files: list), not
-# compiled BEAMs, and Hex normalizes tar mtimes to epoch — the gate's value is
+# compiled BEAMs, and Hex normalizes tar mtimes to epoch; the gate's value is
 # REGRESSION DETECTION: it catches the moment a change introduces a
 # non-deterministic packaged input (a generated file embedding a path or
 # timestamp, a dep writing into a packaged dir, a per-build metadata field).
@@ -41,14 +41,14 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
 
       unless digest1 == digest2 do
         raise(
-          "release candidate check failed: candidate archive is not reproducible across " <>
+          "release check failed: release archive is not reproducible across " <>
             "independent builds: build1=#{digest1} build2=#{digest2} (two fresh source-tree " <>
             "copies, no shared cache; a non-deterministic input produced different bytes)"
         )
       end
 
-      IO.puts("release candidate reproducibility gate passed (two independent builds agree)")
-      IO.puts("candidate archive SHA-256: #{digest1}")
+      IO.puts("release reproducibility gate passed (two independent builds agree)")
+      IO.puts("release archive SHA-256: #{digest1}")
     after
       best_effort_rm_rf!(tmp)
     end
@@ -79,12 +79,12 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
   defp assert_mix_lock_present!(source_root) do
     unless File.regular?(Path.join(source_root, "mix.lock")) do
       raise(
-        "release candidate check failed: mix.lock is missing — reproducibility cannot be checked without a locked dep set"
+        "release check failed: mix.lock is missing; reproducibility cannot be checked without a locked dep set"
       )
     end
   end
 
-  # What a reproducible build starts from: source only — no build artifacts,
+  # What a reproducible build starts from: source only; no build artifacts,
   # fetched deps, tool/state dirs, or generated output. `.env` and friends are
   # CREDENTIALS (never copied into temp trees).
   @copy_excludes ~w(_build deps .git .zcode .kimosabe artifacts cover doc
@@ -128,7 +128,7 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
 
   defp assert_regular_nonempty!(path) do
     unless File.regular?(path) and File.stat!(path).size > 0 do
-      raise("release candidate check failed: candidate archive is missing or empty: #{path}")
+      raise("release check failed: release archive is missing or empty: #{path}")
     end
   end
 
@@ -144,7 +144,7 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
 
       {_output, status} ->
         raise(
-          "release candidate check failed: mix #{Enum.join(arguments, " ")} exited with status #{status}"
+          "release check failed: mix #{Enum.join(arguments, " ")} exited with status #{status}"
         )
     end
   end

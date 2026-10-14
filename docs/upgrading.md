@@ -8,9 +8,9 @@ that governs how the library evolves alongside the protocol package.
 - **This library follows pre-1.0 SemVer §4 semantics**: anything may change
   at a 0.x minor bump; pin `~> 0.5.0` (the three-part form) and read this
   page at every minor.
-- **The protocol dependency is deliberately selected**: this tree and the
-  example resolve the same local CAP 0.6.0 build. The dependency test checks
-  its path and compiled version.
+- **The protocol dependency is deliberately selected**: this library requires
+  CAP `~> 0.6.0` from Hex. Both projects lock CAP 0.6.0, and the dependency
+  and lock-parity tests enforce the requirement and resolved version.
 - **The error vocabulary is closed and additive-only** within the 0.x line:
   new `{:invalid_input, code}` codes may appear as CAP's gated vocabulary
   grows; a removal or rename of any error shape is a breaking change that
@@ -21,8 +21,9 @@ that governs how the library evolves alongside the protocol package.
 
 ## 0.4.1 to 0.5.0 (CAP 0.6.0)
 
-The library and example use CAP 0.6.0's `prepare_signing/5` and
-`finish_signing/2`. This tree resolves the local build at `../cap-060`.
+Signer 0.5.0 requires CAP `~> 0.6.0` from Hex, locked to 0.6.0 in the
+library and example. All signing paths use CAP's `prepare_signing/5` and
+`finish_signing/2`.
 
 Calls that used to sign and then return `:verification_failed` now reject
 before custody. Update error matches:
@@ -95,9 +96,10 @@ parties: a revision repeating a descriptor digest fails with
 revision names, fail with `:chain_invalid`. Re-verify views stored under
 CAP 0.4.x. Profile exclusions within the scope above use `:algorithm_outside_profile`
 or `:revision_outside_profile`. The pinned
-TypeScript verifier source is 0.6.0, which includes these checks; the pinned
-TypeScript signer's own npm lock still uses verifier 0.5.0. Its independent
-suite does not certify parity with this signer's new request table.
+TypeScript verifier source is 0.7.0. The pinned TypeScript signer 0.3.0
+also locks verifier 0.7.0 and executes all 121 shared request rows, including
+callback counts, refusal codes, exact Ed25519 compacts and verified
+ML-DSA-65 successes.
 
 An absent or `nil` `:algorithm` selects Ed25519. Any other value outside
 `"Ed25519"` and `"ML-DSA-65"`, including a non-string, now returns
@@ -171,13 +173,13 @@ compilation. The dependency-currency gate became part of the battery, and
 the coverage floor rose to 100.0%. Unreachable defensive branches were
 removed; reachable signing results stayed unchanged.
 
-## 0.3.1 — 2026-09-15
+## 0.3.1 - 2026-09-15
 
 Docs-and-tooling correction release; no behavioral `lib/` change (only
 doc-comment corrections). The protocol dependency line moves within the
 tested span: `charter_agreement_protocol` locked 0.3.0 → 0.3.1 (the
 requirement stays `~> 0.3.0`; both locks moved in this release commit per
-ADR-0002's discipline — CAP 0.3.1 is docs-and-tooling only, no
+ADR-0002's discipline; CAP 0.3.1 is docs-and-tooling only, no
 verdict-flipping change). Also riding this release:
 
 - CI substrate correction: the gate, example, and supply-chain jobs run on
@@ -192,16 +194,16 @@ verdict-flipping change). Also riding this release:
   signature-length prose keyed to the registry row instead of a universal
   64 bytes, and the key-identity snapshot's registry key lengths.
 
-## 0.3.0 — 2026-09-14
+## 0.3.0 - 2026-09-14
 
 Adopts CAP 0.3.0 (the deliberate line move `~> 0.2.1` → `~> 0.3.0`,
-ADR-0002) and makes the signer algorithm-aware — the upgrade note the
+ADR-0002) and makes the signer algorithm-aware. The upgrade note the
 release should have shipped:
 
 - **The `:algorithm` option** (on `sign_descriptor/3` and the other entry
   points' opts) selects the emission pair: `"Ed25519"` (default, claims at
   `protocol_revision` 2) or `"ML-DSA-65"` (claims at `protocol_revision` 3).
-  Claims must already carry the matching revision — CAP's producer enforces
+  Claims must already carry the matching revision; CAP's producer enforces
   the pair. An unsupported string name is `{:error, {:invalid_input,
   :algorithm_unsupported}}` (a non-string selection falls to the Ed25519
 default, where CAP's pair rule then decides).
@@ -213,15 +215,15 @@ default, where CAP's pair rule then decides).
   composition); no migration for existing hosts beyond the deliberate
   dependency bump.
 
-## 0.2.1 — 2026-08-30
+## 0.2.1 - 2026-08-30
 
 Documentation-only. The 0.2.0 migration rule (mint claims at
 `"protocol_revision" => 2`) is now stated in every guide where a host or
-counterparty looks for it — errors, consumer-integration, recipes (the
+counterparty looks for it: errors, consumer-integration, recipes (the
 non-Elixir porting note), usage rules, and the README landing page. Nothing
 to do if you already followed the 0.2.0 note.
 
-## 0.2.0 — 2026-08-29
+## 0.2.0 - 2026-08-29
 
 The protocol dependency line moves: `charter_agreement_protocol ~> 0.1.0` →
 `~> 0.2.1` (ADR-0002's deliberate-bump discipline; both locks moved in the
@@ -229,7 +231,7 @@ release commit). CAP 0.2.0 shipped `protocol_revision` 2 and the RFC 9864
 alg-name bundle; 0.2.1 is docs-only. One migration item:
 
 - **Claims must mint at revision 2.** CAP's producers now emit exactly
-  (`"Ed25519"`, `protocol_revision` 2) — the protected header's alg name is
+  (`"Ed25519"`, `protocol_revision` 2); the protected header's alg name is
   the fully-specified RFC 9864 spelling, and the binding rule runs at the
   producer's provisional decode. Claims carrying `"protocol_revision" => 1`
   (or omitting it) are refused as `{:invalid_input, :signing_input_invalid}`
@@ -240,12 +242,12 @@ alg-name bundle; 0.2.1 is docs-only. One migration item:
   is the protocol's supported mixed deployment: a revision-2 signature
   anchored to revision-1 views verifies (legacy `("EdDSA", 1)` artifacts
   verify forever; the signer's own suite proves the mixed path).
-- No signer API, error vocabulary, or telemetry change rides this release —
+- No signer API, error vocabulary, or telemetry change rides this release.
   the surface is byte-for-byte what 0.1.0 shipped.
 
-## 0.1.0 — 2026-08-26
+## 0.1.0 - 2026-08-26
 
-First public release. There is no upgrade path to document yet — nothing
+First public release. There is no upgrade path to document yet; nothing
 predates it. What shipped:
 
 - The four signing entry points with the shared tail: atomic
@@ -255,7 +257,7 @@ predates it. What shipped:
   CAP's own public verify functions.
 - The closed five-shape error vocabulary.
 - The value-free telemetry surface (`[:charter_agreement_signer, :sign,
-  :start|:stop]`; no handler is attached by default — see
+  :start|:stop]`; no handler is attached by default; see
   [telemetry.md](telemetry.md)).
 - Runtime dependencies: `charter_agreement_protocol ~> 0.1.0` and
   `:telemetry ~> 1.4` (zero transitive deps).

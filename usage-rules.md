@@ -6,14 +6,14 @@ enforces most of them structurally, and the rest are posture.
 
 1. **Never give this library a private key.** Custody lives entirely behind
    your `{module, ref}` handle. If you find yourself putting key bytes into a
-   handle term for production, stop — that is a custody design failure, not a
+   handle term for production, stop; that is a custody design failure, not a
    convenience (see [docs/security.md](docs/security.md)).
 
 2. **Implement `sign/2` and `key_identity/1`.** They are required. Resolve
    `kid` and the public key in the ONE `key_identity/1` call; never split
    them across two callbacks (the rotation race the atomic snapshot exists
    to prevent). `public_key/1` / `thumbprint/1` are optional self-check
-   surface — use them to compare the handle against a party descriptor's
+   surface; use them to compare the handle against a party descriptor's
    `verification_keys` before signing.
 
 3. **The claims carry no key material.** `sign_descriptor/3`,
@@ -23,7 +23,7 @@ enforces most of them structurally, and the rest are posture.
 
 4. **Honor refusals.** `{:error, {:refused, :signing_refused}}` means your
    claims contradict your own verified artifact view (CAP's R1–R3 rules).
-   Fix the view or the claims — never retry with a hand-built signing input
+   Fix the view or the claims; never retry with a hand-built signing input
    to force the signature through; that is exactly the dishonest-signer path
    the refusal boundary exists to make loud.
 
@@ -43,12 +43,12 @@ enforces most of them structurally, and the rest are posture.
 
 8. **Errors are closed atoms.** Do not pattern-match on error detail beyond
    the documented set; do not log inspect terms as though they might carry
-   key material (they cannot — the vocabulary is value-free by construction).
+   key material (they cannot; the vocabulary is value-free by construction).
 
 9. **Mint at a current emission identity.** Claims you hand to a sign path
    carry `"protocol_revision" => 2` for the default `Ed25519` emission, or
    `3` when you select the `ML-DSA-65` emission pair via the `:algorithm`
-   option — CAP 0.3's emission rule mints exactly those two pairs, and
+   option; CAP 0.6.0's emission rule mints exactly those two pairs, and
    revision-1 claims are refused during CAP preparation before custody.
    Retained revision-1 artifacts keep verifying (cross-revision
    composition); only NEW claims must carry a current pair's revision.

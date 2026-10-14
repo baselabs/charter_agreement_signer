@@ -11,8 +11,8 @@ DEMO-ONLY pairs.
 
 ```elixir
 Mix.install([
-  {:charter_agreement_signer, path: __DIR__ |> Path.join("..") |> Path.expand()},
-  {:charter_agreement_protocol, path: __DIR__ |> Path.join("../../cap-060") |> Path.expand(), override: true}
+  {:charter_agreement_protocol, "~> 0.6.0"},
+  {:charter_agreement_signer, "~> 0.5.0"}
 ])
 ```
 
@@ -98,6 +98,6 @@ rogue = put_elem(issuer, 2, priv_b)
 
 ## 3. Where to go next
 
-Open `examples/charter_lifecycle` for the complete bilateral flow — genesis
-revision, dual acceptances, receipt, termination — and the library's
+Open `examples/charter_lifecycle` for the complete bilateral flow (genesis
+revision, dual acceptances, receipt and termination), and the library's
 `docs/getting-started.md` for the host-integration path.

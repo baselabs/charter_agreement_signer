@@ -13,11 +13,13 @@ def deps do
 end
 ```
 
+Signer 0.5.0 resolves CAP `~> 0.6.0` from Hex.
+
 ## 2. Implement a key handle
 
-The handle is a `{module, ref}` pair. The module implements the behaviour
-against your custody. The smallest honest in-process version (test/development
-posture only — production points this at an HSM or KMS):
+The handle is a `{module, ref}` pair. The module implements the behavior
+against your custody. Delegate both callbacks to your custody implementation
+(an HSM or KMS in production):
 
 ```elixir
 defmodule MyApp.PartyHandle do
@@ -33,10 +35,8 @@ defmodule MyApp.PartyHandle do
 
   @impl true
   def key_identity(ref) do
-    with {:ok, kid} <- MyApp.Custody.kid_for(ref),
-         {:ok, public} <- MyApp.Custody.public_for(ref) do
-      {:ok, {kid, public}}
-    end
+    # Custody returns kid and public key together from one atomic snapshot.
+    MyApp.Custody.key_identity_for(ref)
   end
 end
 ```
@@ -47,7 +47,7 @@ produce an inconsistent header.
 
 ## 3. Sign a party descriptor
 
-Claims are the descriptor's payload — including the `verification_keys` list
+Claims are the descriptor's payload, including the `verification_keys` list
 that pins your public key. The header `kid` comes from the handle, never from
 the claims:
 
@@ -55,10 +55,10 @@ the claims:
 public = MyApp.Custody.public_for!(ref)
 
 claims = %{
-  # CAP 0.3's emission rule: new minting is exactly ("Ed25519", 2) — the
-  # default — or ("ML-DSA-65", 3), selected by the :algorithm option on
+  # CAP 0.6.0 emits ("Ed25519", 2) by default or ("ML-DSA-65", 3),
+  # selected by the :algorithm option on
   # sign_descriptor/3. Claims carrying revision 1 are refused at CAP's
-  # producer (the alg-name binding rule) — revision-1 artifacts you RETAIN
+  # producer (the alg-name binding rule); revision-1 artifacts you RETAIN
   # still verify forever.
   "protocol_revision" => 2,
   "descriptor_number" => 1,
@@ -102,21 +102,21 @@ against it BEFORE your key is used:
   CharterAgreementSigner.sign_acceptance(acceptance_claims, {MyApp.PartyHandle, ref}, set)
 ```
 
-If the claims contradict the view — false revision coordinates, an
-equivocating revision number, an ancestry that excludes an accepted head —
+If the claims contradict the view through false revision coordinates, an
+equivocating revision number or an ancestry that excludes an accepted head,
 you get `{:error, {:refused, :signing_refused}}` and no signature exists.
 
 ## 5. Read the error vocabulary
 
-Every failure is a closed atom or `{:invalid_input, cap_code}` — see
+Every failure has a closed, value-free shape. See
 [errors.md](errors.md). Nothing in any error carries key material, message
 bytes, or claims content.
 
 ## Where to go next
 
-- [errors.md](errors.md) — the full closed error set and what each one means
+- [errors.md](errors.md): the full closed error set and what each one means
   for the caller.
-- [security.md](security.md) — trust boundaries, the wrong-key guard, and
+- [security.md](security.md): trust boundaries, the wrong-key guard, and
   what this library deliberately does not do.
-- The protocol package's own docs — the verifier's side of every artifact
+- The protocol package's own docs: the verifier's side of every artifact
   this library signs.

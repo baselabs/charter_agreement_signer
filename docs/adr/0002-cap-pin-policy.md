@@ -8,10 +8,12 @@ Accepted. Reverses the scaffold's two-part pin — a real correction, not a
 formalization. Found by the release-readiness adversarial review (2026-08-26)
 on three authorities at once.
 
-Amended 2026-10-13 for CAP 0.6.0: the library resolves `../cap-060` and
-the example resolves the same local build with an override. The dependency
-test checks the compiled 0.6.0 version and path; both locks omit CAP's Hex
-entry. CI checks out the tested CAP source commit beside the signer.
+Amended 2026-10-14: use `~> 0.6.0` from Hex, locked to CAP 0.6.0 in
+both projects. This replaces the prior source-checkout arrangement. The
+library requirement, wall test, example requirement and both locks move
+together. CI resolves the published Hex package. Signing paths use
+`prepare_signing/5` and `finish_signing/2`; the wrong-key guard stays between
+the custody callback and CAP finish.
 
 Amended 2026-10-13: use `~> 0.5.0`, locked to CAP 0.5.0. The library
 requirement, wall test, example requirement and both locks move together.
