@@ -113,6 +113,8 @@ and this project adheres to
 
 - Pin the published TypeScript verifier 0.7.0 and signer 0.3.0 sources.
   Require all 377 signer tests and the four descriptor interop checks.
+- The tag workflow exports coverage from a real capability-limited job
+  and supplies it to the full gate before enforcing merged coverage.
 - SECURITY.md sends reports through GitHub private vulnerability reporting, now
   enabled for this repository.
 - Remove the in-tree TypeScript copy and its old artifact check. The

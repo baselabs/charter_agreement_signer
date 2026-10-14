@@ -13,8 +13,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  capability-limited:
+    name: Capability-limited coverage
+    runs-on: ubuntu-24.04
+    env:
+      MIX_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.20.3"
+          otp-version: "28.5.0.3"
+
+      - name: Install dependencies from Hex
+        run: mix deps.get
+
+      - name: Assert ML-DSA is unverifiable on this lane
+        run: mix run --no-start scripts/assert_limited_substrate.exs
+
+      - name: Test and export limited coverage
+        run: mix test --exclude requires_mldsa_substrate --cover --export-coverage limited
+
+      - name: Save limited coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-coverage-limited-${{ github.sha }}
+          path: cover/limited.coverdata
+          if-no-files-found: error
+
   build:
     name: Build release package evidence
+    needs: capability-limited
     # mix ci includes the ML-DSA-65 mint test, which needs a linked
     # OpenSSL >= 3.5; ubuntu-latest is 24.04 / OpenSSL 3.0.x today (see
     # ci.yml for the full rationale).
@@ -28,6 +58,7 @@ jobs:
       ELIXIR_VERSION: "1.20.3"
       OTP_VERSION: "29.0.3"
       MIX_ENV: test
+      CAS_LIMITED_COVERAGE: ${{ github.workspace }}/limited-coverage/limited.coverdata
     # Deliberately NO id-token/attestations here: this job compiles and runs
     # third-party packages' code — it must not hold OIDC identity. The
     # attest job below is the only one that can mint attestations, and it
@@ -49,6 +80,12 @@ jobs:
 
       - name: Install dependencies from Hex
         run: mix deps.get
+
+      - name: Load limited coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: release-coverage-limited-${{ github.sha }}
+          path: limited-coverage
 
       - name: Run the full gate battery
         run: mix ci

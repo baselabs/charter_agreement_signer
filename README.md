@@ -127,8 +127,10 @@ also runs both coverage lanes. Set `CAS_LIMITED_PATH` to the PATH for a
 second Elixir/OTP toolchain linked to OpenSSL without ML-DSA support; the
 script confirms that runtime is limited, uses `_build_limited` for its
 build, and merges both exports with `mix test.coverage`. The main toolchain
-must support ML-DSA. Setup and the Elixir/OTP matrix are additional CI
-checks.
+must support ML-DSA. The tag workflow runs the limited lane in a separate
+Ubuntu 24.04 job and passes its export through `CAS_LIMITED_COVERAGE` to
+the full gate on Ubuntu 26.04. Setup and the Elixir/OTP matrix are
+additional CI checks.
 
 The TypeScript repositories and full commit hashes are in
 [`priv/signer-source.json`](https://github.com/baselabs/charter_agreement_signer/blob/master/priv/signer-source.json) and

@@ -55,7 +55,8 @@ defmodule CharterAgreementSigner.MixProject do
   # `mix ci` runs the library and example batteries plus the pinned
   # TypeScript signer suite and the pinned verifier build. CI runs these
   # in separate Linux jobs. Local merged coverage needs CAS_LIMITED_PATH;
-  # setup and matrix breadth remain CI-specific. The first step requires MIX_ENV=test;
+  # the tag workflow supplies CAS_LIMITED_COVERAGE from its limited job.
+  # Setup and matrix breadth remain CI-specific. The first step requires MIX_ENV=test;
   # every later step shares that environment and aborts on failure.
   defp aliases do
     [
