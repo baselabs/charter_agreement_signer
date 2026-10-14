@@ -48,18 +48,19 @@ includes both same-kid receipt candidates in a view with two accepted
 revisions. The exact Ed25519 compacts were generated with CAP's canonical
 framing and real seed signatures independently of the signer under test.
 
-The runner requires at least 118 rows, unique ids, and every id in its
+The runner requires at least 121 rows, unique ids, and every id in its
 explicit required list. It checks that refusals never call custody even
 if a row's expected callback count says otherwise. Fault pairs pin each
-adjacent signer step: limits before profile, profile before algorithm,
-algorithm before snapshot, and snapshot before claims or context. Single
+adjacent signer step: options before limits, limits before profile, profile
+before algorithm, algorithm before snapshot, and snapshot before claims or
+context. Single
 fault rows cover invalid limits, unknown options and malformed snapshots.
 
 The successor key row checks a key absent from the predecessor. The
 wrong-key row uses a real seed that differs from the snapshot key and
 expects `signing_failed` after one custody call. Receipt and termination
-rows also exclude context algorithms. A verified ML-DSA chain context
-requires a capable runtime.
+rows also exclude context algorithms and revision numbers. A verified
+ML-DSA chain context requires a capable runtime.
 
 For acceptance and termination, profile rows admit the revision, the
 signing party's own descriptor chain and the new artifact. Excluding only
@@ -80,14 +81,13 @@ The profile and malformed limits regressions run in both runtime suites.
 CAP validates incomplete limits structs and improper profile lists without
 raising. Malformed retained context fields use `invalid_type`.
 
-`termination-excluded-context` returns `signing_refused`: its changed
-revision has no matching acceptances, so it cannot govern. The full-profile
-set check reaches that refusal before the caller's narrowed profile.
-`termination-profile-own-chain` separately pins exclusion of the signing
-party's descriptor history. Both `acceptance-excluded-context` and
-`termination-excluded-context` return `algorithm_unsupported_on_substrate`
-on the limited runtime: the full-profile set check needs ML-DSA verification
-before a later profile exclusion or signing refusal.
+`termination-profile-counterparty` uses a governing revision and succeeds
+when only the counterparty's descriptor algorithm is outside the profile.
+`termination-profile-own-chain` and `termination-profile-context-revision`
+reject the signing party's descriptor history and the context revision,
+respectively, before custody. `acceptance-excluded-context` returns
+`algorithm_unsupported_on_substrate` on the limited runtime: the full-profile
+set check needs ML-DSA verification before the caller's profile is applied.
 
 A real termination call cannot reach `termination_claims_mismatch` for an
 unheld descriptor in a valid set. A governing revision must be accepted;
