@@ -7,6 +7,9 @@ defmodule CharterAgreementSigner.TypeScriptSources do
   @moduledoc false
 
   @root Path.expand("..", __DIR__)
+  # Fetches into the cache must not start git's detached background maintenance
+  # (from git 2.54), which keeps writing into the cache after the command returns.
+  @no_maintenance ["-c", "maintenance.auto=false", "-c", "gc.auto=0"]
   @sources %{
     signer: "https://github.com/baselabs/charter_agreement_signer_typescript.git",
     verifier: "https://github.com/baselabs/charter_agreement_protocol_typescript.git"
@@ -276,7 +279,7 @@ defmodule CharterAgreementSigner.TypeScriptSources do
   end
 
   defp git!(cache, args) do
-    case System.cmd("git", ["--git-dir", cache | args], stderr_to_stdout: true) do
+    case System.cmd("git", @no_maintenance ++ ["--git-dir", cache | args], stderr_to_stdout: true) do
       {_out, 0} -> :ok
       {out, status} -> raise("typescript source: git #{hd(args)} failed (#{status})\n#{out}")
     end
