@@ -140,6 +140,40 @@ defmodule CharterAgreementSigner.SignerCasesTest do
     for id <- @required_ids, do: assert(id in ids, "missing required case: #{id}")
   end
 
+  test "the excluded termination context has a governing revision" do
+    row = Enum.find(@table["cases"], &(&1["id"] == "termination-excluded-context"))
+    set = context(row["context"])
+
+    assert {:ok, chain} =
+             CAP.verify_chain(
+               set.revisions,
+               set.acceptances,
+               set.descriptors,
+               set.terminations,
+               Limits.default()
+             )
+
+    {:ok, at} = CAP.Timestamp.parse(row["claims"]["effective_at"])
+    digest = row["claims"]["governing_revision_digest"]
+    assert {:ok, ^digest} = CAP.governing_revision(chain, at)
+
+    %{profile: profile} = options(row["options"])
+
+    excluded =
+      Enum.filter(set.descriptors, fn compact ->
+        {:ok, descriptor} = CAP.PartyDescriptor.decode(compact, Limits.default())
+        descriptor.envelope.alg not in profile.algorithms
+      end)
+
+    assert length(excluded) == 1
+  end
+
+  test "the counterparty profile acceptance is new to the set" do
+    row = Enum.find(@table["cases"], &(&1["id"] == "acceptance-profile-counterparty"))
+    set = context(row["context"])
+    refute row["expected"]["compact"] in set.acceptances
+  end
+
   setup do
     for module <- [RawKey, RawMLDSA65] do
       Code.ensure_loaded!(module)
