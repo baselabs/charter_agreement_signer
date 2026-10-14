@@ -332,6 +332,12 @@
         "shape": "ok",
         "snapshot_called": true
       },
+      "expected_limited": {
+        "code": "algorithm_unsupported_on_substrate",
+        "custody_called": false,
+        "shape": "algorithm_unsupported_on_substrate",
+        "snapshot_called": true
+      },
       "id": "ml-successor-ok",
       "key": "ml-issuer",
       "kind": "descriptor",
@@ -1020,6 +1026,12 @@
         "code": "descriptor_chain_invalid",
         "custody_called": false,
         "shape": "invalid_input",
+        "snapshot_called": true
+      },
+      "expected_limited": {
+        "code": "algorithm_unsupported_on_substrate",
+        "custody_called": false,
+        "shape": "algorithm_unsupported_on_substrate",
         "snapshot_called": true
       },
       "id": "ml-successor-wrong",

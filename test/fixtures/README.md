@@ -37,10 +37,23 @@ once. A refusal must never call custody. Ed25519 successes also contain the
 exact `compact`. ML-DSA successes are compared through public verification,
 since their signatures can vary.
 
-`expected_limited` replaces `expected` when ML-DSA-65 is unverifiable. ML-DSA
-predecessor context requires prior verification on a capable runtime; those
-cases carry the suite's `requires_mldsa_substrate` tag. The limited suite
-still exercises all four signing kinds and a context-only substrate refusal.
+`expected_limited` replaces `expected` when ML-DSA-65 is unverifiable.
+`ml-successor-ok` and `ml-successor-wrong` run in both suites. On the limited
+runtime, both return `algorithm_unsupported_on_substrate`, with one snapshot
+call and no custody call. CAP re-verifies the predecessor's signed lineage
+before checking successor linkage, so even the wrong predecessor returns
+the substrate error there.
+
+`mldsa_predecessors.etf` retains the public predecessor facts returned by
+CAP 4469403 on a capable runtime. It contains no private keys. The runner
+checks its lineage against the table and, on a capable runtime, compares
+the entire facts record with fresh public verification. The limited runtime
+passes these retained facts to the real signer, whose CAP preparation
+re-verifies the signatures. Regenerate the fixture on a capable runtime
+with `MIX_ENV=test mix run --no-start scripts/build_mldsa_predecessors.exs`.
+Cases that need a freshly verified ML-DSA chain context still carry the
+suite's `requires_mldsa_substrate` tag. The limited suite also exercises all
+four signing kinds and a context-only substrate refusal.
 
 `signer_cases_test.exs` executes each row as a real signing call, traces
 callback counts and independently verifies every success. The table also

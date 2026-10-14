@@ -192,9 +192,8 @@ defmodule CharterAgreementSigner.SignerCasesTest do
   for row <- @table["cases"] do
     @row row
 
-    if row["requires_mldsa_substrate"] == true or
-         row["context"] in ["ml-predecessor", "ml-wrong-predecessor"],
-       do: @tag(:requires_mldsa_substrate)
+    if row["requires_mldsa_substrate"] == true,
+      do: @tag(:requires_mldsa_substrate)
 
     test row["id"] do
       row = @row
@@ -235,6 +234,20 @@ defmodule CharterAgreementSigner.SignerCasesTest do
         assert {:ok, _facts} = verify(row["kind"], compact, context)
       end
     end
+  end
+
+  defp context(name) when name in ["ml-predecessor", "ml-wrong-predecessor"] do
+    predecessors =
+      Path.expand("../fixtures/mldsa_predecessors.etf", __DIR__)
+      |> File.read!()
+      |> :erlang.binary_to_term()
+
+    facts = Map.fetch!(predecessors, name)
+    input = Map.fetch!(@table["contexts"], name)
+    assert facts.lineage == input["descriptors"]
+
+    if CAP.Capability.kat_verifies?("ML-DSA-65"), do: assert(facts == context(input))
+    facts
   end
 
   defp context(name) when is_binary(name), do: context(Map.fetch!(@table["contexts"], name))
