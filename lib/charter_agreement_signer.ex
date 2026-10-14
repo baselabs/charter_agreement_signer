@@ -221,11 +221,13 @@ defmodule CharterAgreementSigner do
     if match?({:ok, _}, result), do: result, else: {:error, :verification_failed}
   end
 
-  defp resolve_algorithm(algorithm) when algorithm in ["Ed25519", "ML-DSA-65"],
-    do: {:ok, algorithm}
+  defp resolve_algorithm(nil), do: {:ok, CAP.Algorithm.default_emission_name()}
 
-  defp resolve_algorithm(nil), do: {:ok, "Ed25519"}
-  defp resolve_algorithm(_unsupported), do: {:error, {:invalid_input, :algorithm_unsupported}}
+  defp resolve_algorithm(algorithm) do
+    if Map.has_key?(CAP.Algorithm.emissions(), algorithm),
+      do: {:ok, algorithm},
+      else: {:error, {:invalid_input, :algorithm_unsupported}}
+  end
 
   defp normalize_opts(opts, allowed) when is_map(opts) do
     if opts |> Map.keys() |> Enum.all?(&(&1 in allowed)),
