@@ -64,10 +64,30 @@ are the compiled truth, not this repo's docs or a prior session's handoff:
    or digest computation — every byte this library produces flows through
    CAP's producers and assemblers.
 
-## Working here
+## Workflow (owner ruling, October 28, 2026)
+
+Process is sized to the risk of the specific change, never the repository. Each check, gate,
+record or review names the failure it prevents.
+
+- **Heavy** when the diff touches a sign path in `lib/charter_agreement_signer.ex` (the
+  atomic `key_identity/1` snapshot, the wrong-key guard, post-sign verify, the closed error
+  vocabulary), the dependency wall, the test-only key handles in `test/support/`, or the
+  `charter_agreement_protocol` requirement or lock. Write the failing test first, get one
+  independent review and do one fix round, and run the declared local gate once before
+  pushing. Heavy pushes need the owner's approval.
+- **Light** for everything else: focused checks on the changed behavior, then push; hosted CI
+  is the gate. No outcome record, gauge or review; the commit message is the record. A light
+  change the owner asked for lands without a separate push approval.
+- Publishing, deploying and pushes to mirrors always need the owner's approval for that action.
+- A test that fails on every run is a defect: fix it, or quarantine it with a reason, in the
+  change that finds it.
+- Update the CHANGELOG when behavior, a dependency or a contract changes; other docs only when
+  a contract changes.
+
+## Toolchain
 
 ```sh
-MIX_ENV=test mix ci   # the whole battery on one toolchain; CI also runs the Elixir/OTP matrix and the capability-limited job (aborts at first red step)
+MIX_ENV=test mix ci   # the declared local gate: the whole battery on one toolchain; CI also runs the Elixir/OTP matrix and the capability-limited job (aborts at first red step)
 ```
 
 MIX_ENV=test for any compile check (test/support only compiles under :test).
@@ -80,5 +100,4 @@ lane) and config/config.exs refuses any OTP major outside {28, 29} (floor
 (divergence is a defect). The ML-DSA-65 emission pair — mint path and
 tests — additionally needs the OTP runtime linked against OpenSSL ≥ 3.5
 (FIPS 204 reached OpenSSL in 3.5.0; Ubuntu 24.04's OpenSSL 3.0.x cannot
-run them). Commits: surgical pathspecs, single tree on `master`, never
-`git stash`.
+run them).
