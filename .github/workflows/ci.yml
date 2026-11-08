@@ -46,11 +46,11 @@ jobs:
       MIX_ENV: test
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - uses: erlef/setup-beam@v1
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
         with:
           elixir-version: ${{ matrix.elixir }}
           otp-version: ${{ matrix.otp }}
@@ -86,7 +86,7 @@ jobs:
         run: mix test --cover --export-coverage standard-${{ matrix.elixir }}-${{ matrix.otp }}
 
       - name: Save standard coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: coverage-standard-${{ matrix.elixir }}-${{ matrix.otp }}
           path: cover/*.coverdata
@@ -147,9 +147,9 @@ jobs:
         working-directory: examples/charter_lifecycle
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: erlef/setup-beam@v1
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
         with:
           elixir-version: ${{ matrix.elixir }}
           otp-version: ${{ matrix.otp }}
@@ -186,16 +186,16 @@ jobs:
     env:
       MIX_ENV: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - uses: erlef/setup-beam@v1
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
         with:
           elixir-version: "1.20.3"
           otp-version: "29.0.3"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "24.8"
 
@@ -214,9 +214,9 @@ jobs:
     env:
       MIX_ENV: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: erlef/setup-beam@v1
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
         with:
           elixir-version: "1.20.3"
           otp-version: "28.5.0.3"
@@ -231,7 +231,7 @@ jobs:
         run: mix test --exclude requires_mldsa_substrate --cover --export-coverage limited
 
       - name: Save limited coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: coverage-limited
           path: cover/*.coverdata
@@ -244,9 +244,9 @@ jobs:
     env:
       MIX_ENV: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: erlef/setup-beam@v1
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
         with:
           elixir-version: "1.20.3"
           otp-version: "29.0.3"
@@ -257,7 +257,7 @@ jobs:
           mix compile --warnings-as-errors
 
       - name: Load both lanes' coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: coverage-*
           merge-multiple: true
