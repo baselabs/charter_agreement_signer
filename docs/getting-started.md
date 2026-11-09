@@ -8,12 +8,12 @@ here runs with no database, no services, and no network beyond `mix deps.get`.
 ```elixir
 def deps do
   [
-    {:charter_agreement_signer, "~> 0.5.0"}
+    {:charter_agreement_signer, "~> 1.0.0"}
   ]
 end
 ```
 
-Signer 0.5.0 resolves CAP `~> 0.6.0` from Hex.
+Signer 1.0.0 supports CAP 1.0.x from Hex. This includes the hardened plain-input conversion.
 
 ## 2. Implement a key handle
 
@@ -55,7 +55,7 @@ the claims:
 public = MyApp.Custody.public_for!(ref)
 
 claims = %{
-  # CAP 0.6.0 emits ("Ed25519", 2) by default or ("ML-DSA-65", 3),
+  # CAP 1.0.0 emits ("Ed25519", 2) by default or ("ML-DSA-65", 3),
   # selected by the :algorithm option on
   # sign_descriptor/3. Claims carrying revision 1 are refused at CAP's
   # producer (the alg-name binding rule); revision-1 artifacts you RETAIN

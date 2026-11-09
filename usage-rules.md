@@ -48,7 +48,7 @@ enforces most of them structurally, and the rest are posture.
 9. **Mint at a current emission identity.** Claims you hand to a sign path
    carry `"protocol_revision" => 2` for the default `Ed25519` emission, or
    `3` when you select the `ML-DSA-65` emission pair via the `:algorithm`
-   option; CAP 0.6.0's emission rule mints exactly those two pairs, and
+   option; CAP 1.0.0's emission rule mints exactly those two pairs, and
    revision-1 claims are refused during CAP preparation before custody.
    Retained revision-1 artifacts keep verifying (cross-revision
    composition); only NEW claims must carry a current pair's revision.

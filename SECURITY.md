@@ -2,7 +2,8 @@
 
 ## Supported versions
 
-The latest published `0.x` line is supported. Wire compatibility is governed
+The `1.0.x` line is supported upon publication; 0.5.x remains supported
+until 1.0.0 is published. Wire compatibility is governed
 by the protocol package's contract discipline — this library's releases track
 `charter_agreement_protocol`.
 

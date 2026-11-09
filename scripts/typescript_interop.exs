@@ -5,7 +5,7 @@ defmodule CharterAgreementSigner.TypeScriptInterop do
   alias CharterAgreementProtocol.Limits
   alias CharterAgreementSigner.Keys.{RawKey, RawMLDSA65}
 
-  @table Path.expand("../test/fixtures/signer_cases.json", __DIR__)
+  @table Path.expand("../priv/conformance/signer_cases.json", __DIR__)
 
   def run!(signer, verifier) do
     unless Mix.env() == :test, do: raise("typescript interop requires MIX_ENV=test")

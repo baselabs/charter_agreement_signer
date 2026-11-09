@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] — 2026-11-09
+
+- Stabilizes the public signing API with Semantic Versioning and supports
+  the hardened CAP 1.0.x line, retaining verification semantics 6.
+- Ships the language-neutral signer cases in `priv/conformance/` for other
+  implementations. Corpus bytes and signing behavior are unchanged.
+- The TypeScript gate compares the shared corpus byte for byte and binds
+  the signer suite to the pinned verifier build instead of a registry copy.
+- Release archives are candidates; publishing requires maintainer approval.
+
 ## [0.5.0] — 2026-10-14
 
 ### Breaking

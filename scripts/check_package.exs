@@ -44,6 +44,10 @@ defmodule CharterAgreementSigner.PackageCheck do
                     "docs/upgrading.md",
                     "lib/charter_agreement_signer.ex",
                     "lib/charter_agreement_signer/telemetry.ex",
+                    "priv/signer-source.json",
+                    "priv/verifier-source.json",
+                    "priv/conformance/README.md",
+                    "priv/conformance/signer_cases.json",
                     "mix.exs"
                   ])
 
@@ -76,6 +80,7 @@ defmodule CharterAgreementSigner.PackageCheck do
 
       check_exact_files!(package_root)
       check_metadata!(Path.join(outer_root, "metadata.config"), version, requirements)
+      bind_protocol_candidate!(package_root, scratch_root)
       compile_package!(package_root)
       compile_consumer!(consumer_root, package_root)
 
@@ -182,6 +187,40 @@ defmodule CharterAgreementSigner.PackageCheck do
   defp decode_metadata(value) when is_list(value), do: Enum.map(value, &decode_metadata/1)
   defp decode_metadata({left, right}), do: {decode_metadata(left), decode_metadata(right)}
   defp decode_metadata(value), do: value
+
+  # Before CAP publication, resolve its exact reviewed archive in the
+  # disposable package copy. Census and Hex dependency metadata were checked
+  # against the unmodified CAS archive before applying this build override.
+  defp bind_protocol_candidate!(package_root, scratch_root) do
+    case System.argv() do
+      [] ->
+        :ok
+
+      [archive, expected_sha256] ->
+        actual = :crypto.hash(:sha256, File.read!(archive)) |> Base.encode16(case: :lower)
+        unless actual == expected_sha256, do: fail!("CAP candidate checksum mismatch")
+        outer = Path.join(scratch_root, "protocol-outer")
+        protocol = Path.join(scratch_root, "protocol")
+        File.mkdir_p!(outer)
+        File.mkdir_p!(protocol)
+        extract_tar!(archive, outer)
+        extract_tar!(Path.join(outer, "contents.tar.gz"), protocol)
+        project = Path.join(package_root, "mix.exs")
+        source = File.read!(project)
+        unless source =~ "deps: deps()", do: fail!("dependency seam missing")
+
+        replacement =
+          "deps: Enum.map(deps(), fn " <>
+            "{:charter_agreement_protocol, req} -> " <>
+            "{:charter_agreement_protocol, req, path: #{inspect(protocol)}, override: true}; dep -> dep end)"
+
+        File.write!(project, String.replace(source, "deps: deps()", replacement))
+        IO.puts("package consumer: CAP candidate SHA-256 #{actual}")
+
+      _ ->
+        fail!("expected an optional CAP archive and its SHA-256")
+    end
+  end
 
   defp compile_package!(package_root) do
     environment = [{"MIX_ENV", "prod"}]

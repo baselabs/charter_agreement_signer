@@ -17,7 +17,7 @@ signing span.
 ```elixir
 def deps do
   [
-    {:charter_agreement_signer, "~> 0.5.0"}
+    {:charter_agreement_signer, "~> 1.0.0"}
   ]
 end
 ```
@@ -65,7 +65,7 @@ Malformed profiles return `{:error, {:invalid_input, :invalid_profile}}`.
   limits: CharterAgreementProtocol.Limits.default())
 ```
 
-Claims you sign mint at the protocol's current revision; CAP 0.6.0's emission
+Claims you sign mint at the protocol's current revision; CAP 1.0.0's emission
 rule is exactly (`"Ed25519"`, `protocol_revision` 2) or (`"ML-DSA-65"`,
 `protocol_revision` 3), selected by the `:algorithm` option (default
 `"Ed25519"`); claims carry the matching `"protocol_revision"`, and retained
@@ -142,14 +142,15 @@ source trees under `_build/`. `mix typescript.sources --cached` uses the
 last fetched public refs without a network fetch; it still checks
 reachability and forward movement. `mix typescript.sources --check` checks
 the stamps. `mix typescript.check` requires current stamps and builds both
-sources. It runs the signer's own tests with the npm dependencies in its
-committed lockfile (verifier 0.7.0 at the signer 0.3.0 pin) and requires
+sources. It runs the pinned verifier's typecheck and test suite, then installs that
+local verifier build into the signer checkout. Other npm dependencies come
+from the committed lockfile. It runs the signer's own tests and requires
 at least 377 tests, as recorded in the pin's `minimum_tests`, all passing. It then requires
 four descriptor interop checks to run and pass: TypeScript signer to CAP
 verification and Elixir signer to the pinned TypeScript verifier, each with
 Ed25519 at revision 2 and ML-DSA-65 at revision 3. The separate verifier
 source pin names verifier 0.7.0. The Elixir suite also runs the
-language-neutral [signer case table](test/fixtures/README.md), checking
+language-neutral [signer case table](priv/conformance/README.md), checking
 callback counts, refusal codes, exact Ed25519 compacts and verified ML-DSA
 successes. The pinned TypeScript suite executes all 121 rows from the
 same table, checks its source hash and allows no excluded rows.
@@ -173,8 +174,7 @@ not evaluate charter terms or authorize operations.
 
 ## Protocol dependency
 
-Signer 0.5.0 requires CAP `~> 0.6.0` from Hex, locked to 0.6.0
-in this library and the example. CAP owns pre-sign checks, context
+Signer 1.0.0 requires CAP `~> 1.0.0` from Hex, with the library and example locks updated after CAP publication. CAP owns pre-sign checks, context
 derivation and final verification. CAP 0.5.0's distinct-party checks also apply: re-verify views
 stored under CAP 0.4.x. [docs/upgrading.md](docs/upgrading.md) lists the
 changed outcomes and migration requirements.

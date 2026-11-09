@@ -1,6 +1,6 @@
 # Sign telemetry
 
-Signer 0.5.0 emits a closed, value-free telemetry surface for its four signing
+Signer 1.0.0 emits a closed, value-free telemetry surface for its four signing
 entry points (`sign_descriptor/3`, `sign_receipt/4`, `sign_acceptance/4`,
 `sign_termination/4`). The library does NOT attach a handler; a fresh
 application sees nothing until it attaches one.

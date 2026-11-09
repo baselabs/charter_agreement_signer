@@ -4,7 +4,7 @@ unless CAP.Capability.kat_verifies?("ML-DSA-65"),
   do: raise("building predecessor fixtures requires ML-DSA verification")
 
 fixtures = Path.expand("../test/fixtures", __DIR__)
-table = fixtures |> Path.join("signer_cases.json") |> File.read!() |> JSON.decode!()
+table = Path.expand("../priv/conformance/signer_cases.json", __DIR__) |> File.read!() |> JSON.decode!()
 
 facts =
   Map.new(["ml-predecessor", "ml-wrong-predecessor"], fn name ->

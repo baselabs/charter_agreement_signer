@@ -5,7 +5,8 @@ defmodule CharterAgreementSigner.SignerCasesTest do
   alias CharterAgreementProtocol.{Capability.Profile, Limits}
   alias CharterAgreementSigner.Keys.{RawKey, RawMLDSA65}
 
-  @table File.read!(Path.expand("../fixtures/signer_cases.json", __DIR__)) |> JSON.decode!()
+  @table File.read!(Path.expand("../../priv/conformance/signer_cases.json", __DIR__))
+         |> JSON.decode!()
 
   @required_ids ~w(
     ed-descriptor-ok

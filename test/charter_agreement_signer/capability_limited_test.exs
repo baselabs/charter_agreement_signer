@@ -7,7 +7,8 @@ defmodule CharterAgreementSigner.CapabilityLimitedTest do
   alias CharterAgreementProtocol.Limits
   alias CharterAgreementSigner.Keys.RawMLDSA65
 
-  @table File.read!(Path.expand("../fixtures/signer_cases.json", __DIR__)) |> JSON.decode!()
+  @table File.read!(Path.expand("../../priv/conformance/signer_cases.json", __DIR__))
+         |> JSON.decode!()
   @prefix [:charter_agreement_signer, :sign]
 
   setup do

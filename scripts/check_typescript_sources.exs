@@ -20,8 +20,17 @@ run! = fn dir, args ->
 end
 
 run!.(verifier, ["ci"])
-run!.(verifier, ["run", "build"])
+run!.(verifier, ["run", "typecheck"])
+run!.(verifier, ["test"])
 run!.(signer, ["ci"])
+
+# Bind the suite and interop to the exact verifier source we just built.
+run!.(signer, ["install", "--no-save", "--package-lock=false", verifier])
+
+unless File.read!(Path.join(root, "priv/conformance/signer_cases.json")) ==
+         File.read!(Path.join(signer, "test/fixtures/signer_cases.json")) do
+  raise("typescript source check: shared signer corpus differs")
+end
 
 run!.(signer, ["run", "build"])
 

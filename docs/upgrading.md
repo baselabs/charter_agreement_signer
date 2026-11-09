@@ -5,19 +5,24 @@ that governs how the library evolves alongside the protocol package.
 
 ## Versioning policy
 
-- **This library follows pre-1.0 SemVer §4 semantics**: anything may change
-  at a 0.x minor bump; pin `~> 0.5.0` (the three-part form) and read this
-  page at every minor.
-- **The protocol dependency is deliberately selected**: this library requires
-  CAP `~> 0.6.0` from Hex. Both projects lock CAP 0.6.0, and the dependency
-  and lock-parity tests enforce the requirement and resolved version.
-- **The error vocabulary is closed and additive-only** within the 0.x line:
-  new `{:invalid_input, code}` codes may appear as CAP's gated vocabulary
-  grows; a removal or rename of any error shape is a breaking change that
-  bumps the minor and is called out here by name.
-- **Telemetry axes are closed and additive-only**: new objects or classes
-  appear in `docs/telemetry.md`'s tables (tied bidirectionally by the test
-  suite) and in this page's notes.
+The 1.x public API follows Semantic Versioning. Removing or renaming a
+function, option, error shape or telemetry axis requires a major release.
+Additive error codes and telemetry values are documented with each release.
+CAP's verification semantics and corpus identities remain separate from
+package versions; record them when upgrading.
+
+## 0.5.0 to 1.0.0
+
+Use `{:charter_agreement_signer, "~> 1.0.0"}`. CAS requires CAP
+`~> 1.0.0`, including its hardened plain-input conversion. The signing API,
+emitted bytes and error shapes stay unchanged; malformed nested claims
+return a typed error before custody. The final Hex locks must be updated
+to published CAP 1.0.0 before CAS publication. Until then, the candidate
+check runs against the exact unpacked CAP archive and its SHA-256.
+
+The language-neutral signer corpus now ships under `priv/conformance/`.
+TypeScript conformance checks compare its exact bytes and run against the
+pinned verifier source, including bidirectional signature verification.
 
 ## 0.4.1 to 0.5.0 (CAP 0.6.0)
 

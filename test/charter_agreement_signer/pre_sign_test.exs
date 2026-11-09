@@ -86,6 +86,26 @@ defmodule CharterAgreementSigner.PreSignTest do
   defp refute_signed,
     do: assert({:call_count, 0} == :erlang.trace_info({RawKey, :sign, 2}, :call_count))
 
+  test "improper nested claims reject before custody on every signing kind", %{
+    setup: setup,
+    revision: revision
+  } do
+    claims = %{"nested" => [1 | :tail]}
+    handle = {RawKey, setup.issuer_handle}
+    {:ok, set} = ChainFixture.raw_set(setup, [setup.genesis], [], [])
+
+    for result <- [
+          CharterAgreementSigner.sign_descriptor(claims, handle),
+          CharterAgreementSigner.sign_receipt(claims, handle, revision),
+          CharterAgreementSigner.sign_acceptance(claims, handle, set),
+          CharterAgreementSigner.sign_termination(claims, handle, set)
+        ] do
+      assert result == {:error, {:invalid_input, :signing_input_invalid}}
+    end
+
+    refute_signed()
+  end
+
   test "limits, profile and algorithm resolve in order before the snapshot", %{
     calls: calls,
     setup: setup

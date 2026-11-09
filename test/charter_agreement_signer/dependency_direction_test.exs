@@ -55,15 +55,10 @@ defmodule CharterAgreementSigner.DependencyDirectionTest do
 
   defp telemetry_module?(path), do: Path.basename(path) == "telemetry.ex"
 
-  # The library-side protocol double-pin (the BARA ADR-0010 discipline): the
-  # shipped requirement must name EXACTLY the locked version's tested line;
-  # a three-part "~> 0.6.0" pin admitting only the tested 0.6.x line, per
-  # CAP's own dependent guidance (CAP's package semver carries no
-  # compatibility promise, so the dependent pins conservatively and bumps
-  # deliberately). A silent `mix deps.update` or a loosened requirement reds
-  # here.
-  @protocol_requirement "~> 0.6.0"
-  @protocol_locked_version "0.6.0"
+  # Keep resolution within the tested patch line. The archive candidate check exercises the
+  # unpublished release through a path override in a disposable copy.
+  @protocol_requirement "~> 1.0.0"
+  @protocol_locked_version "1.0.0"
 
   test "the protocol dependency is double-pinned to the tested release line" do
     mix_source = File.read!(Path.join(@repo_root, "mix.exs"))
@@ -75,12 +70,20 @@ defmodule CharterAgreementSigner.DependencyDirectionTest do
     refute mix_source =~ "{:charter_agreement_protocol, \"~> 0.2\"},",
            "the two-part pin must not appear alongside the three-part form"
 
-    lock_source = File.read!(Path.join(@repo_root, "mix.lock"))
+    dependency =
+      Enum.find(Mix.Project.config()[:deps], &(elem(&1, 0) == :charter_agreement_protocol))
 
-    assert lock_source =~
-             ~r/"charter_agreement_protocol":\s*\{:hex,\s*:charter_agreement_protocol,\s*"#{@protocol_locked_version}"/,
-           "the locked CAP version must be exactly #{@protocol_locked_version}; the " <>
-             "requirement vouches for no span the lock has not tested"
+    if tuple_size(dependency) == 3 and Keyword.has_key?(elem(dependency, 2), :path) do
+      assert to_string(Application.spec(:charter_agreement_protocol, :vsn)) ==
+               @protocol_locked_version
+    else
+      lock_source = File.read!(Path.join(@repo_root, "mix.lock"))
+
+      assert lock_source =~
+               ~r/"charter_agreement_protocol":\s*\{:hex,\s*:charter_agreement_protocol,\s*"#{@protocol_locked_version}"/,
+             "the locked CAP version must be exactly #{@protocol_locked_version}; the " <>
+               "requirement vouches for no span the lock has not tested"
+    end
   end
 
   test "runtime dependencies are exactly the protocol package and telemetry" do

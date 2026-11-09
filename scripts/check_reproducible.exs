@@ -5,8 +5,8 @@
 # Builds the unpublished release archive TWICE, each in a fresh COPY of the
 # source tree under a temp dir, and asserts the two archives are byte-identical
 # (SHA-256 equal). Two independently-built archives; never a shared-cache
-# self-comparison. Cache isolation: each copy gets its own deps.get +
-# hex.build; the developer's _build/deps are never mutated (copies removed in
+# self-comparison. Each copy builds only the shipped source archive. The
+# developer's _build/deps are never mutated (copies removed in
 # after).
 #
 # Honest scope: hex.build packages SOURCE files (the files: list), not
@@ -96,14 +96,13 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
 
     source
     |> File.ls!()
-    |> Enum.reject(&(&1 in @copy_excludes))
+    |> Enum.reject(&(&1 in @copy_excludes or String.starts_with?(&1, ".env.")))
     |> Enum.each(fn entry ->
       File.cp_r!(Path.join(source, entry), Path.join(dest, entry))
     end)
   end
 
   defp build_in!(copy_root, output) do
-    run_mix!(["deps.get"], copy_root)
     run_mix!(["hex.build", "--output", output], copy_root)
     assert_regular_nonempty!(output)
   end
@@ -132,7 +131,8 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
     end
   end
 
-  # The gate spawns child mix processes (deps.get + hex.build per copy).
+  # Hex source archives do not need fetched dependencies; consumer compilation
+  # is covered by check_package.exs, with the real selected protocol.
   defp run_mix!(arguments, directory) do
     case System.cmd("mix", arguments,
            cd: directory,

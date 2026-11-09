@@ -1,5 +1,12 @@
 # Signer cases
 
+`signer_cases.json` is the Elixir signer's language-neutral conformance request
+table, shipped in the Hex archive. TypeScript implementations must run the same
+bytes. SHA-256: `3db6f031d6edec92c59e15481fdba884992f95837ea0aefd5bda6b9375c27bb2`.
+
+The packaged `priv/signer-source.json` and `priv/verifier-source.json` name
+the exact public TypeScript commits checked against this release.
+
 `signer_cases.json` is a language-neutral request table. Its root has
 `format_version: 1`, `keys`, `contexts` and `cases`. All claims use JSON
 values. All key bytes and seeds use unpadded canonical base64url. Seeds are
@@ -44,7 +51,7 @@ call and no custody call. CAP re-verifies the predecessor's signed lineage
 before checking successor linkage, so even the wrong predecessor returns
 the substrate error there.
 
-`mldsa_predecessors.etf` retains the public predecessor facts returned by
+`test/fixtures/mldsa_predecessors.etf` (repository-only) retains the public predecessor facts returned by
 CAP 4469403 on a capable runtime. It contains no private keys. The runner
 checks its lineage against the table and, on a capable runtime, compares
 the entire facts record with fresh public verification. The limited runtime
