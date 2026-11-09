@@ -8,6 +8,12 @@ Accepted. Reverses the scaffold's two-part pin — a real correction, not a
 formalization. Found by the release-readiness adversarial review (2026-08-26)
 on three authorities at once.
 
+Amended 2026-11-09: 1.0.0 requires `~> 1.0.0`, with CAP 1.0.0 locked in
+both projects. CAP's 1.x public API now follows Semantic Versioning; the
+historical pre-1.0 rationale below remains a record of that decision. We
+retain the tested patch-line requirement and lock-parity gates. Verification
+semantics and corpus identities remain separate from package semver.
+
 Amended 2026-10-14: use `~> 0.6.0` from Hex, locked to CAP 0.6.0 in
 both projects. This replaces the prior source-checkout arrangement. The
 library requirement, wall test, example requirement and both locks move
@@ -68,6 +74,5 @@ corrected BEFORE the first release.
 ## Consequences
 
 Consumers wanting a newer CAP must wait for (or PR) a reviewed signer
-release — the conservative cost of depending on a protocol whose semver
-promises nothing. The example project carries a lock-parity test so the
+release — the conservative cost of deliberately testing one CAP patch line. The example project carries a lock-parity test so the
 integration canary never drifts from the library's tested span.

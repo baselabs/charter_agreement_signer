@@ -16,10 +16,12 @@ enforces most of them structurally, and the rest are posture.
    surface; use them to compare the handle against a party descriptor's
    `verification_keys` before signing.
 
-3. **The claims carry no key material.** `sign_descriptor/3`,
+3. **The claims carry no private key material.** `sign_descriptor/3`,
    `sign_acceptance/4`, `sign_termination/4`, and `sign_receipt/4` take
-   claims only; the protected header's `kid` always comes from the handle
-   snapshot. A caller cannot name a kid the handle does not control.
+   claims; descriptor claims include public verification keys. The protected
+   header's `kid` always comes from the handle snapshot, with no independent
+   caller-supplied header kid. The raw signature must verify against that
+   snapshot key; CAP does not establish the real-world identity of its owner.
 
 4. **Honor refusals.** `{:error, {:refused, :signing_refused}}` means your
    claims contradict your own verified artifact view (CAP's R1–R3 rules).

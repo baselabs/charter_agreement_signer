@@ -55,11 +55,12 @@ are the compiled truth, not this repo's docs or a prior session's handoff:
    or claims content in any error. New error shapes update
    `docs/errors.md` in the same commit.
 6. **The dependency wall.** `lib/` depends only on `charter_agreement_protocol`
-   + the standard library (`:crypto`). Never add a runtime, transport, or
+   + `:telemetry` + the standard library (`:crypto`). Never add another runtime, transport, or
    sibling-package dependency; the wall test and the package census gate
    both red on a violation.
 7. **Pure and deterministic.** No filesystem, network, environment, config,
-   clock, or randomness in `lib/` (architecture-tested).
+   clock, or randomness in signing logic (architecture-tested). The telemetry
+   span seam alone reads monotonic time for duration; it carries no claim values.
 8. **Canonical bytes are the contract.** Never re-implement canonicalization
    or digest computation — every byte this library produces flows through
    CAP's producers and assemblers.
@@ -74,15 +75,15 @@ contract changes.
 ## Toolchain
 
 ```sh
-MIX_ENV=test mix ci   # what CI runs on one toolchain; CI also runs the Elixir/OTP matrix and the capability-limited job (aborts at first red step). Run the parts that cover your change.
+MIX_ENV=test mix ci   # what CI runs on one toolchain; CI also runs the Elixir/OTP matrix and the capability-limited job (returns failure if any required step fails). Run the parts that cover your change.
 ```
 
 MIX_ENV=test for any compile check (test/support only compiles under :test).
 Supported toolchain, enforced in code before anything compiles: the tested
 Elixir 1.19.x–1.20.x lines on Erlang/OTP 28/29 — mix.exs's `~> 1.19` range
-refuses any other Elixir (Mix.ElixirVersionError; 1.19.x rides the OTP-28
-lane) and config/config.exs refuses any OTP major outside {28, 29} (floor
-28.1). Lockstep: the declared range, the supported-OTP set, .tool-versions
+admits Elixir >= 1.19 and < 2.0; the supported/tested lines are 1.19 and 1.20
+(1.19.x uses the OTP-28 lane). config/config.exs enforces only the OTP major
+set {28, 29}; ML-DSA needs at least OTP 28.1 and the linked crypto support below. Lockstep: the declared range, the supported-OTP set, .tool-versions
 (the dev lane), and CI's matrix lanes move together in ONE commit
 (divergence is a defect). The ML-DSA-65 emission pair — mint path and
 tests — additionally needs the OTP runtime linked against OpenSSL ≥ 3.5

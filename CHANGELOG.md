@@ -14,7 +14,9 @@ and this project adheres to
   implementations. Corpus bytes and signing behavior are unchanged.
 - The TypeScript gate compares the shared corpus byte for byte and binds
   the signer suite to the pinned verifier build instead of a registry copy.
-- Release archives are candidates; publishing requires maintainer approval.
+- Refreshes the full documentation set and operative 1.x stability policy.
+  The quickstart and Livebook run with matched 1.0 packages; custody recipes
+  use one atomic identity observation and compile without undefined clients.
 
 ## [0.5.0] — 2026-10-14
 

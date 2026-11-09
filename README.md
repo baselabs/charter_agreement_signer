@@ -96,7 +96,7 @@ custody label). No handler is attached by default. See
   a complete bilateral charter (descriptors → genesis revision → dual
   acceptances → receipt → mutual termination) with a CAP-only counterparty
   verifying every artifact, the wrong-key rejection, and its own CI lane. No
-  transport; CAP defines none and this repo invents none (`docs/adr/0004`).
+  transport; CAP defines none and this repo invents none ([transport decision](https://github.com/baselabs/charter_agreement_signer/blob/master/docs/adr/0004-no-invented-transport.md)).
 - [`examples/charter_signing_roundtrip.livemd`](https://github.com/baselabs/charter_agreement_signer/blob/master/examples/charter_signing_roundtrip.livemd):
   the Livebook walkthrough.
 
@@ -119,7 +119,7 @@ only.
 Credo, tests, 100.0% coverage, Dialyzer, docs, dependency audits and currency,
 package census and consumer smoke, and archive reproducibility), the
 `examples/charter_lifecycle` battery, and the pinned TypeScript signer's own
-suite, plus a build of the pinned verifier. It needs Node 24.8 or newer, Git,
+suite, plus the pinned verifier's typecheck and full test suite. It needs Node 24.8 or newer, Git,
 tar, and network access to Hex, GitHub and npm. CI runs these checks in
 separate Linux jobs and merges coverage exports from the standard and
 capability-limited jobs before enforcing the 100.0% floor. Local `mix ci`

@@ -2,8 +2,7 @@
 
 ## Supported versions
 
-The `1.0.x` line is supported upon publication; 0.5.x remains supported
-until 1.0.0 is published. Wire compatibility is governed
+The `1.0.x` line is supported. Older lines are unsupported; upgrade to 1.0.x. Wire compatibility is governed
 by the protocol package's contract discipline — this library's releases track
 `charter_agreement_protocol`.
 
@@ -24,7 +23,7 @@ Restated from the signer's boundary invariants, for reporting:
 - Errors are closed atoms and carry no values: no key material, message
   bytes, or claims content can appear in any error. A defect that leaks
   values into that channel is a security defect, not a cosmetic one.
-- The library depends only on the public protocol package — never a runtime,
+- The library depends only on the public protocol package and telemetry — never a runtime,
   never a transport, never an HTTP client/server (enforced by the
   dependency-direction wall test).
 - The test-only reference handles compile only under `:test` and never ship

@@ -48,6 +48,7 @@ try do
         "scripts",
         "priv",
         "config",
+        "examples/charter_signing_roundtrip.livemd",
         "examples/charter_lifecycle/lib",
         "examples/charter_lifecycle/test",
         "examples/charter_lifecycle/config",

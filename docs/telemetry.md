@@ -55,16 +55,24 @@ that outcome under CAP's contract. Signing entry point return shapes are in
 ## Attaching
 
 ```elixir
+defmodule MyApp.SignerTelemetry do
+  require Logger
+
+  def handle_event(event, measurements, metadata, _config) do
+    # Only these closed event/metadata axes and numeric measurements are logged.
+    Logger.info(fn ->
+      "charter_signer #{inspect(event)} #{inspect(measurements)} #{inspect(metadata)}"
+    end)
+  end
+end
+
 :telemetry.attach_many(
   "my-app-charter-signer",
   [
     [:charter_agreement_signer, :sign, :start],
     [:charter_agreement_signer, :sign, :stop]
   ],
-  fn event, measurements, metadata, _config ->
-    # event is one of the two names above; :telemetry dispatches by exact
-    # name; there is no wildcard attach.
-  end,
+  &MyApp.SignerTelemetry.handle_event/4,
   nil
 )
 ```

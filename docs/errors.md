@@ -36,5 +36,7 @@ shape, `:signing_key_invalid` to `:invalid_key_handle`, and substrate errors
 to the top-level substrate reason. Every other preparation error is
 `{:invalid_input, code}`. Every finish error is `:verification_failed`.
 
-The vocabulary is additive within a minor line. Changed error shapes or
-codes require a minor release and an upgrade note.
+Within 1.x, removing or renaming an error shape or documented code requires
+a major release. Additive codes are documented in minor releases. Compatible
+fixes may correct malformed-input handling; record CAP's verification identity
+and read [Upgrading](upgrading.md) when moving the dependency lock.

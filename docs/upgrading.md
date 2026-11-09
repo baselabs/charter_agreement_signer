@@ -16,9 +16,9 @@ package versions; record them when upgrading.
 Use `{:charter_agreement_signer, "~> 1.0.0"}`. CAS requires CAP
 `~> 1.0.0`, including its hardened plain-input conversion. The signing API,
 emitted bytes and error shapes stay unchanged; malformed nested claims
-return a typed error before custody. The final Hex locks must be updated
-to published CAP 1.0.0 before CAS publication. Until then, the candidate
-check runs against the exact unpacked CAP archive and its SHA-256.
+return a typed error before custody. The library and lifecycle example lock
+the published CAP 1.0.0 package. Coordinated release checks additionally
+exercise the exact unpacked CAP candidate archive and its SHA-256.
 
 The language-neutral signer corpus now ships under `priv/conformance/`.
 TypeScript conformance checks compare its exact bytes and run against the
@@ -272,8 +272,10 @@ predates it. What shipped:
 
 ## The 1.0 stability contract
 
-Deferred until the release sees real consumer use (the family precedent:
-BARA's 1.0 deferral). Until then, pre-1.0 semantics above govern. When 1.0
-lands, this section becomes the operative contract: the public function
-shapes, the error vocabulary, and the telemetry axes freeze; only the
-forward-compatible growth paths above continue.
+Effective with 1.0.0: documented public function signatures, option meanings,
+error shapes and telemetry event/metadata axes are stable within 1.x. Removing
+or renaming them requires a major release. Additions are documented in minor
+releases; patch releases carry compatible fixes. Consumers must handle documented
+error classes without assuming that future releases cannot add codes. CAP's
+verification identity and upgrade notes separately describe verdict corrections;
+package stability does not freeze vulnerabilities or malformed-input acceptance.

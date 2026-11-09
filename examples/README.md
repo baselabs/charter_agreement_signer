@@ -12,8 +12,8 @@ Two runnable references, neither shipped in the Hex package:
 - **`charter_signing_roundtrip.livemd`** — a Livebook walking the same
   round-trip interactively, including the wrong-key rejection.
 
-The lifecycle example deliberately runs over NO transport: CAP defines none,
-and this repository does not invent wire shapes (see
+The lifecycle example uses no transport. CAP defines artifact wire formats,
+but leaves their delivery to the host; this repository adds no transport envelope (see
 `docs/adr/0004-no-invented-transport.md` in the repo root). The "exchange"
 between the two hosts is an explicit in-process boundary module — swap it
 for your transport without touching anything else.

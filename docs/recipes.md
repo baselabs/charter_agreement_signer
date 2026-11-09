@@ -1,12 +1,11 @@
 # Recipes
 
 Four integration shapes: a network-HSM key handle, a KMS key-identity handle,
-a counterparty verifier, and a porting note for non-Elixir signers. Runnable
-shapes, not a runnable app — each code block compiles as written against
-this package + the named dependencies. The HSM/KMS recipes reference your
-client module via config; compiling them as-is emits undefined-integration
-warnings naming exactly those modules — that is the paste-verify passing
-(the marked integration points are yours to fill).
+a counterparty verifier, and a porting note for non-Elixir signers.
+The HSM/KMS adapters are integration templates: they compile against this
+package but require your configured client and a real custody service to run.
+Their callback contracts are specified below. For an executable in-memory
+demo with real Ed25519 signatures, start with [Getting started](getting-started.md).
 
 ## Recipe: a network-HSM key handle
 
@@ -26,7 +25,11 @@ defmodule MyApp.HsmHandle do
   Key handle backed by a network HSM. The handle term is the HSM's key
   reference (never key material). The client module is injected:
 
-      config :my_app, :hsm_client, MyApp.HsmClient  # implements sign_ed25519/2
+      config :my_app, :hsm_client, MyApp.HsmClient
+
+  The client implements sign_ed25519/2 and key_identity/1. Its identity
+  call returns {:ok, {kid, public_key}} from one atomic observation of the
+  same immutable key version used for signing. It never exports private keys.
 
   A client timeout (a GenServer.call exit) never crashes your caller — the
   signer's safe_callback exit-catch contains it. WHERE it surfaces depends
@@ -45,10 +48,7 @@ defmodule MyApp.HsmHandle do
 
   @impl true
   def key_identity(hsm_key_ref) do
-    with {:ok, kid} <- client().key_id(hsm_key_ref),
-         {:ok, public} <- client().public_key(hsm_key_ref) do
-      {:ok, {kid, public}}
-    end
+    client().key_identity(hsm_key_ref)
   end
 
   # The atomic-snapshot rule: kid AND public key from ONE consistent view of
@@ -64,18 +64,21 @@ end
 ## Recipe: a KMS key-identity handle
 
 Requires: nothing beyond this package (the KMS adapter is injected the same
-way). The point of this shape: some KMSes expose the public key and the key
-id through different calls than signing — keep all three behind ONE module
+way). The client implements `sign/2`, returning a raw signature or error,
+and `describe_signing_key/1`, returning `{:ok, %{kid: binary, public_key: binary}}`
+from one consistent snapshot of that immutable key version. Some KMSes expose
+the public key and key id through different calls than signing — keep all three behind ONE module
 and keep `key_identity/1` a single consistent observation.
 
 ```elixir
 defmodule MyApp.KmsHandle do
   @behaviour CharterAgreementSigner
 
-  # ref is the KMS key ARN or alias.
+  # ref names an immutable Ed25519 key version, never a mutable rotation alias.
+  # Configure :my_app, :kms_client with your client module.
   @impl true
   def sign(message, kms_ref) when is_binary(message) do
-    case MyApp.Kms.sign(kms_ref, message) do
+    case client().sign(kms_ref, message) do
       {:ok, <<sig::binary-size(64)>>} -> {:ok, sig}
       {:ok, _wrong_size} -> {:error, :kms_bad_signature_size}
       {:error, reason} -> {:error, reason}
@@ -88,7 +91,7 @@ defmodule MyApp.KmsHandle do
   def key_identity(kms_ref) do
     # One describe call, both facts — never two.
     with {:ok, %{kid: kid, public_key: <<_::256>> = public}} <-
-           MyApp.Kms.describe_signing_key(kms_ref) do
+           client().describe_signing_key(kms_ref) do
       {:ok, {kid, public}}
     end
   end
@@ -100,6 +103,8 @@ defmodule MyApp.KmsHandle do
     {:ok, {_kid, public}} -> {:ok, public}
     error -> error
   end)
+
+  defp client, do: Application.fetch_env!(:my_app, :kms_client)
 end
 ```
 
@@ -157,7 +162,10 @@ disciplines travel with the port:
    (`"Ed25519"`, `protocol_revision` 2) or (`"ML-DSA-65"`,
    `protocol_revision` 3) — a port that hand-writes revision-1 claims or the
    deprecated `"EdDSA"` name is refused at best and nonconformant at worst.
-3. Gate the port against CAP's published conformance corpus (its
-   `docs/test-vectors.md` manifest defines the byte-agreement procedure) —
-   canonical-JSON construction is where cross-language implementations
-   diverge, and the corpus is what catches it.
+3. Gate the port against both shipped corpora: CAP's 541-case verifier
+   corpus and CAS's 121-row `priv/conformance/signer_cases.json`. Follow
+   [CAP conformance](https://hexdocs.pm/charter_agreement_protocol/conformance.html)
+   for byte-identical verifier reports. The signer rows also check callback
+   counts, pre-custody refusals, exact Ed25519 compacts and verified ML-DSA
+   successes. Keep prepare, wrong-key verification and finish as separate
+   obligations; canonical JSON agreement alone does not certify a signer.
