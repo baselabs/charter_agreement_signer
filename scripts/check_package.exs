@@ -222,9 +222,20 @@ defmodule CharterAgreementSigner.PackageCheck do
     end
   end
 
+  defp consumer_lock do
+    fixture =
+      if System.argv() == [],
+        do: "package-consumer/mix.lock",
+        else: "protocol-candidate/consumer.lock"
+
+    Path.expand("../test/fixtures/" <> fixture, __DIR__)
+  end
+
   defp compile_package!(package_root) do
+    File.cp!(consumer_lock(), Path.join(package_root, "mix.lock"))
+
     environment = [{"MIX_ENV", "prod"}]
-    run!("mix", ["deps.get", "--only", "prod"], package_root, environment)
+    run!("mix", ["deps.get", "--check-locked", "--only", "prod"], package_root, environment)
     run!("mix", ["compile", "--warnings-as-errors"], package_root, environment)
   end
 
@@ -266,8 +277,10 @@ defmodule CharterAgreementSigner.PackageCheck do
       consumer_source()
     )
 
+    File.cp!(consumer_lock(), Path.join(consumer_root, "mix.lock"))
+
     environment = [{"MIX_ENV", "prod"}]
-    run!("mix", ["deps.get"], consumer_root, environment)
+    run!("mix", ["deps.get", "--check-locked"], consumer_root, environment)
     run!("mix", ["compile", "--warnings-as-errors"], consumer_root, environment)
 
     run!(

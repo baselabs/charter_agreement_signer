@@ -53,7 +53,8 @@ defmodule CharterLifecycle.MixProject do
       # counterparty view of THIS package's tested line, and the wall
       # moves in one commit with the library.
       {:charter_agreement_protocol, "~> 1.0.0"},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false}
     ]
   end
 end

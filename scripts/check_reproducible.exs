@@ -103,6 +103,11 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
   end
 
   defp build_in!(copy_root, output) do
+    File.cp!(
+      Path.expand("../test/fixtures/reproducible/mix.lock", __DIR__),
+      Path.join(copy_root, "mix.lock")
+    )
+
     run_mix!(["hex.build", "--output", output], copy_root)
     assert_regular_nonempty!(output)
   end

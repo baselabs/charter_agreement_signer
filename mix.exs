@@ -55,7 +55,7 @@ defmodule CharterAgreementSigner.MixProject do
   # `mix ci` runs the library and example batteries plus the pinned
   # TypeScript signer suite and the pinned verifier build. CI runs these
   # in separate Linux jobs. Local merged coverage needs CAS_LIMITED_PATH;
-  # the tag workflow supplies CAS_LIMITED_COVERAGE from its limited job.
+  # qualification supplies CAS_LIMITED_COVERAGE from its limited job.
   # Setup and matrix breadth remain CI-specific. The first step requires MIX_ENV=test;
   # every later step shares that environment and aborts on failure.
   defp aliases do
@@ -64,7 +64,7 @@ defmodule CharterAgreementSigner.MixProject do
       "typescript.check": "run --no-start scripts/check_typescript_sources.exs",
       ci: [
         &enforce_test_env!/1,
-        "deps.get",
+        "deps.get --check-locked",
         "format --check-formatted",
         "deps.compile",
         "compile --warnings-as-errors",
@@ -86,8 +86,9 @@ defmodule CharterAgreementSigner.MixProject do
         # byte (the release reproducibility gate).
         "run --no-start scripts/check_reproducible.exs",
         # job: example (the workflow's working-directory: examples/charter_lifecycle)
-        "cmd --cd examples/charter_lifecycle mix deps.get",
+        "cmd --cd examples/charter_lifecycle mix deps.get --check-locked",
         "cmd --cd examples/charter_lifecycle mix hex.audit",
+        "cmd --cd examples/charter_lifecycle mix deps.audit",
         "cmd --cd examples/charter_lifecycle mix run --no-start ../../scripts/check_deps_current.exs",
         "cmd --cd examples/charter_lifecycle mix format --check-formatted",
         "cmd --cd examples/charter_lifecycle mix deps.compile",
@@ -130,7 +131,7 @@ defmodule CharterAgreementSigner.MixProject do
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.40", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
-      # CycloneDX SBOM generation for the tag-push supply-chain workflow.
+      # CycloneDX SBOM generation for the maintainers' release process.
       # At sbom 0.12.0 (latest), its own transitive requirements
       # (hex_core ~> 0.19.0 or ~> 0.20.0, protobuf ~> 0.17.0, purl ~> 0.5.0) resolve
       # the previously-rejected rows; any residual resolver-rejected pin

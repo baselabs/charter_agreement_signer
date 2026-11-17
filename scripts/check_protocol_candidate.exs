@@ -84,6 +84,16 @@ try do
     File.write!(project, String.replace(source, "deps: deps()", replacement))
   end
 
+  File.cp!(
+    Path.join(root, "test/fixtures/protocol-candidate/mix.lock"),
+    Path.join(cas, "mix.lock")
+  )
+
+  File.cp!(
+    Path.join(root, "test/fixtures/protocol-candidate/example.lock"),
+    Path.join(cas, "examples/charter_lifecycle/mix.lock")
+  )
+
   cached_plts = Path.join(root, "_build/plts")
 
   if File.dir?(cached_plts) do
@@ -91,7 +101,7 @@ try do
     File.cp_r!(cached_plts, Path.join(cas, "_build/plts"))
   end
 
-  run!.(["deps.get"], cas)
+  run!.(["deps.get", "--check-locked"], cas)
   run!.(["compile", "--warnings-as-errors"], cas)
 
   run!.(
@@ -130,7 +140,7 @@ try do
   )
 
   example = Path.join(cas, "examples/charter_lifecycle")
-  run!.(["deps.get"], example)
+  run!.(["deps.get", "--check-locked"], example)
   run!.(["test"], example)
 
   run!.(
