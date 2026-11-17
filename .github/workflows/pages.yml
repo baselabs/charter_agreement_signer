@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   build:
-    timeout-minutes: 1 # run 35304031873: slowest green 7s; twice rounded up
+    timeout-minutes: 5 # Run 35304031873: slowest green 7s; under 2.5 minutes, so the 5-minute floor.
     name: Stage the landing
     runs-on: ubuntu-24.04
     steps:
@@ -33,7 +33,7 @@ jobs:
           path: site
 
   deploy:
-    timeout-minutes: 3 # run 42635470213: slowest green 73s; twice rounded up
+    timeout-minutes: 5 # Run 42635470213: slowest green 73s; under 2.5 minutes, so the 5-minute floor.
     name: Deploy to GitHub Pages
     needs: build
     runs-on: ubuntu-24.04

@@ -142,7 +142,7 @@ jobs:
         run: mix run --no-start scripts/check_reproducible.exs
 
   example:
-    timeout-minutes: 2 # run 44110191336: slowest green 32s; twice rounded up
+    timeout-minutes: 5 # Run 44110191336: slowest green 32s; under 2.5 minutes, so the 5-minute floor.
     name: examples/charter_lifecycle (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
     # Substrate parity with the gate battery: the example itself mints
     # Ed25519 at revision 2 today, but it shares the gate's matrix lanes and
@@ -239,7 +239,7 @@ jobs:
       - name: Test (the bilateral round-trip + the counterparty isolation + lock parity)
         run: mix test
   typescript:
-    timeout-minutes: 4 # run 44122629465: slowest green 94s; twice rounded up
+    timeout-minutes: 5 # Run 44122629465: slowest green 94s; under 2.5 minutes, so the 5-minute floor.
     name: Pinned TypeScript signer suite
     runs-on: ubuntu-26.04
     env:
@@ -290,7 +290,7 @@ jobs:
         run: mix typescript.check
 
   capability-limited:
-    timeout-minutes: 4 # run 44122629465: slowest green 100s; twice rounded up
+    timeout-minutes: 5 # Run 44122629465: slowest green 100s; under 2.5 minutes, so the 5-minute floor.
     name: Capability-limited substrate
     runs-on: ubuntu-24.04
     env:
@@ -340,7 +340,7 @@ jobs:
           if-no-files-found: error
 
   coverage:
-    timeout-minutes: 3 # run 42534000288: slowest green 62s; twice rounded up
+    timeout-minutes: 5 # Run 42534000288: slowest green 62s; under 2.5 minutes, so the 5-minute floor.
     name: Merged coverage floor
     needs: [gate, capability-limited]
     runs-on: ubuntu-26.04
@@ -394,7 +394,7 @@ jobs:
           mix test.coverage
 
   qualified:
-    timeout-minutes: 10 # no measurement yet; provisional until infra supplies the class limit
+    timeout-minutes: 5 # No green run yet; the 5-minute floor for short jobs until the landing run is recorded.
     if: always()
     needs: [gate, example, typescript, capability-limited, coverage]
     runs-on: ubuntu-24.04
