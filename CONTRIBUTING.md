@@ -21,34 +21,23 @@ between them is a defect.
 Dependency currency is mechanical: `scripts/check_deps_current.exs` (wired
 into CI and `mix ci`) exits nonzero on any resolvable `mix hex.outdated`
 drift; anything deliberately below latest carries an inline reason in
-mix.exs. `mix hex.audit` runs in the battery after every dependency move.
+mix.exs. `mix hex.audit` and `mix deps.audit` run for both projects after every dependency move.
 
 ## Before a pull request
 
-Run the per-file floor on EVERY file you touched:
+Run the covering tests on the build box, never on a workstation. From a configured
+private checkout, first run `python3 ~/Developer/kimosabe/bin/kimosabe-remote where`,
+then route the covering Mix tasks with
+`python3 ~/Developer/kimosabe/bin/kimosabe-remote run -- kimosabe-box-mix <task>`.
+Public repositories have no build-box checkout; their checks run in qualification
+CI at landing. Nothing compiles or tests on a workstation.
 
-```sh
-mix format
-MIX_ENV=test mix compile --warnings-as-errors   # NOT bare mix compile — it skips test/support
-mix credo --strict
-mix test
-```
-
-Then run the whole-repo check, which aborts at the first failing step.
-It includes the library and example batteries, the pinned TypeScript
-signer suite (at least the pin's `minimum_tests`, all passing) and a check
-that a descriptor the pinned TypeScript signer signs verifies under CAP. The
-pin check walks the first-parent history, so work in a full clone. CI also
-checks matrix breadth and the limited substrate. It must boot under
-`MIX_ENV=test`; a bare `mix ci` refuses with the per-shell invocation in the
-message:
-
-```sh
-MIX_ENV=test mix ci
-```
-
-`MIX_ENV=test` matters: a bare compile runs in `:dev` and misses warnings in
-`test/support/`, which only compiles under `:test`.
+Land through `kimosabe-land --repo . --sha <full-commit>`. Qualification includes
+formatting, warnings-as-errors compilation, Credo, tests, merged coverage, Dialyzer,
+docs, both dependency audits, package checks and the pinned TypeScript checks.
+The supported runtime matrix and real capability-limited lane are CI jobs.
+`MIX_ENV=test` is required so test support compiles. Follow
+[the maintainers' release process](https://github.com/baselabs/charter_agreement_signer/blob/master/docs/release.md) for a version change.
 
 ## Windows
 

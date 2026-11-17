@@ -1,5 +1,10 @@
 # Upgrading
 
+For all releases, follow [the maintainers' release process](https://github.com/baselabs/charter_agreement_signer/blob/master/docs/release.md).
+Qualification runs only for landing candidates; infra dispatches `publish.yml`,
+reads the publication back and creates the version tag. Historical workflow
+descriptions below do not authorize publication or tag pushes.
+
 Per-version notes, newest first. This page also states the versioning policy
 that governs how the library evolves alongside the protocol package.
 
@@ -267,8 +272,8 @@ predates it. What shipped:
 - Runtime dependencies: `charter_agreement_protocol ~> 0.1.0` and
   `:telemetry ~> 1.4` (zero transitive deps).
 - The full guide set, the runnable `examples/charter_lifecycle` reference
-  app, and the supply-chain workflow (SLSA provenance + CycloneDX SBOM on
-  every `v*` tag).
+  app, and the historical supply-chain workflow (superseded by the
+  maintainers' release process).
 
 ## The 1.0 stability contract
 

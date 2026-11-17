@@ -2,8 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [master, 'kci/**']
-  pull_request:
+    branches: ['kci/**']
 
 permissions:
   contents: read
@@ -14,6 +13,7 @@ concurrency:
 
 jobs:
   gate:
+    timeout-minutes: 8 # run 44110191336: slowest green 234s; twice rounded up
     name: Gate battery (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
     # The ML-DSA-65 mint path needs a linked OpenSSL >= 3.5 (FIPS 204 landed
     # there). bob's OTP builds dynamically link the distro libcrypto.so.3
@@ -45,14 +45,41 @@ jobs:
       MIX_ENV: test
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        if: matrix.elixir == '1.20.3'
         with:
+          install-hex: false
+          version-file: .tool-versions
+          version-type: strict
+
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        if: matrix.elixir != '1.20.3'
+        with:
+          install-hex: false
           elixir-version: ${{ matrix.elixir }}
           otp-version: ${{ matrix.otp }}
+          version-type: strict
+
+      - name: Refuse BEAM runtime drift
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_ELIXIR: ${{ matrix.elixir }}
+          EXPECTED_OTP: ${{ matrix.otp }}
+        run: |
+          expected_elixir="${EXPECTED_ELIXIR:-$(awk '$1 == "elixir" {print $2}' .tool-versions)}"
+          expected_elixir="${expected_elixir%-otp-*}"
+          expected_otp="${EXPECTED_OTP:-$(awk '$1 == "erlang" {print $2}' .tool-versions)}"
+          actual_otp=$(elixir -e 'release = to_string(:erlang.system_info(:otp_release)); IO.write(String.trim(File.read!(Path.join([to_string(:code.root_dir()), "releases", release, "OTP_VERSION"]))))')
+          test "$(elixir --short-version)" = "$expected_elixir"
+          test "$actual_otp" = "$expected_otp"
+
+      - name: Install pinned Hex
+        run: mix local.hex 2.6.0 --force
 
       # dialyzer's PLTs (_build/plts, mix.exs): rebuilt from scratch on every run without this.
       - name: Cache dialyzer PLTs
@@ -64,7 +91,7 @@ jobs:
             plt-${{ runner.os }}-${{ runner.arch }}-otp-${{ matrix.otp }}-elixir-${{ matrix.elixir }}-
 
       - name: Install deps
-        run: mix deps.get
+        run: mix deps.get --check-locked
 
       - name: Check formatting
         run: mix format --check-formatted
@@ -85,7 +112,7 @@ jobs:
         run: mix test --cover --export-coverage standard-${{ matrix.elixir }}-${{ matrix.otp }}
 
       - name: Save standard coverage
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: coverage-standard-${{ matrix.elixir }}-${{ matrix.otp }}
           path: cover/*.coverdata
@@ -115,6 +142,7 @@ jobs:
         run: mix run --no-start scripts/check_reproducible.exs
 
   example:
+    timeout-minutes: 2 # run 44110191336: slowest green 32s; twice rounded up
     name: examples/charter_lifecycle (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
     # Substrate parity with the gate battery: the example itself mints
     # Ed25519 at revision 2 today, but it shares the gate's matrix lanes and
@@ -146,18 +174,49 @@ jobs:
         working-directory: examples/charter_lifecycle
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
+
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        if: matrix.elixir == '1.20.3'
+        with:
+          install-hex: false
+          version-file: .tool-versions
+          version-type: strict
+
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        if: matrix.elixir != '1.20.3'
+        with:
+          install-hex: false
           elixir-version: ${{ matrix.elixir }}
           otp-version: ${{ matrix.otp }}
+          version-type: strict
+
+      - name: Refuse BEAM runtime drift
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_ELIXIR: ${{ matrix.elixir }}
+          EXPECTED_OTP: ${{ matrix.otp }}
+        run: |
+          expected_elixir="${EXPECTED_ELIXIR:-$(awk '$1 == "elixir" {print $2}' .tool-versions)}"
+          expected_elixir="${expected_elixir%-otp-*}"
+          expected_otp="${EXPECTED_OTP:-$(awk '$1 == "erlang" {print $2}' .tool-versions)}"
+          actual_otp=$(elixir -e 'release = to_string(:erlang.system_info(:otp_release)); IO.write(String.trim(File.read!(Path.join([to_string(:code.root_dir()), "releases", release, "OTP_VERSION"]))))')
+          test "$(elixir --short-version)" = "$expected_elixir"
+          test "$actual_otp" = "$expected_otp"
+
+      - name: Install pinned Hex
+        run: mix local.hex 2.6.0 --force
 
       - name: Install deps
-        run: mix deps.get
+        run: mix deps.get --check-locked
 
       - name: Audit dependencies (retirements)
         run: mix hex.audit
+
+      - name: Audit dependencies (security advisories)
+        run: mix deps.audit
 
       - name: Check dependency currency (no resolvable drift)
         run: mix run --no-start ../../scripts/check_deps_current.exs
@@ -180,26 +239,49 @@ jobs:
       - name: Test (the bilateral round-trip + the counterparty isolation + lock parity)
         run: mix test
   typescript:
+    timeout-minutes: 4 # run 44122629465: slowest green 94s; twice rounded up
     name: Pinned TypeScript signer suite
     runs-on: ubuntu-26.04
     env:
       MIX_ENV: test
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          elixir-version: "1.20.3"
-          otp-version: "29.0.3"
+          install-hex: false
+          version-file: .tool-versions
+          version-type: strict
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - name: Refuse BEAM runtime drift
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_ELIXIR: ""
+          EXPECTED_OTP: ""
+        run: |
+          expected_elixir="${EXPECTED_ELIXIR:-$(awk '$1 == "elixir" {print $2}' .tool-versions)}"
+          expected_elixir="${expected_elixir%-otp-*}"
+          expected_otp="${EXPECTED_OTP:-$(awk '$1 == "erlang" {print $2}' .tool-versions)}"
+          actual_otp=$(elixir -e 'release = to_string(:erlang.system_info(:otp_release)); IO.write(String.trim(File.read!(Path.join([to_string(:code.root_dir()), "releases", release, "OTP_VERSION"]))))')
+          test "$(elixir --short-version)" = "$expected_elixir"
+          test "$actual_otp" = "$expected_otp"
+
+      - name: Install pinned Hex
+        run: mix local.hex 2.6.0 --force
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: "24.8"
+          node-version-file: .tool-versions
+
+      - name: Refuse Node runtime drift
+        working-directory: ${{ github.workspace }}
+        run: test "$(node --version)" = "v$(awk '$1 == "nodejs" {print $2}' .tool-versions)"
 
       - name: Install dependencies
-        run: mix deps.get
+        run: mix deps.get --check-locked
 
       - name: Materialize pinned public sources
         run: mix typescript.sources
@@ -208,20 +290,41 @@ jobs:
         run: mix typescript.check
 
   capability-limited:
+    timeout-minutes: 4 # run 44122629465: slowest green 100s; twice rounded up
     name: Capability-limited substrate
     runs-on: ubuntu-24.04
     env:
       MIX_ENV: test
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
+
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          install-hex: false
           elixir-version: "1.20.3"
           otp-version: "28.5.0.3"
+          version-type: strict
+
+      - name: Refuse BEAM runtime drift
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_ELIXIR: "1.20.3"
+          EXPECTED_OTP: "28.5.0.3"
+        run: |
+          expected_elixir="${EXPECTED_ELIXIR:-$(awk '$1 == "elixir" {print $2}' .tool-versions)}"
+          expected_elixir="${expected_elixir%-otp-*}"
+          expected_otp="${EXPECTED_OTP:-$(awk '$1 == "erlang" {print $2}' .tool-versions)}"
+          actual_otp=$(elixir -e 'release = to_string(:erlang.system_info(:otp_release)); IO.write(String.trim(File.read!(Path.join([to_string(:code.root_dir()), "releases", release, "OTP_VERSION"]))))')
+          test "$(elixir --short-version)" = "$expected_elixir"
+          test "$actual_otp" = "$expected_otp"
+
+      - name: Install pinned Hex
+        run: mix local.hex 2.6.0 --force
 
       - name: Install dependencies
-        run: mix deps.get
+        run: mix deps.get --check-locked
 
       - name: Assert ML-DSA is unverifiable on this lane
         run: mix run --no-start scripts/assert_limited_substrate.exs
@@ -230,33 +333,53 @@ jobs:
         run: mix test --exclude requires_mldsa_substrate --cover --export-coverage limited
 
       - name: Save limited coverage
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: coverage-limited
           path: cover/*.coverdata
           if-no-files-found: error
 
   coverage:
+    timeout-minutes: 3 # run 42534000288: slowest green 62s; twice rounded up
     name: Merged coverage floor
     needs: [gate, capability-limited]
     runs-on: ubuntu-26.04
     env:
       MIX_ENV: test
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          elixir-version: "1.20.3"
-          otp-version: "29.0.3"
+          persist-credentials: false
+
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          install-hex: false
+          version-file: .tool-versions
+          version-type: strict
+
+      - name: Refuse BEAM runtime drift
+        working-directory: ${{ github.workspace }}
+        env:
+          EXPECTED_ELIXIR: ""
+          EXPECTED_OTP: ""
+        run: |
+          expected_elixir="${EXPECTED_ELIXIR:-$(awk '$1 == "elixir" {print $2}' .tool-versions)}"
+          expected_elixir="${expected_elixir%-otp-*}"
+          expected_otp="${EXPECTED_OTP:-$(awk '$1 == "erlang" {print $2}' .tool-versions)}"
+          actual_otp=$(elixir -e 'release = to_string(:erlang.system_info(:otp_release)); IO.write(String.trim(File.read!(Path.join([to_string(:code.root_dir()), "releases", release, "OTP_VERSION"]))))')
+          test "$(elixir --short-version)" = "$expected_elixir"
+          test "$actual_otp" = "$expected_otp"
+
+      - name: Install pinned Hex
+        run: mix local.hex 2.6.0 --force
 
       - name: Compile for the merged report
         run: |
-          mix deps.get
+          mix deps.get --check-locked
           mix compile --warnings-as-errors
 
       - name: Load both lanes' coverage
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: coverage-*
           merge-multiple: true
@@ -269,3 +392,22 @@ jobs:
           test -f cover/standard-1.20.3-29.0.3.coverdata
           test -f cover/limited.coverdata
           mix test.coverage
+
+  qualified:
+    timeout-minutes: 10 # no measurement yet; provisional until infra supplies the class limit
+    if: always()
+    needs: [gate, example, typescript, capability-limited, coverage]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require every qualification job to succeed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PYTHON'
+          import json, os, sys
+          results = json.loads(os.environ['NEEDS'])
+          failed = [name for name, job in results.items() if job['result'] != 'success']
+          if failed:
+              print('Qualification refused: ' + ', '.join(failed))
+          sys.exit(bool(failed) or not results)
+          PYTHON

@@ -47,13 +47,14 @@ A report should include:
 
 ## Verifying a release (supply-chain provenance)
 
-Every `v*` tag push runs the supply-chain workflow: it builds the exact Hex
-archive through the full gate battery, records its SHA-256 in `SHA256SUMS`,
-and attests build provenance (SLSA) plus a CycloneDX SBOM via GitHub
-attestations. To verify a published release against that evidence:
+The maintainers' release process dispatches `publish.yml` from a qualified
+commit on the default branch. It builds the exact Hex archive, records its
+SHA-256, generates a CycloneDX SBOM and issues provenance and SBOM attestations.
+Infra reads the publication back before creating its version tag.
+To verify a published release against that evidence:
 
 ```sh
-# 1. Download the release evidence artifact (the workflow run for the tag)
+# 1. Download the release evidence artifact (the publish workflow run for the published commit)
 #    and the tarball, then compare checksums:
 sha256sum -c SHA256SUMS
 
@@ -66,9 +67,8 @@ gh attestation verify <tarball> --repo baselabs/charter_agreement_signer
 #    equal the SHA-256 in SHA256SUMS for the same bytes).
 ```
 
-Locally, before any release, `mix ci` runs the same reproducibility gate the
-workflow uses: two cache-isolated builds of the exact archive must agree byte
-for byte.
+Qualification runs the reproducibility gate on the CI runner: two
+cache-isolated builds of the exact archive must agree byte for byte.
 
 ## Acknowledgment
 

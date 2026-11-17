@@ -57,6 +57,6 @@ verifier owns the signature length check.
 ## Reporting
 
 See [SECURITY.md](../SECURITY.md). Report privately to the
-maintainer with a value-free reproduction; every `v*` tag carries SLSA build
-provenance and a CycloneDX SBOM attestation verifiable via `gh attestation
-verify`.
+maintainer with a value-free reproduction. The maintainers' release process
+retains SLSA build provenance and a CycloneDX SBOM attestation verifiable via
+`gh attestation verify`.

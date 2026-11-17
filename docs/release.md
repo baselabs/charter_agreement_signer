@@ -1,52 +1,41 @@
-# Release candidates
+# Release process
 
-Builds and checks do not authorize a Hex publication, tag push or deployment.
-The maintainer approves the exact versions after inspecting the candidates.
+The maintainers' release process separates qualification, landing and publication.
+A feature-branch push or version tag starts no qualification or publication.
 
-## Before publication
+1. Prepare the version commit and stamp its changelog entry with the version and
+   publication date. Keep the root, lifecycle and generated-consumer fixture locks
+   aligned with the intended dependency graph. Protocol dependencies must already
+   be published before the signer is published.
+2. Run covering tests on the build box, never on a workstation. For a configured
+   private checkout, run from the repository root:
 
-1. Run CAP's `mix quality` and `mix hex.build` on the release tree.
-2. Materialize the pinned TypeScript sources and build/test them. The
-   published-baseline gate does this; during coordinated release preparation
-   the paired candidate check uses these exact built source trees.
-3. Check the paired candidate without publishing it:
-
-   ```console
-   elixir scripts/check_protocol_candidate.exs ../charter_agreement_protocol/charter_agreement_protocol-1.0.0.tar <archive-sha256>
+   ```sh
+   python3 ~/Developer/kimosabe/bin/kimosabe-remote where
+   python3 ~/Developer/kimosabe/bin/kimosabe-remote run -- kimosabe-box-mix test <covering-test-paths>
    ```
 
-   This unpacks CAP's real Hex archive and runs the full signer and
-   lifecycle suites in disposable copies against that source. It asserts
-   the archive SHA-256 and loaded CAP version, then runs
-   bidirectional TypeScript interop against this candidate. The repository
-   Hex locks are refreshed only after CAP publication. Set
-   `CAS_LIMITED_COVERAGE` to a real CI export from identical signer library
-   source to run the merged coverage gate too.
-4. Complete the documentation sweep before publication: verify current install
-   lines, API and error references, the 541-case CAP and 121-row CAS corpus
-   references, all relative links, and rendered ExDoc with warnings as errors.
-   CAP tests execute its two tutorials and two Livebooks; CAS tests execute its
-   quickstart, third Livebook and compile the integration templates. Run against
-   the real matched candidate sources before publication and repeat the original
-   install lines in a fresh Hex consumer after both packages are available.
-5. Run `mix hex.build`. Retain the archive and its SHA-256 for approval.
-   `scripts/check_package.exs` checks the unpacked package, its dependency
-   metadata, corpus inclusion and a real consumer's signing round trip.
+   Public repositories have no build-box checkout; their builds and tests run only
+   in qualification CI at landing. Never fall back to workstation compilation.
+   Qualification includes both dependency audits for the library and lifecycle
+   example, the supported runtime matrix, the real capability-limited lane,
+   merged coverage, package inspection and reproducibility. Never simulate missing
+   crypto support. Qualification also checks the pinned TypeScript sources.
+3. Submit the reviewed commit through `kimosabe-land --repo . --sha <full-commit>`.
+   It pushes a landing candidate and moves the default branch only after every
+   job passes and `qualified` is green. Do not push the default branch or a tag.
+4. Send infra one message with the repository, full default-branch commit,
+   version, what goes out and the successful `qualified` run. The maintainers do
+   not hold a registry publication key or dispatch a publication workflow.
+5. Infra obtains approval and dispatches `publish.yml` on the default branch.
+   That workflow checks the exact qualified commit, refuses an existing registry
+   version or tag, installs the exact runtime and locked dependencies without a
+   cache, builds documentation, and builds and inspects the package before
+   publication. Only its publish step receives the environment's `HEX_API_KEY`.
+6. Infra reads the registry publication back, checks the archive identity and
+   documentation, and tags `v<version>` on that published commit. No workflow
+   creates or pushes a tag.
 
-The language-neutral corpus ships at `priv/conformance/signer_cases.json`.
-The TypeScript check requires byte equality with the pinned TypeScript
-signer, builds and tests the pinned verifier, and installs that local build
-for the signer tests and bidirectional interop checks. The test keys are
-public fixture material. A passing suite certifies those cases and pins;
-it is not a proof over every possible input or every dependency version.
-
-## After approval
-
-Publish CAP 1.0.0 first. Update the library and lifecycle locks to that
-published release. Run `MIX_ENV=test mix ci`, with `CAS_LIMITED_PATH` for a
-real limited-crypto runtime or `CAS_LIMITED_COVERAGE` from matching CI source,
-before publishing CAS 1.0.0. Never simulate missing crypto support.
-Confirm the changelog entry uses the publication date, build and
-compare the final archives, then tag the exact commits. The tag workflow
-produces provenance, checksums and an SBOM. Publishing remains a manual
-maintainer action. Verify both packages from a clean consumer after release.
+`publish.yml` also retains the archive checksum and CycloneDX SBOM and attests
+provenance and the SBOM for that exact commit. Infra separately dispatches
+`pages.yml` to deploy the static site from the default branch.

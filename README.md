@@ -127,7 +127,7 @@ also runs both coverage lanes. Set `CAS_LIMITED_PATH` to the PATH for a
 second Elixir/OTP toolchain linked to OpenSSL without ML-DSA support; the
 script confirms that runtime is limited, uses `_build_limited` for its
 build, and merges both exports with `mix test.coverage`. The main toolchain
-must support ML-DSA. The tag workflow runs the limited lane in a separate
+must support ML-DSA. Qualification runs the limited lane in a separate
 Ubuntu 24.04 job and passes its export through `CAS_LIMITED_COVERAGE` to
 the full gate on Ubuntu 26.04. Setup and the Elixir/OTP matrix are
 additional CI checks.
@@ -178,3 +178,5 @@ Signer 1.0.0 requires CAP `~> 1.0.0` from Hex, with the library and example lock
 derivation and final verification. CAP 0.5.0's distinct-party checks also apply: re-verify views
 stored under CAP 0.4.x. [docs/upgrading.md](docs/upgrading.md) lists the
 changed outcomes and migration requirements.
+
+Release preparation and publication follow [the maintainers' release process](https://github.com/baselabs/charter_agreement_signer/blob/master/docs/release.md).

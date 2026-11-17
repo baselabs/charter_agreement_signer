@@ -1,0 +1,146 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    timeout-minutes: 30 # no measurement yet; provisional until infra supplies the class limit
+    if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
+    environment: publish
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    env:
+      MIX_ENV: test
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      HEX_HTTP_TIMEOUT: "120"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Refuse a nondefault ref
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: test "$GITHUB_REF" = "refs/heads/$DEFAULT_BRANCH"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Require qualification of this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PYTHON'
+          import json, os, urllib.request
+          sha = os.environ['GITHUB_SHA']
+          base = os.environ['GITHUB_API_URL'] + '/repos/' + os.environ['GITHUB_REPOSITORY']
+          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                     'Accept': 'application/vnd.github+json'}
+          url = base + '/actions/workflows/ci.yml/runs?event=push&status=success&head_sha=' + sha
+          with urllib.request.urlopen(urllib.request.Request(url, headers=headers)) as response:
+              runs = json.load(response)['workflow_runs']
+          if not any(run['head_sha'] == sha and run['head_branch'] == 'kci/' + sha for run in runs):
+              raise SystemExit('No successful qualification run for this exact landing commit')
+          PYTHON
+
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          install-hex: false
+          version-file: .tool-versions
+          version-type: strict
+
+      - name: Refuse BEAM runtime drift
+        run: |
+          expected_elixir=$(awk '$1 == "elixir" {print $2}' .tool-versions)
+          expected_elixir="${expected_elixir%-otp-*}"
+          expected_otp=$(awk '$1 == "erlang" {print $2}' .tool-versions)
+          actual_otp=$(elixir -e 'release = to_string(:erlang.system_info(:otp_release)); IO.write(String.trim(File.read!(Path.join([to_string(:code.root_dir()), "releases", release, "OTP_VERSION"]))))')
+          test "$(elixir --short-version)" = "$expected_elixir"
+          test "$actual_otp" = "$expected_otp"
+
+      - name: Install pinned Hex
+        run: mix local.hex 2.6.0 --force
+
+      - name: Install locked dependencies
+        run: mix deps.get --check-locked
+
+      - name: Refuse an existing release or tag
+        run: |
+          version=$(sed -n 's/^  @version "\([^"]*\)"/\1/p' mix.exs)
+          test -n "$version"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          # Hex 2.6 reports both a missing release and API errors with status 1.
+          # Only its explicit missing-release response authorizes publication.
+          if info=$(mix hex.info charter_agreement_signer "$version" 2>&1); then
+            echo "::error::this version already exists on Hex"
+            exit 1
+          elif ! grep -Fxq "No release with name charter_agreement_signer $version" <<< "$info"; then
+            echo "::error::could not establish that the Hex version is absent"
+            exit 1
+          fi
+          tags=$(git ls-remote --tags origin "refs/tags/v$version" "refs/tags/v$version^{}")
+          if [ -n "$tags" ]; then
+            echo "::error::this version is already tagged"
+            exit 1
+          fi
+
+      - name: Build documentation
+        run: mix docs --warnings-as-errors
+
+      - name: Build and inspect the package and consumer
+        run: mix run --no-start scripts/check_package.exs
+
+      - name: Build release archive
+        run: |
+          mkdir -p artifacts
+          mix hex.build --output "artifacts/charter_agreement_signer-${VERSION}.tar"
+
+      - name: Record archive checksum
+        working-directory: artifacts
+        run: sha256sum "charter_agreement_signer-${VERSION}.tar" > SHA256SUMS
+
+      - name: Generate CycloneDX SBOM
+        run: |
+          mix sbom.cyclonedx --only prod --exclude-system-dependencies \
+            --classification library --schema 1.6 --format json \
+            --output artifacts/release.cdx.json --force
+
+      - name: Attest build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: artifacts/charter_agreement_signer-*.tar
+
+      - name: Attest release SBOM
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: artifacts/charter_agreement_signer-*.tar
+          sbom-path: artifacts/release.cdx.json
+
+      - name: Upload release evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-evidence-${{ github.sha }}
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish package and documentation
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: mix hex.publish --yes

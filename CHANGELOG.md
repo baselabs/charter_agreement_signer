@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Qualify landing candidates once, enforce exact runtimes and locked dependencies,
+  and audit the lifecycle example with both advisory feeds.
+- Route registry publication through the maintainers' release process.
+
 ## [1.0.0] — 2026-11-09
 
 - Stabilizes the public signing API with Semantic Versioning and supports
