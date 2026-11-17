@@ -28,7 +28,8 @@ A feature-branch push or version tag starts no qualification or publication.
    version, what goes out and the successful `qualified` run. The maintainers do
    not hold a registry publication key or dispatch a publication workflow.
 5. Infra obtains approval and dispatches `publish.yml` on the default branch.
-   That workflow checks the exact qualified commit, refuses an existing registry
+   That workflow refuses any other ref (only a commit whose `qualified` run
+   succeeded reaches the default branch), refuses an existing registry
    version or tag, installs the exact runtime and locked dependencies without a
    cache, builds documentation, and builds and inspects the package before
    publication. Only its publish step receives the environment's `HEX_API_KEY`.

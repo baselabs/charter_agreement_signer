@@ -1,0 +1,115 @@
+name: Cache warmer
+
+# The one writer of the dialyzer PLT cache that qualification restores.
+# A cache saved on a kci/<sha> ref is restorable only by that ref, so ci.yml
+# only restores; this workflow saves from the default branch, whose caches
+# every branch can restore. The lanes, runner and environment mirror ci.yml's
+# gate job exactly so the key and the PLT contents match what it restores.
+
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plt:
+    timeout-minutes: 90 # no green run yet
+    name: Dialyzer PLT (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
+    # ubuntu-26.04, as in ci.yml's gate: the PLT is restored there, and the
+    # gate needs OpenSSL >= 3.5 for the ML-DSA-65 mint path.
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - elixir: "1.19.5"
+            otp: "28.5.0.3"
+          - elixir: "1.20.2"
+            otp: "28.5.0.3"
+          - elixir: "1.20.3"
+            otp: "29.0.3"
+
+    env:
+      MIX_ENV: test
+
+    steps:
+      - name: Refuse any ref but the default branch
+        run: test "$GITHUB_REF" = refs/heads/master
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Look up the PLT cache
+        id: lookup
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: _build/plts
+          key: plt-${{ runner.os }}-${{ runner.arch }}-otp-${{ matrix.otp }}-elixir-${{ matrix.elixir }}-${{ hashFiles('mix.lock') }}
+          lookup-only: true
+
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        if: steps.lookup.outputs.cache-hit != 'true' && matrix.elixir == '1.20.3'
+        with:
+          install-hex: false
+          version-file: .tool-versions
+          version-type: strict
+
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        if: steps.lookup.outputs.cache-hit != 'true' && matrix.elixir != '1.20.3'
+        with:
+          install-hex: false
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
+          version-type: strict
+
+      - name: Refuse BEAM runtime drift
+        if: steps.lookup.outputs.cache-hit != 'true'
+        env:
+          EXPECTED_ELIXIR: ${{ matrix.elixir }}
+          EXPECTED_OTP: ${{ matrix.otp }}
+        run: |
+          actual_otp=$(elixir -e 'release = to_string(:erlang.system_info(:otp_release)); IO.write(String.trim(File.read!(Path.join([to_string(:code.root_dir()), "releases", release, "OTP_VERSION"]))))')
+          test "$(elixir --short-version)" = "$EXPECTED_ELIXIR"
+          test "$actual_otp" = "$EXPECTED_OTP"
+
+      - name: Install pinned Hex
+        if: steps.lookup.outputs.cache-hit != 'true'
+        run: mix local.hex 2.6.0 --force
+
+      - name: Restore the nearest PLT
+        if: steps.lookup.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: _build/plts
+          key: ${{ steps.lookup.outputs.cache-primary-key }}
+          restore-keys: |
+            plt-${{ runner.os }}-${{ runner.arch }}-otp-${{ matrix.otp }}-elixir-${{ matrix.elixir }}-
+
+      - name: Install deps
+        if: steps.lookup.outputs.cache-hit != 'true'
+        run: mix deps.get --check-locked
+
+      - name: Compile
+        if: steps.lookup.outputs.cache-hit != 'true'
+        run: |
+          mix deps.compile
+          mix compile
+
+      - name: Build the PLTs
+        if: steps.lookup.outputs.cache-hit != 'true'
+        run: mix dialyzer --plt
+
+      - name: Save the PLTs
+        if: steps.lookup.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: _build/plts
+          key: ${{ steps.lookup.outputs.cache-primary-key }}
