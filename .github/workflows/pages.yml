@@ -15,6 +15,7 @@ concurrency:
 jobs:
   build:
     timeout-minutes: 5 # Run 35304031873: slowest green 7s; under 2.5 minutes, so the 5-minute floor.
+    if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
     name: Stage the landing
     runs-on: ubuntu-24.04
     steps:
@@ -34,6 +35,7 @@ jobs:
 
   deploy:
     timeout-minutes: 5 # Run 42635470213: slowest green 73s; under 2.5 minutes, so the 5-minute floor.
+    if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
     name: Deploy to GitHub Pages
     needs: build
     runs-on: ubuntu-24.04
