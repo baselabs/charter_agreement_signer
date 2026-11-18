@@ -13,11 +13,15 @@ defmodule PublishWorkflowTest do
     assert workflow =~ "install-hex: false"
     assert workflow =~ "mix local.hex 2.7.0 --force"
     assert workflow =~ "mix docs --warnings-as-errors --formatter html"
-    assert length(Regex.scan(~r/HEX_API_KEY/, workflow)) == 1
 
     steps = String.split(workflow, ~r/^      - /m) |> tl()
     keyed_steps = Enum.filter(steps, &String.contains?(&1, "HEX_API_KEY"))
     assert [keyed] = keyed_steps
+    assert keyed =~ "HEX_API_KEY: ${{ secrets.HEX_API_KEY }}"
+
+    assert length(Regex.scan(~r/HEX_API_KEY/, workflow)) ==
+             length(Regex.scan(~r/HEX_API_KEY/, keyed))
+
     assert keyed =~ "working-directory: release-assets"
     assert keyed =~ "mix run --no-mix-exs ../scripts/hex_upload.exs"
     refute keyed =~ "mix hex.build"

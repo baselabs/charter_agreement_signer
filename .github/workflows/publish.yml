@@ -129,7 +129,7 @@ jobs:
         if: steps.plan.outputs.package == 'upload' || steps.plan.outputs.docs == 'upload'
         working-directory: release-assets
         env:
-          HEX_API_KEY: ${{ secrets[format('HEX_API_{0}', 'KEY')] }}
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
           HEX_HOME: ${{ runner.temp }}/hex-upload
           PACKAGE_STATE: ${{ steps.plan.outputs.package }}
           DOCS_STATE: ${{ steps.plan.outputs.docs }}
