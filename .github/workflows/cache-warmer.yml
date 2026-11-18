@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   plt:
-    timeout-minutes: 90 # no green run yet
+    timeout-minutes: 8 # Run 44375964217: slowest green 9s, a cache hit; cold figure: the gate job that built the PLT took 3m38s in run 37479165025; doubled, rounded up. Re-measure on the first cold green run.
     name: Dialyzer PLT (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
     # ubuntu-26.04, as in ci.yml's gate: the PLT is restored there, and the
     # gate needs OpenSSL >= 3.5 for the ML-DSA-65 mint path.
