@@ -2,8 +2,13 @@
 
 For all releases, follow [the maintainers' release process](https://github.com/baselabs/charter_agreement_signer/blob/master/docs/release.md).
 Qualification runs only for landing candidates; infra dispatches `publish.yml`,
-reads the publication back and creates the version tag. Historical workflow
-descriptions below do not authorize publication or tag pushes.
+uploads only the two verified archives with no project loaded under the key,
+reads back matching bytes, then creates the version tag and GitHub release
+`v<version>` from `release-assets`. Consumers verify that release's assets. A held
+release is finished by dispatching again on the same commit after approval;
+only missing uploads run. Differing bytes, retired versions and names absent
+from the registry are refused. Historical workflow descriptions below do not
+authorize publication or tag pushes.
 
 Per-version notes, newest first. This page also states the versioning policy
 that governs how the library evolves alongside the protocol package.

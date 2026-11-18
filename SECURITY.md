@@ -48,23 +48,29 @@ A report should include:
 ## Verifying a release (supply-chain provenance)
 
 The maintainers' release process dispatches `publish.yml` from a qualified
-commit on the default branch. It builds the exact Hex archive, records its
-SHA-256, generates a CycloneDX SBOM and issues provenance and SBOM attestations.
-Infra reads the publication back before creating its version tag.
-To verify a published release against that evidence:
+commit on the default branch. The keyed step only uploads the two verified
+archives with no project loaded; it never builds under the key. Registry checks
+refuse a missing package name, a retired version or differing served bytes.
+After approval, dispatching a held release again on the same commit uploads
+only what is missing. Read-back must serve matching package and docs bytes.
+
+The workflow exports consumer files as `release-assets`. After read-back, infra
+tags the published commit and creates its GitHub release `v<version>` from those
+assets, comparing the package archive with the registry first. Consumers verify
+files downloaded from the GitHub release.
+
+The public release also includes a CycloneDX SBOM and provenance and SBOM
+attestations for the exact package archive. To verify it:
 
 ```sh
-# 1. Download the release evidence artifact (the publish workflow run for the published commit)
-#    and the tarball, then compare checksums:
+# Download all assets from the GitHub release for the version being verified.
+gh release download "v<version>" --repo baselabs/charter_agreement_signer
 sha256sum -c SHA256SUMS
 
-# 2. Verify the attestations against the subject digest (requires the
-#    gh CLI and the workflow run's artifact):
-gh attestation verify <tarball> --repo baselabs/charter_agreement_signer
+# Verify the downloaded package archive's attestations.
+gh attestation verify "charter_agreement_signer-<version>.tar" --repo baselabs/charter_agreement_signer
 
-# 3. Cross-check against hex.pm's published checksum for the release
-#    (hex.pm shows the archive checksum on the version page — it must
-#    equal the SHA-256 in SHA256SUMS for the same bytes).
+# Compare its SHA-256 with the archive checksum on hex.pm's version page.
 ```
 
 Qualification runs the reproducibility gate on the CI runner: two

@@ -12,10 +12,10 @@ concurrency:
 
 jobs:
   publish:
-    timeout-minutes: 30 # No green run yet; bounded publication job.
+    timeout-minutes: 90 # no green run yet
     if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)
     environment: publish
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       id-token: write
@@ -56,72 +56,99 @@ jobs:
           test "$actual_otp" = "$expected_otp"
 
       - name: Install pinned Hex
-        run: mix local.hex 2.6.0 --force
+        run: mix local.hex 2.7.0 --force
 
       - name: Install locked dependencies
         run: mix deps.get --check-locked
 
-      - name: Refuse an existing release or tag
+      - name: Refuse an existing remote release tag
         run: |
-          version=$(sed -n 's/^  @version "\([^"]*\)"/\1/p' mix.exs)
+          version=$(sed -n 's/^  @version "\([^"]*\)".*$/\1/p' mix.exs)
           test -n "$version"
           echo "VERSION=$version" >> "$GITHUB_ENV"
-          # Hex 2.6 reports both a missing release and API errors with status 1.
-          # Only its explicit missing-release response authorizes publication.
-          if info=$(mix hex.info charter_agreement_signer "$version" 2>&1); then
-            echo "::error::this version already exists on Hex"
-            exit 1
-          elif ! grep -Fxq "No release with name charter_agreement_signer $version" <<< "$info"; then
-            echo "::error::could not establish that the Hex version is absent"
-            exit 1
-          fi
           tags=$(git ls-remote --tags origin "refs/tags/v$version" "refs/tags/v$version^{}")
           if [ -n "$tags" ]; then
-            echo "::error::this version is already tagged"
+            echo "::error::This release version is already tagged"
             exit 1
           fi
 
       - name: Build documentation
-        run: mix docs --warnings-as-errors
+        run: mix docs --warnings-as-errors --formatter html
 
       - name: Build and inspect the package and consumer
         run: mix run --no-start scripts/check_package.exs
 
-      - name: Build release archive
+      - name: Build the two release archives
         run: |
-          mkdir -p artifacts
-          mix hex.build --output "artifacts/charter_agreement_signer-${VERSION}.tar"
-
-      - name: Record archive checksum
-        working-directory: artifacts
-        run: sha256sum "charter_agreement_signer-${VERSION}.tar" > SHA256SUMS
+          mkdir release-assets
+          mix hex.build --output "release-assets/charter_agreement_signer-${VERSION}.tar"
+          tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -C doc -cf - . | gzip -n -9 > "release-assets/charter_agreement_signer-${VERSION}-docs.tar.gz"
 
       - name: Generate CycloneDX SBOM
         run: |
           mix sbom.cyclonedx --only prod --exclude-system-dependencies \
             --classification library --schema 1.6 --format json \
-            --output artifacts/release.cdx.json --force
+            --output release-assets/release.cdx.json --force
 
       - name: Attest build provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: artifacts/charter_agreement_signer-*.tar
+          subject-path: release-assets/charter_agreement_signer-*.tar
 
       - name: Attest release SBOM
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: artifacts/charter_agreement_signer-*.tar
-          sbom-path: artifacts/release.cdx.json
+          subject-path: release-assets/charter_agreement_signer-*.tar
+          sbom-path: release-assets/release.cdx.json
 
-      - name: Upload release evidence
+      - name: Record release checksums
+        working-directory: release-assets
+        run: sha256sum -- *.tar *.tar.gz release.cdx.json > SHA256SUMS
+
+      - name: Upload consumer release assets
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: release-evidence-${{ github.sha }}
-          path: artifacts/*
+          name: release-assets
+          path: release-assets/*
           if-no-files-found: error
-          retention-days: 30
 
-      - name: Publish package and documentation
+      - name: Prepare an anonymous registry home
+        run: mkdir "$RUNNER_TEMP/hex-read"
+
+      - name: Plan uploads from the served registry bytes
+        id: plan
         env:
-          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
-        run: mix hex.publish --yes
+          HEX_HOME: ${{ runner.temp }}/hex-read
+        run: |
+          cd "$RUNNER_TEMP"
+          mix run --no-mix-exs "$GITHUB_WORKSPACE/scripts/hex_release_state.exs" --plan charter_agreement_signer "$VERSION" \
+            "$GITHUB_WORKSPACE/release-assets/charter_agreement_signer-${VERSION}.tar" \
+            "$GITHUB_WORKSPACE/release-assets/charter_agreement_signer-${VERSION}-docs.tar.gz"
+
+      - name: Upload only the missing verified archives
+        if: steps.plan.outputs.package == 'upload' || steps.plan.outputs.docs == 'upload'
+        working-directory: release-assets
+        env:
+          HEX_API_KEY: ${{ secrets[format('HEX_API_{0}', 'KEY')] }}
+          HEX_HOME: ${{ runner.temp }}/hex-upload
+          PACKAGE_STATE: ${{ steps.plan.outputs.package }}
+          DOCS_STATE: ${{ steps.plan.outputs.docs }}
+        run: |
+          flags=()
+          if [ "$PACKAGE_STATE" = upload ]; then flags+=(--package); fi
+          if [ "$DOCS_STATE" = upload ]; then flags+=(--docs); fi
+          mix run --no-mix-exs ../scripts/hex_upload.exs "${flags[@]}" charter_agreement_signer "$VERSION" \
+            "charter_agreement_signer-${VERSION}.tar" "charter_agreement_signer-${VERSION}-docs.tar.gz"
+
+      - name: Require matching package and docs from the registry
+        env:
+          HEX_HOME: ${{ runner.temp }}/hex-read
+        run: |
+          cd "$RUNNER_TEMP"
+          mix run --no-mix-exs "$GITHUB_WORKSPACE/scripts/hex_release_state.exs" --served charter_agreement_signer "$VERSION" \
+            "$GITHUB_WORKSPACE/release-assets/charter_agreement_signer-${VERSION}.tar" \
+            "$GITHUB_WORKSPACE/release-assets/charter_agreement_signer-${VERSION}-docs.tar.gz"
+
+      - name: Remove release archives and temporary Hex homes
+        if: always()
+        run: rm -rf release-assets "$RUNNER_TEMP/hex-deps" "$RUNNER_TEMP/hex-read" "$RUNNER_TEMP/hex-upload"

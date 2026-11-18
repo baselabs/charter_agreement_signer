@@ -28,15 +28,28 @@ A feature-branch push or version tag starts no qualification or publication.
    version, what goes out and the successful `qualified` run. The maintainers do
    not hold a registry publication key or dispatch a publication workflow.
 5. Infra obtains approval and dispatches `publish.yml` on the default branch.
-   That workflow refuses any other ref (only a commit whose `qualified` run
-   succeeded reaches the default branch), refuses an existing registry
-   version or tag, installs the exact runtime and locked dependencies without a
-   cache, builds documentation, and builds and inspects the package before
-   publication. Only its publish step receives the environment's `HEX_API_KEY`.
-6. Infra reads the registry publication back, checks the archive identity and
-   documentation, and tags `v<version>` on that published commit. No workflow
-   creates or pushes a tag.
+   The workflow refuses any other ref and an existing version tag. It installs
+   the exact runtime and locked dependencies without a cache, builds docs and
+   inspects the package. It builds the package and reproducible docs archives once
+   into `release-assets/`, records `SHA256SUMS`, and exports the `release-assets`
+   artifact before any registry upload.
+6. The registry check refuses a package name the registry lacks: a first
+   publication is the owner's decision. It also refuses a retired version or
+   differing served package or docs bytes. Only the keyed step receives the
+   publication key. That step only uploads the two verified archives, package
+   first, using `mix run --no-mix-exs` from `release-assets/`, where no `mix.exs`
+   exists and no project is loaded. It uploads only what is missing and never
+   replaces a version.
+7. If either upload is held for approval, the owner approves it and infra
+   dispatches `publish.yml` again on the same commit. It compares the rebuilt
+   bytes with the served bytes and uploads only what is missing. Read-back must
+   serve both matching archives for the run to succeed.
+8. After read-back, infra tags `v<version>` on the published commit, compares the
+   artifact's package archive with the registry's bytes, and creates the GitHub
+   release `v<version>` from `release-assets`. Consumers verify the archives and
+   checksums downloaded from that GitHub release. No workflow creates a release
+   or creates or pushes a tag.
 
-`publish.yml` also retains the archive checksum and CycloneDX SBOM and attests
-provenance and the SBOM for that exact commit. Infra separately dispatches
+`publish.yml` includes the CycloneDX SBOM in `release-assets` and attests
+provenance and the SBOM for that exact archive. Infra separately dispatches
 `pages.yml` to deploy the static site from the default branch.

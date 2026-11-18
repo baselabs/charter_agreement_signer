@@ -396,7 +396,7 @@ jobs:
           mix test.coverage
 
   qualified:
-    timeout-minutes: 5 # No green run yet; the 5-minute floor for short jobs until the landing run is recorded.
+    timeout-minutes: 5 # Run 44198062651: slowest green 2s; under 2.5 minutes, so the 5-minute floor.
     if: always()
     needs: [gate, example, typescript, capability-limited, coverage]
     runs-on: ubuntu-24.04

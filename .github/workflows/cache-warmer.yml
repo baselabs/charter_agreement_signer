@@ -6,7 +6,12 @@ name: Cache warmer
 # every branch can restore. The lanes, runner and environment mirror ci.yml's
 # gate job exactly so the key and the PLT contents match what it restores.
 
+# A default-branch push warms a changed key. The schedule only replaces an
+# evicted cache: GitHub starts this organization's schedules late and drops some.
+
 on:
+  push:
+    branches: [master]
   schedule:
     - cron: '17 4 * * *'
   workflow_dispatch:
