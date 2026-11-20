@@ -30,20 +30,22 @@ A feature-branch push or version tag starts no qualification or publication.
 5. Infra obtains approval and dispatches `publish.yml` on the default branch.
    The workflow refuses any other ref and an existing version tag. It installs
    the exact runtime and locked dependencies without a cache, builds docs and
-   inspects the package. It builds the package and reproducible docs archives once
+   inspects the package. It builds the package and docs archives once
    into `release-assets/`, records `SHA256SUMS`, and exports the `release-assets`
    artifact before any registry upload.
 6. The registry check refuses a package name the registry lacks: a first
    publication is the owner's decision. It also refuses a retired version or
-   differing served package or docs bytes. Only the keyed step receives the
-   publication key. That step only uploads the two verified archives, package
-   first, using `mix run --no-mix-exs` from `release-assets/`, where no `mix.exs`
-   exists and no project is loaded. It uploads only what is missing and never
-   replaces a version.
+   differing served package bytes. The package is the release; docs are a
+   rendering of it, and an ExDoc build is not byte-stable, so docs bytes are never
+   compared: docs the registry already serves for this version are kept. Only the
+   keyed step receives the publication key. That step only uploads the two
+   verified archives, package first, using `mix run --no-mix-exs` from
+   `release-assets/`, where no `mix.exs` exists and no project is loaded. It
+   uploads only what is missing and never replaces a version.
 7. If either upload is held for approval, the owner approves it and infra
    dispatches `publish.yml` again on the same commit. It compares the rebuilt
-   bytes with the served bytes and uploads only what is missing. Read-back must
-   serve both matching archives for the run to succeed.
+   package with the served package and uploads only what is missing. Read-back
+   must serve the matching package and its docs for the run to succeed.
 8. After read-back, infra tags `v<version>` on the published commit, compares the
    artifact's package archive with the registry's bytes, and creates the GitHub
    release `v<version>` from `release-assets`. Consumers verify the archives and

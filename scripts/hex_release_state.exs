@@ -1,6 +1,10 @@
 # Read Hex 2.7.0's signed registry with its existing read login, never a publish key.
 # Run from a directory without mix.exs:
-#   mix run --no-mix-exs PATH/hex_release_state.exs (--plan | --served) [--organization ORG] NAME VERSION PACKAGE_TAR DOCS_TAR
+#   mix run --no-mix-exs PATH/hex_release_state.exs (--plan | --served) [--organization ORG] NAME VERSION PACKAGE_TAR
+#
+# The package is the release, and its served bytes must equal PACKAGE_TAR. Docs are a rendering
+# of that package and ExDoc does not build them byte-stably, so docs bytes are never compared:
+# served docs count as present, and Hex serves docs only for a release it serves.
 defmodule HexReleaseState do
   @moduledoc false
 
@@ -14,7 +18,7 @@ defmodule HexReleaseState do
     case OptionParser.parse(argv,
            strict: [plan: :boolean, served: :boolean, organization: :string]
          ) do
-      {opts, [name, version, package_tar, docs_tar], []} ->
+      {opts, [name, version, package_tar], []} ->
         unless {opts[:plan], opts[:served]} in [{true, nil}, {nil, true}] do
           raise "choose exactly one of --plan or --served"
         end
@@ -23,7 +27,7 @@ defmodule HexReleaseState do
         Code.ensure_loaded!(Hex.Repo)
         repo = if opts[:organization], do: "hexpm:" <> opts[:organization], else: "hexpm"
         package = package_state(repo, name, version, File.read!(package_tar))
-        docs = docs_state(repo, name, version, File.read!(docs_tar))
+        docs = docs_state(repo, name, version)
 
         if docs == "served" and package != "served" do
           raise "#{name} #{version}: docs served while the package is not; publication refused"
@@ -32,7 +36,7 @@ defmodule HexReleaseState do
         finish(opts[:plan], package, docs)
 
       _ ->
-        raise "usage: hex_release_state.exs (--plan | --served) [--organization ORG] NAME VERSION PACKAGE_TAR DOCS_TAR"
+        raise "usage: hex_release_state.exs (--plan | --served) [--organization ORG] NAME VERSION PACKAGE_TAR"
     end
   end
 
@@ -63,13 +67,10 @@ defmodule HexReleaseState do
     "served"
   end
 
-  defp docs_state(repo, name, version, tar) do
+  defp docs_state(repo, name, version) do
     case read(fn -> Hex.Repo.get_docs(repo, name, version) end) do
-      {:ok, {200, _headers, ^tar}} ->
-        "served"
-
       {:ok, {200, _headers, _body}} ->
-        raise "#{name} #{version}: served docs differ from docs archive; publication refused"
+        "served"
 
       {:ok, {404, _headers, _body}} ->
         "upload"

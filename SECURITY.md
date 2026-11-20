@@ -50,9 +50,11 @@ A report should include:
 The maintainers' release process dispatches `publish.yml` from a qualified
 commit on the default branch. The keyed step only uploads the two verified
 archives with no project loaded; it never builds under the key. Registry checks
-refuse a missing package name, a retired version or differing served bytes.
-After approval, dispatching a held release again on the same commit uploads
-only what is missing. Read-back must serve matching package and docs bytes.
+refuse a missing package name, a retired version or differing served package
+bytes. Docs are a rendering of the package and are not byte-stable across
+builds, so their bytes are not compared. After approval, dispatching a held
+release again on the same commit uploads only what is missing. Read-back must
+serve the matching package and its docs.
 
 The workflow exports consumer files as `release-assets`. After read-back, infra
 tags the published commit and creates its GitHub release `v<version>` from those

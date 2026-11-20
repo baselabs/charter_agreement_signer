@@ -34,6 +34,13 @@ defmodule PublishWorkflowTest do
     assert workflow =~ "id: plan"
     assert workflow =~ "hex_release_state.exs\" --plan"
     assert workflow =~ "hex_release_state.exs\" --served"
+
+    # The package is the release; docs builds are not byte-stable, so the registry state
+    # reads never receive the docs archive and never compare docs bytes.
+    state_steps = Enum.filter(steps, &String.contains?(&1, "hex_release_state.exs"))
+    assert length(state_steps) == 2
+    for step <- state_steps, do: refute(step =~ "-docs.tar.gz")
+
     assert workflow =~ "if: always()"
 
     {artifact_position, _} = :binary.match(workflow, "actions/upload-artifact@")

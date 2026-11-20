@@ -122,8 +122,7 @@ jobs:
         run: |
           cd "$RUNNER_TEMP"
           mix run --no-mix-exs "$GITHUB_WORKSPACE/scripts/hex_release_state.exs" --plan charter_agreement_signer "$VERSION" \
-            "$GITHUB_WORKSPACE/release-assets/charter_agreement_signer-${VERSION}.tar" \
-            "$GITHUB_WORKSPACE/release-assets/charter_agreement_signer-${VERSION}-docs.tar.gz"
+            "$GITHUB_WORKSPACE/release-assets/charter_agreement_signer-${VERSION}.tar"
 
       - name: Upload only the missing verified archives
         if: steps.plan.outputs.package == 'upload' || steps.plan.outputs.docs == 'upload'
@@ -140,14 +139,13 @@ jobs:
           mix run --no-mix-exs ../scripts/hex_upload.exs "${flags[@]}" charter_agreement_signer "$VERSION" \
             "charter_agreement_signer-${VERSION}.tar" "charter_agreement_signer-${VERSION}-docs.tar.gz"
 
-      - name: Require matching package and docs from the registry
+      - name: Require the served package and docs from the registry
         env:
           HEX_HOME: ${{ runner.temp }}/hex-read
         run: |
           cd "$RUNNER_TEMP"
           mix run --no-mix-exs "$GITHUB_WORKSPACE/scripts/hex_release_state.exs" --served charter_agreement_signer "$VERSION" \
-            "$GITHUB_WORKSPACE/release-assets/charter_agreement_signer-${VERSION}.tar" \
-            "$GITHUB_WORKSPACE/release-assets/charter_agreement_signer-${VERSION}-docs.tar.gz"
+            "$GITHUB_WORKSPACE/release-assets/charter_agreement_signer-${VERSION}.tar"
 
       - name: Remove release archives and temporary Hex homes
         if: always()
