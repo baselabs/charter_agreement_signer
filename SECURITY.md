@@ -54,23 +54,40 @@ refuse a missing package name, a retired version or differing served package
 bytes. Docs are a rendering of the package and are not byte-stable across
 builds, so their bytes are not compared. After approval, dispatching a held
 release again on the same commit uploads only what is missing. Read-back must
-serve the matching package and its docs.
+serve the matching package and a readable docs archive with root `index.html`
+and `release.json`. Written after the docs build and before packing, the record
+has exactly `package`, `version` and `commit` (the run's `GITHUB_SHA`). Read-back
+requires this package and version and a commit equal to the dispatched commit or
+an ancestor in the clone; that is the published commit. Missing or invalid
+provenance is refused. `release.json` is the uploader's record, not an attestation
+or protection against forgery. The workflow never replaces a package or served
+docs.
 
 The workflow exports consumer files as `release-assets`. After read-back, infra
 tags the published commit and creates its GitHub release `v<version>` from those
 assets, comparing the package archive with the registry first. Consumers verify
-files downloaded from the GitHub release.
+files downloaded from the GitHub release. Read-back replaces the built docs in
+`release-assets` with the served archive before checksums and artifact upload;
+the docs archive is exactly the bytes downloaded and inspected from Hex.
 
-The public release also includes a CycloneDX SBOM and provenance and SBOM
-attestations for the exact package archive. To verify it:
+Every file in the GitHub release is the published commit's, which `v<version>`
+names. The public release includes a CycloneDX SBOM and provenance and SBOM
+attestations for the exact package archive. Before exporting assets, the workflow
+verifies the package attestation against the published commit. When that commit
+is an ancestor, it requires unchanged SBOM inputs (`mix.exs`, `mix.lock` and
+`scripts/build_release_sbom.sh`); a difference requires a new version. System
+dependencies are excluded and the generator version is locked. To verify it:
 
 ```sh
 # Download all assets from the GitHub release for the version being verified.
 gh release download "v<version>" --repo baselabs/charter_agreement_signer
 sha256sum -c SHA256SUMS
 
-# Verify the downloaded package archive's attestations.
-gh attestation verify "charter_agreement_signer-<version>.tar" --repo baselabs/charter_agreement_signer
+# Verify against the commit named by the release tag.
+published_commit=$(gh api \
+  "repos/baselabs/charter_agreement_signer/commits/v<version>" -q .sha)
+gh attestation verify "charter_agreement_signer-<version>.tar" \
+  --repo baselabs/charter_agreement_signer --source-digest "$published_commit"
 
 # Compare its SHA-256 with the archive checksum on hex.pm's version page.
 ```

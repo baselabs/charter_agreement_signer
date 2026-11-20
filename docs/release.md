@@ -31,8 +31,9 @@ A feature-branch push or version tag starts no qualification or publication.
    The workflow refuses any other ref and an existing version tag. It installs
    the exact runtime and locked dependencies without a cache, builds docs and
    inspects the package. It builds the package and docs archives once
-   into `release-assets/`, records `SHA256SUMS`, and exports the `release-assets`
-   artifact before any registry upload.
+   into `release-assets/`. After the docs build and before packing, root
+   `release.json` records exactly `package`, `version` and `commit`, with the run's
+   `GITHUB_SHA` as commit.
 6. The registry check refuses a package name the registry lacks: a first
    publication is the owner's decision. It also refuses a retired version or
    differing served package bytes. The package is the release; docs are a
@@ -41,17 +42,39 @@ A feature-branch push or version tag starts no qualification or publication.
    keyed step receives the publication key. That step only uploads the two
    verified archives, package first, using `mix run --no-mix-exs` from
    `release-assets/`, where no `mix.exs` exists and no project is loaded. It
-   uploads only what is missing and never replaces a version.
+   uploads only what is missing and never replaces a package or served docs.
 7. If either upload is held for approval, the owner approves it and infra
    dispatches `publish.yml` again on the same commit. It compares the rebuilt
    package with the served package and uploads only what is missing. Read-back
-   must serve the matching package and its docs for the run to succeed.
-8. After read-back, infra tags `v<version>` on the published commit, compares the
-   artifact's package archive with the registry's bytes, and creates the GitHub
-   release `v<version>` from `release-assets`. Consumers verify the archives and
+   must serve the matching package and a readable docs archive with root
+   `index.html` and `release.json`. The record must name this package and version;
+   its commit must equal the dispatched commit or an ancestor in the clone. This
+   is the published commit. Missing or invalid provenance is refused.
+   `release.json` is the uploader's record, not an attestation or protection
+   against a forged claim. Read-back replaces the built docs archive with the
+   served docs, then records `SHA256SUMS` and exports `release-assets`.
+8. After read-back, infra tags `v<version>` on the published commit named by the
+   served docs' `release.json`, compares the artifact's package archive with the
+   registry's bytes, and creates the GitHub release `v<version>` from
+   `release-assets`. Consumers verify the archives and
    checksums downloaded from that GitHub release. No workflow creates a release
    or creates or pushes a tag.
 
-`publish.yml` includes the CycloneDX SBOM in `release-assets` and attests
-provenance and the SBOM for that exact archive. Infra separately dispatches
-`pages.yml` to deploy the static site from the default branch.
+Every file in the GitHub release is the published commit's, which `v<version>`
+names. `publish.yml` includes the CycloneDX SBOM in `release-assets` and attests
+provenance and the SBOM for the package archive before any upload. After read-back,
+it verifies the package attestation with the published commit as source digest.
+If that commit is an ancestor, it also requires the SBOM inputs (`mix.exs`,
+`mix.lock` and `scripts/build_release_sbom.sh`) to be unchanged; otherwise it
+refuses and the fix is a new version. System dependencies are excluded from the
+SBOM, and the generator version is locked. Consumers can verify the source with:
+
+```sh
+published_commit=$(gh api \
+  "repos/baselabs/charter_agreement_signer/commits/v<version>" -q .sha)
+gh attestation verify "charter_agreement_signer-<version>.tar" \
+  --repo baselabs/charter_agreement_signer --source-digest "$published_commit"
+```
+
+Infra separately dispatches `pages.yml` to deploy the static site from the default
+branch.

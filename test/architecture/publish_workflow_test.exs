@@ -35,17 +35,69 @@ defmodule PublishWorkflowTest do
     assert workflow =~ "hex_release_state.exs\" --plan"
     assert workflow =~ "hex_release_state.exs\" --served"
 
-    # The package is the release; docs builds are not byte-stable, so the registry state
-    # reads never receive the docs archive and never compare docs bytes.
-    state_steps = Enum.filter(steps, &String.contains?(&1, "hex_release_state.exs"))
-    assert length(state_steps) == 2
-    for step <- state_steps, do: refute(step =~ "-docs.tar.gz")
+    # The docs path is a read-back destination, never an archive to compare.
+    assert [plan, served] = Enum.filter(steps, &String.contains?(&1, "hex_release_state.exs"))
+    assert plan =~ "--plan"
+    refute plan =~ "-docs.tar.gz"
+    refute plan =~ "--commit"
+    refute plan =~ "--clone"
+    refute plan =~ "--docs-output"
+    assert served =~ "id: served"
+    assert served =~ ~s(--commit "$GITHUB_SHA" --clone "$GITHUB_WORKSPACE")
+    assert served =~ ~r/--docs-output "\$GITHUB_WORKSPACE\/release-assets\/[^" ]+-docs\.tar\.gz"/
+    assert length(Regex.scan(~r/-docs\.tar\.gz/, served)) == 1
 
-    assert workflow =~ "if: always()"
+    assert [provenance] = Enum.filter(steps, &String.contains?(&1, "doc/release.json"))
+    assert provenance =~ "JSON.encode!"
+    assert provenance =~ ~s|"package" => System.fetch_env!("DOCS_PACKAGE")|
+    assert provenance =~ ~s|"version" => System.fetch_env!("VERSION")|
+    assert provenance =~ ~s|"commit" => System.fetch_env!("GITHUB_SHA")|
 
+    {docs_position, _} = :binary.match(workflow, "mix docs --warnings-as-errors")
+    {provenance_position, _} = :binary.match(workflow, "doc/release.json")
+    {archive_position, _} = :binary.match(workflow, "tar --sort=name")
+    {served_position, _} = :binary.match(workflow, "id: served")
+    {checksum_position, _} = :binary.match(workflow, "name: Record release checksums")
     {artifact_position, _} = :binary.match(workflow, "actions/upload-artifact@")
-    {key_position, _} = :binary.match(workflow, "HEX_API_KEY")
-    assert artifact_position < key_position
+    assert docs_position < provenance_position
+    assert provenance_position < archive_position
+    assert served_position < checksum_position
+    assert checksum_position < artifact_position
+    assert String.trim(List.last(steps)) =~ "if: always()"
+    assert List.last(steps) =~ "name: Remove release archives"
+  end
+
+  test "additional release assets belong to the published commit" do
+    workflow = File.read!(Path.join(@root, ".github/workflows/publish.yml"))
+    script = File.read!(Path.join(@root, "scripts/build_release_sbom.sh"))
+    assert script =~ "--exclude-system-dependencies"
+    assert script =~ "set -euo pipefail"
+    assert script =~ "mix sbom.cyclonedx --only prod"
+    assert script =~ "--classification library --schema 1.6 --format json"
+    assert workflow =~ "run: bash scripts/build_release_sbom.sh"
+    refute workflow =~ "mix sbom.cyclonedx"
+
+    steps = String.split(workflow, ~r/^      - /m) |> tl()
+    assert [proof] = Enum.filter(steps, &String.contains?(&1, "gh attestation verify"))
+    assert proof =~ "GH_TOKEN: ${{ github.token }}"
+    assert proof =~ "PUBLISHED_COMMIT: ${{ steps.served.outputs.commit }}"
+    assert proof =~ "--repo baselabs/charter_agreement_signer"
+    assert proof =~ ~s(--source-digest "$PUBLISHED_COMMIT")
+    assert proof =~ ~s(if [ "$PUBLISHED_COMMIT" != "$GITHUB_SHA" ]; then)
+
+    assert proof =~
+             ~s(git diff --quiet "$PUBLISHED_COMMIT" "$GITHUB_SHA" -- mix.exs mix.lock scripts/build_release_sbom.sh; then)
+
+    assert proof =~ "the fix is a new version"
+    assert workflow =~ "attestations: write"
+    {served_position, _} = :binary.match(workflow, "id: served")
+    {proof_position, _} = :binary.match(workflow, "name: Verify release assets")
+    {checksum_position, _} = :binary.match(workflow, "name: Record release checksums")
+    {attest_position, _} = :binary.match(workflow, "name: Attest release SBOM")
+    {upload_position, _} = :binary.match(workflow, "name: Upload only the missing")
+    assert attest_position < upload_position
+    assert served_position < proof_position
+    assert proof_position < checksum_position
   end
 
   test "only the default-branch warmer writes qualification caches" do

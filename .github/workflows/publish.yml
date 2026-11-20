@@ -75,6 +75,12 @@ jobs:
       - name: Build documentation
         run: mix docs --warnings-as-errors --formatter html
 
+      - name: Record docs release provenance
+        env:
+          DOCS_PACKAGE: charter_agreement_signer
+        run: |
+          elixir -e 'File.write!("doc/release.json", JSON.encode!(%{"package" => System.fetch_env!("DOCS_PACKAGE"), "version" => System.fetch_env!("VERSION"), "commit" => System.fetch_env!("GITHUB_SHA")}))'
+
       - name: Build and inspect the package and consumer
         run: mix run --no-start scripts/check_package.exs
 
@@ -85,10 +91,7 @@ jobs:
           tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -C doc -cf - . | gzip -n -9 > "release-assets/charter_agreement_signer-${VERSION}-docs.tar.gz"
 
       - name: Generate CycloneDX SBOM
-        run: |
-          mix sbom.cyclonedx --only prod --exclude-system-dependencies \
-            --classification library --schema 1.6 --format json \
-            --output release-assets/release.cdx.json --force
+        run: bash scripts/build_release_sbom.sh
 
       - name: Attest build provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
@@ -100,17 +103,6 @@ jobs:
         with:
           subject-path: release-assets/charter_agreement_signer-*.tar
           sbom-path: release-assets/release.cdx.json
-
-      - name: Record release checksums
-        working-directory: release-assets
-        run: sha256sum -- *.tar *.tar.gz release.cdx.json > SHA256SUMS
-
-      - name: Upload consumer release assets
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: release-assets
-          path: release-assets/*
-          if-no-files-found: error
 
       - name: Prepare an anonymous registry home
         run: mkdir "$RUNNER_TEMP/hex-read"
@@ -140,12 +132,41 @@ jobs:
             "charter_agreement_signer-${VERSION}.tar" "charter_agreement_signer-${VERSION}-docs.tar.gz"
 
       - name: Require the served package and docs from the registry
+        id: served
         env:
           HEX_HOME: ${{ runner.temp }}/hex-read
         run: |
           cd "$RUNNER_TEMP"
           mix run --no-mix-exs "$GITHUB_WORKSPACE/scripts/hex_release_state.exs" --served charter_agreement_signer "$VERSION" \
-            "$GITHUB_WORKSPACE/release-assets/charter_agreement_signer-${VERSION}.tar"
+            "$GITHUB_WORKSPACE/release-assets/charter_agreement_signer-${VERSION}.tar" \
+            --commit "$GITHUB_SHA" --clone "$GITHUB_WORKSPACE" \
+            --docs-output "$GITHUB_WORKSPACE/release-assets/charter_agreement_signer-${VERSION}-docs.tar.gz"
+
+      # Served ancestor docs require a served package, so that case skips the keyed step.
+      - name: Verify release assets belong to the published commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLISHED_COMMIT: ${{ steps.served.outputs.commit }}
+        run: |
+          gh attestation verify "release-assets/charter_agreement_signer-${VERSION}.tar" \
+            --repo baselabs/charter_agreement_signer --source-digest "$PUBLISHED_COMMIT"
+          if [ "$PUBLISHED_COMMIT" != "$GITHUB_SHA" ]; then
+            if ! git diff --quiet "$PUBLISHED_COMMIT" "$GITHUB_SHA" -- mix.exs mix.lock scripts/build_release_sbom.sh; then
+              echo "::error::SBOM inputs changed (mix.exs, mix.lock, scripts/build_release_sbom.sh); publication refused; the fix is a new version"
+              exit 1
+            fi
+          fi
+
+      - name: Record release checksums
+        working-directory: release-assets
+        run: sha256sum -- *.tar *.tar.gz release.cdx.json > SHA256SUMS
+
+      - name: Upload consumer release assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-assets
+          path: release-assets/*
+          if-no-files-found: error
 
       - name: Remove release archives and temporary Hex homes
         if: always()

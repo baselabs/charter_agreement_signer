@@ -8,6 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+- Require served docs provenance in `release.json`, name its commit as the published
+  commit, and export the served docs archive after read-back.
+- Verify release assets against the published commit and refuse changed SBOM inputs
+  when completing publication from an ancestor.
+
 - Qualify landing candidates once, enforce exact runtimes and locked dependencies,
   and audit the lifecycle example with both advisory feeds.
 - Route registry publication through the maintainers' release process.
