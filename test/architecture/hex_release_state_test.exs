@@ -10,6 +10,7 @@ defmodule HexReleaseStateTest do
   setup_all do
     clone = temporary_directory()
     git!(clone, ["init", "--initial-branch=main"])
+    git!(clone, ["config", "maintenance.auto", "false"])
     git!(clone, ["config", "user.name", "Release test"])
     git!(clone, ["config", "user.email", "release-test@example.invalid"])
     git!(clone, ["commit", "--allow-empty", "-m", "ancestor"])

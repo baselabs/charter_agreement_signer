@@ -7,6 +7,10 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -75,7 +79,8 @@ jobs:
           expected_elixir="${expected_elixir%-otp-*}"
           expected_otp="${EXPECTED_OTP:-$(awk '$1 == "erlang" {print $2}' .tool-versions)}"
           actual_otp=$(elixir -e 'release = to_string(:erlang.system_info(:otp_release)); IO.write(String.trim(File.read!(Path.join([to_string(:code.root_dir()), "releases", release, "OTP_VERSION"]))))')
-          test "$(elixir --short-version)" = "$expected_elixir"
+          actual_elixir=$(elixir --short-version)
+          test "$actual_elixir" = "$expected_elixir"
           test "$actual_otp" = "$expected_otp"
 
       - name: Install pinned Hex
@@ -173,6 +178,7 @@ jobs:
 
     defaults:
       run:
+        shell: bash
         working-directory: examples/charter_lifecycle
 
     steps:
@@ -205,7 +211,8 @@ jobs:
           expected_elixir="${expected_elixir%-otp-*}"
           expected_otp="${EXPECTED_OTP:-$(awk '$1 == "erlang" {print $2}' .tool-versions)}"
           actual_otp=$(elixir -e 'release = to_string(:erlang.system_info(:otp_release)); IO.write(String.trim(File.read!(Path.join([to_string(:code.root_dir()), "releases", release, "OTP_VERSION"]))))')
-          test "$(elixir --short-version)" = "$expected_elixir"
+          actual_elixir=$(elixir --short-version)
+          test "$actual_elixir" = "$expected_elixir"
           test "$actual_otp" = "$expected_otp"
 
       - name: Install pinned Hex
@@ -268,7 +275,8 @@ jobs:
           expected_elixir="${expected_elixir%-otp-*}"
           expected_otp="${EXPECTED_OTP:-$(awk '$1 == "erlang" {print $2}' .tool-versions)}"
           actual_otp=$(elixir -e 'release = to_string(:erlang.system_info(:otp_release)); IO.write(String.trim(File.read!(Path.join([to_string(:code.root_dir()), "releases", release, "OTP_VERSION"]))))')
-          test "$(elixir --short-version)" = "$expected_elixir"
+          actual_elixir=$(elixir --short-version)
+          test "$actual_elixir" = "$expected_elixir"
           test "$actual_otp" = "$expected_otp"
 
       - name: Install pinned Hex
@@ -280,7 +288,10 @@ jobs:
 
       - name: Refuse Node runtime drift
         working-directory: ${{ github.workspace }}
-        run: test "$(node --version)" = "v$(awk '$1 == "nodejs" {print $2}' .tool-versions)"
+        run: |
+          expected_node=$(awk '$1 == "nodejs" {print $2}' .tool-versions)
+          actual_node=$(node --version)
+          test "$actual_node" = "v$expected_node"
 
       - name: Install dependencies
         run: mix deps.get --check-locked
@@ -319,7 +330,8 @@ jobs:
           expected_elixir="${expected_elixir%-otp-*}"
           expected_otp="${EXPECTED_OTP:-$(awk '$1 == "erlang" {print $2}' .tool-versions)}"
           actual_otp=$(elixir -e 'release = to_string(:erlang.system_info(:otp_release)); IO.write(String.trim(File.read!(Path.join([to_string(:code.root_dir()), "releases", release, "OTP_VERSION"]))))')
-          test "$(elixir --short-version)" = "$expected_elixir"
+          actual_elixir=$(elixir --short-version)
+          test "$actual_elixir" = "$expected_elixir"
           test "$actual_otp" = "$expected_otp"
 
       - name: Install pinned Hex
@@ -369,7 +381,8 @@ jobs:
           expected_elixir="${expected_elixir%-otp-*}"
           expected_otp="${EXPECTED_OTP:-$(awk '$1 == "erlang" {print $2}' .tool-versions)}"
           actual_otp=$(elixir -e 'release = to_string(:erlang.system_info(:otp_release)); IO.write(String.trim(File.read!(Path.join([to_string(:code.root_dir()), "releases", release, "OTP_VERSION"]))))')
-          test "$(elixir --short-version)" = "$expected_elixir"
+          actual_elixir=$(elixir --short-version)
+          test "$actual_elixir" = "$expected_elixir"
           test "$actual_otp" = "$expected_otp"
 
       - name: Install pinned Hex

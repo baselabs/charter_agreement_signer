@@ -19,6 +19,10 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -82,7 +86,8 @@ jobs:
           EXPECTED_OTP: ${{ matrix.otp }}
         run: |
           actual_otp=$(elixir -e 'release = to_string(:erlang.system_info(:otp_release)); IO.write(String.trim(File.read!(Path.join([to_string(:code.root_dir()), "releases", release, "OTP_VERSION"]))))')
-          test "$(elixir --short-version)" = "$EXPECTED_ELIXIR"
+          actual_elixir=$(elixir --short-version)
+          test "$actual_elixir" = "$EXPECTED_ELIXIR"
           test "$actual_otp" = "$EXPECTED_OTP"
 
       - name: Install pinned Hex

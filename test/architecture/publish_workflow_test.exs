@@ -3,6 +3,53 @@ defmodule PublishWorkflowTest do
 
   @root Path.expand("../..", __DIR__)
 
+  test "every workflow preserves failing shell commands and pins container bytes" do
+    workflows = Path.wildcard(Path.join(@root, ".github/workflows/*.{yml,yaml}"))
+    assert workflows != []
+
+    for path <- workflows do
+      workflow = File.read!(path)
+      assert workflow =~ ~r/^defaults:\n  run:\n    shell: bash\n/m, path
+
+      for [defaults] <- Regex.scan(~r/^    defaults:\n(?:^      .*\n|^\n)*/m, workflow) do
+        assert defaults =~ "        shell: bash\n", path
+        assert defaults =~ "        working-directory:", path
+      end
+
+      for [_, image] <- Regex.scan(~r/^    container: ([^\n]+)$/m, workflow) do
+        assert image =~ ~r/\Aubuntu:(?:24|26)\.04@sha256:[0-9a-f]{64}\z/, path
+      end
+
+      refute workflow =~ ~r/\|\|\s*true\b/, path
+      refute workflow =~ ~r/^\s*(?:run: )?(?:echo|for)\b[^\n]*\$\(/m, path
+      refute workflow =~ "<(", path
+    end
+
+    if File.dir?(Path.join(@root, ".github/actions/hex-org-login")) do
+      ci = File.read!(Path.join(@root, ".github/workflows/ci.yml"))
+      assert ci =~ ~r/^    container: ubuntu:26\.04@sha256:[0-9a-f]{64}$/m
+
+      if File.exists?(Path.join(@root, "scripts/assert_limited_substrate.exs")) do
+        [_, limited] = Regex.run(~r/^  capability-limited:\n(.*?)(?=^  \S|\z)/ms, ci)
+        assert limited =~ ~r/^    container: ubuntu:24\.04@sha256:[0-9a-f]{64}$/m
+        assert limited =~ "scripts/assert_limited_substrate.exs"
+      end
+    end
+
+    for relative <- ["scripts/verifier_source.exs", "scripts/typescript_sources.exs"],
+        path = Path.join(@root, relative),
+        File.exists?(path) do
+      script = File.read!(path)
+      refute script =~ ~s|System.cmd("sh"|, path
+      assert script =~ ~r/System\.cmd\("bash",\s*\[\s*"-euo",\s*"pipefail",\s*"-c"/, path
+    end
+
+    for path <- Path.wildcard(Path.join(@root, "scripts/*.sh")) do
+      script = File.read!(path)
+      assert String.starts_with?(script, "#!/usr/bin/env bash\nset -euo pipefail\n"), path
+    end
+  end
+
   test "publication only uploads verified archives without loading project code under the key" do
     workflow = File.read!(Path.join(@root, ".github/workflows/publish.yml"))
     refute workflow =~ "hex.publish"

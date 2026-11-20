@@ -223,7 +223,16 @@ defmodule CharterAgreementSigner.TypeScriptSources do
 
     try do
       git!(cache, ["archive", "--format=tar", "--output", archive, commit])
-      {stamp, 0} = System.cmd("sh", ["-c", "git get-tar-commit-id < \"$1\"", "sh", archive])
+
+      {stamp, 0} =
+        System.cmd("bash", [
+          "-euo",
+          "pipefail",
+          "-c",
+          "git get-tar-commit-id < \"$1\"",
+          "bash",
+          archive
+        ])
 
       if String.trim(stamp) != commit,
         do: raise("typescript source: archive commit id differs from the pin")
