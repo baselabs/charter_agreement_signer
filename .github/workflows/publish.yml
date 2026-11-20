@@ -152,7 +152,8 @@ jobs:
             --repo baselabs/charter_agreement_signer --source-digest "$PUBLISHED_COMMIT"
           if [ "$PUBLISHED_COMMIT" != "$GITHUB_SHA" ]; then
             if ! git diff --quiet "$PUBLISHED_COMMIT" "$GITHUB_SHA" -- mix.exs mix.lock scripts/build_release_sbom.sh; then
-              echo "::error::SBOM inputs changed (mix.exs, mix.lock, scripts/build_release_sbom.sh); publication refused; the fix is a new version"
+              changed=$(git diff --name-only "$PUBLISHED_COMMIT" "$GITHUB_SHA" -- mix.exs mix.lock scripts/build_release_sbom.sh | paste -sd ' ' -)
+              echo "::error::SBOM inputs changed since the published commit: ${changed:-unreadable}; publication refused; the fix is a new version"
               exit 1
             fi
           fi
