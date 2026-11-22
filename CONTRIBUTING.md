@@ -25,14 +25,13 @@ mix.exs. `mix hex.audit` and `mix deps.audit` run for both projects after every 
 
 ## Before a pull request
 
-Run the covering tests on the build box, never on a workstation. From a configured
-private checkout, first run `python3 ~/Developer/kimosabe/bin/kimosabe-remote where`,
-then route the covering Mix tasks with
-`python3 ~/Developer/kimosabe/bin/kimosabe-remote run -- kimosabe-box-mix <task>`.
+Run the covering tests on the maintainers' build box, never on a workstation.
+A configured private checkout routes the covering Mix tasks there with the
+maintainers' remote-run tooling.
 Public repositories have no build-box checkout; their checks run in qualification
 CI at landing. Nothing compiles or tests on a workstation.
 
-Land through `kimosabe-land --repo . --sha <full-commit>`. Qualification includes
+Land the full commit through the maintainers' landing tool. Qualification includes
 formatting, warnings-as-errors compilation, Credo, tests, merged coverage, Dialyzer,
 docs, both dependency audits, package checks and the pinned TypeScript checks.
 The supported runtime matrix and real capability-limited lane are CI jobs.

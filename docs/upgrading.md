@@ -1,7 +1,7 @@
 # Upgrading
 
 For all releases, follow [the maintainers' release process](https://github.com/baselabs/charter_agreement_signer/blob/master/docs/release.md).
-Qualification runs only for landing candidates; infra dispatches `publish.yml`,
+Qualification runs only for landing candidates; the release operator dispatches `publish.yml`,
 uploads only the two verified archives with no project loaded under the key,
 reads back matching bytes, then creates the version tag and GitHub release
 `v<version>` from `release-assets`. Consumers verify that release's assets. A held

@@ -84,22 +84,29 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
     end
   end
 
-  # What a reproducible build starts from: source only; no build artifacts,
-  # fetched deps, tool/state dirs, or generated output. `.env` and friends are
-  # CREDENTIALS (never copied into temp trees).
-  @copy_excludes ~w(_build deps .git .zcode .kimosabe artifacts cover doc
-                    graphify-out erl_crash.dump .env .claude .expert .serena
-                    .elixir_ls .lexical)
-
+  # What a reproducible build starts from: exactly the tracked source. Build
+  # output, fetched deps, generated files, local tool state and credentials are
+  # never tracked, so none of them enters a copy.
   defp copy_source_tree!(source, dest) do
     File.mkdir_p!(dest)
 
     source
-    |> File.ls!()
-    |> Enum.reject(&(&1 in @copy_excludes or String.starts_with?(&1, ".env.")))
-    |> Enum.each(fn entry ->
-      File.cp_r!(Path.join(source, entry), Path.join(dest, entry))
+    |> tracked_files!()
+    |> Enum.each(fn relative ->
+      target = Path.join(dest, relative)
+      File.mkdir_p!(Path.dirname(target))
+      File.cp!(Path.join(source, relative), target)
     end)
+  end
+
+  defp tracked_files!(source) do
+    case System.cmd("git", ["ls-files", "-z"], cd: source, stderr_to_stdout: true) do
+      {output, 0} ->
+        String.split(output, <<0>>, trim: true)
+
+      {output, status} ->
+        raise("release check failed: git ls-files exited #{status}: #{output}")
+    end
   end
 
   defp build_in!(copy_root, output) do

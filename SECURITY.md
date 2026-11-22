@@ -63,7 +63,7 @@ provenance is refused. `release.json` is the uploader's record, not an attestati
 or protection against forgery. The workflow never replaces a package or served
 docs.
 
-The workflow exports consumer files as `release-assets`. After read-back, infra
+The workflow exports consumer files as `release-assets`. After read-back, the release operator
 tags the published commit and creates its GitHub release `v<version>` from those
 assets, comparing the package archive with the registry first. Consumers verify
 files downloaded from the GitHub release. Read-back replaces the built docs in
