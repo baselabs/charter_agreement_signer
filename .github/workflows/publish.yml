@@ -170,6 +170,7 @@ jobs:
           name: release-assets
           path: release-assets/*
           if-no-files-found: error
+          retention-days: 7
 
       - name: Remove release archives and temporary Hex homes
         if: always()

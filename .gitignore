@@ -15,5 +15,3 @@ charter_agreement_signer-*.tar
 .env
 .env.*
 .DS_Store
-
-/.forge/

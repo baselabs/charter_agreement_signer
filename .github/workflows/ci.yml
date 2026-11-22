@@ -124,6 +124,7 @@ jobs:
           name: coverage-standard-${{ matrix.elixir }}-${{ matrix.otp }}
           path: cover/*.coverdata
           if-no-files-found: error
+          retention-days: 1
 
       # These library checks also run in mix ci:
 
@@ -352,6 +353,7 @@ jobs:
           name: coverage-limited
           path: cover/*.coverdata
           if-no-files-found: error
+          retention-days: 1
 
   coverage:
     timeout-minutes: 5 # Run 42534000288: slowest green 62s; under 2.5 minutes, so the 5-minute floor.

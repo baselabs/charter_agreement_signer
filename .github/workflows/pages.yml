@@ -36,6 +36,7 @@ jobs:
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
           path: site
+          retention-days: 1
 
   deploy:
     timeout-minutes: 5 # Run 42635470213: slowest green 73s; under 2.5 minutes, so the 5-minute floor.

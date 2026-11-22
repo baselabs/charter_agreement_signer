@@ -78,6 +78,7 @@ defmodule PublishWorkflowTest do
     assert artifact =~ "name: release-assets\n"
     assert artifact =~ "path: release-assets/*"
     assert artifact =~ "if-no-files-found: error"
+    assert artifact =~ "retention-days: 7\n"
     assert workflow =~ "id: plan"
     assert workflow =~ "hex_release_state.exs\" --plan"
     assert workflow =~ "hex_release_state.exs\" --served"
