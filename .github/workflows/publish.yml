@@ -41,21 +41,23 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+      - name: Read runtime versions
+        id: toolchain
+        run: scripts/toolchain.sh .tool-versions >> "$GITHUB_OUTPUT"
+
+      - name: Set up BEAM
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           install-hex: false
-          version-file: .tool-versions
+          elixir-version: ${{ steps.toolchain.outputs.elixir }}
+          otp-version: ${{ steps.toolchain.outputs.otp }}
           version-type: strict
 
       - name: Refuse BEAM runtime drift
-        run: |
-          expected_elixir=$(awk '$1 == "elixir" {print $2}' .tool-versions)
-          expected_elixir="${expected_elixir%-otp-*}"
-          expected_otp=$(awk '$1 == "erlang" {print $2}' .tool-versions)
-          actual_otp=$(elixir -e 'release = to_string(:erlang.system_info(:otp_release)); IO.write(String.trim(File.read!(Path.join([to_string(:code.root_dir()), "releases", release, "OTP_VERSION"]))))')
-          actual_elixir=$(elixir --short-version)
-          test "$actual_elixir" = "$expected_elixir"
-          test "$actual_otp" = "$expected_otp"
+        env:
+          EXPECTED_ELIXIR: ${{ steps.toolchain.outputs.elixir }}
+          EXPECTED_OTP: ${{ steps.toolchain.outputs.otp }}
+        run: scripts/toolchain.sh --installed "elixir=$EXPECTED_ELIXIR" "erlang=$EXPECTED_OTP"
 
       - name: Install pinned Hex
         run: mix local.hex 2.7.0 --force

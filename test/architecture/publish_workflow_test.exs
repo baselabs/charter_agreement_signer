@@ -46,7 +46,59 @@ defmodule PublishWorkflowTest do
 
     for path <- Path.wildcard(Path.join(@root, "scripts/*.sh")) do
       script = File.read!(path)
-      assert String.starts_with?(script, "#!/usr/bin/env bash\nset -euo pipefail\n"), path
+      assert String.starts_with?(script, "#!/usr/bin/env bash\n"), path
+      assert script =~ ~r/^set -euo pipefail$/m, path
+    end
+  end
+
+  test "CI reads exact runtime versions only through the pinned shared reader" do
+    path = Path.join(@root, "scripts/toolchain.sh")
+    script = File.read!(path)
+
+    assert Base.encode16(:crypto.hash(:sha256, script), case: :lower) ==
+             "b29bfeb6ec4ec8f5b7e3ac3c963f04b6d3c73483172e5bd59ea40f20b102f1eb"
+
+    assert Bitwise.band(File.stat!(path).mode, 0o777) == 0o755
+
+    for path <- Path.wildcard(Path.join(@root, ".github/workflows/*.{yml,yaml}")) do
+      workflow = File.read!(path)
+      refute workflow =~ ~r/\b(?:node-|bun-)?version-file:/, path
+      refute workflow =~ ~r/\bawk\b/, path
+      refute workflow =~ ~r/\b(?:bash|sh)\s+[^\n]*scripts\/toolchain\.sh/, path
+
+      refute workflow =~
+               ~r/\b(?:elixir|otp|node|bun|golang|elixir-version|otp-version|node-version|bun-version|go-version|EXPECTED_ELIXIR|EXPECTED_OTP|EXPECTED_NODE|EXPECTED_BUN|EXPECTED_GO):\s*["']?[0-9]/,
+             path
+
+      for line <- String.split(workflow, "\n"),
+          not String.starts_with?(String.trim(line), "#"),
+          String.contains?(line, ".tool-versions") do
+        assert line =~ "scripts/toolchain.sh ", path
+      end
+
+      for [job] <- Regex.scan(~r/^  [\w-]+:\n.*?(?=^  [\w-]+:\n|\z)/ms, workflow),
+          job =~ ~r/uses: (?:erlef\/setup-beam|actions\/setup-node|actions\/setup-go|oven-sh\/setup-bun)@/ do
+        assert job =~ "run: scripts/toolchain.sh ", path
+        assert job =~ "scripts/toolchain.sh --installed ", path
+
+        for {setup, tool} <- [
+              {"erlef/setup-beam@", "elixir"},
+              {"erlef/setup-beam@", "erlang"},
+              {"actions/setup-node@", "nodejs"},
+              {"actions/setup-go@", "golang"}
+            ],
+            String.contains?(job, setup) do
+          assert job =~ ~s("#{tool}=$), path
+        end
+
+        for [_, value] <-
+              Regex.scan(
+                ~r/^          (?:elixir|otp|node|bun|go)-version: ([^\n]+)$/m,
+                job
+              ) do
+          assert String.starts_with?(value, "${{ "), path
+        end
+      end
     end
   end
 
@@ -156,5 +208,21 @@ defmodule PublishWorkflowTest do
     assert ci =~ "actions/cache/restore@"
     refute ci =~ "actions/cache/save@"
     refute ci =~ ~r/uses: actions\/cache@/
+
+    [[matrix]] =
+      Regex.scan(
+        ~r/^      - name: Compose the qualification matrix\n.*?(?=^      - |^  \S|\z)/ms,
+        ci
+      )
+
+    assert warmer =~ matrix
+
+    key =
+      "key: plt-${{ runner.os }}-${{ runner.arch }}-otp-${{ matrix.otp }}-elixir-${{ matrix.elixir_release }}-${{ hashFiles('mix.lock') }}"
+
+    assert ci =~ key
+    assert warmer =~ key
+    assert ci =~ "BEAM_MATRIX: ${{ needs.toolchain.outputs.beam_matrix }}"
+    assert ci =~ "cover/standard-{lane['elixir_release']}-{lane['otp']}.coverdata"
   end
 end

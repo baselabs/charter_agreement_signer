@@ -28,7 +28,40 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  toolchain:
+    name: Read runtime toolchains
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5 # the five-minute floor; no green run has been measured yet
+    outputs:
+      beam_matrix: ${{ steps.matrix.outputs.beam_matrix }}
+    steps:
+      - name: Refuse any ref but the default branch
+        run: test "$GITHUB_REF" = refs/heads/master
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test the shared reader
+        run: scripts/toolchain.sh --self-test
+      - name: Read defaults and compatibility lanes
+        id: versions
+        run: scripts/toolchain.sh .tool-versions >> "$GITHUB_OUTPUT"
+      - name: Compose the qualification matrix
+        id: matrix
+        env:
+          ELIXIR: ${{ steps.versions.outputs.elixir }}
+          OTP: ${{ steps.versions.outputs.otp }}
+          BEAM_LANES: ${{ steps.versions.outputs.beam_lanes }}
+        run: |
+          python3 - <<'PYTHON' >> "$GITHUB_OUTPUT"
+          import json, os
+          lanes = [{"elixir": os.environ["ELIXIR"], "otp": os.environ["OTP"]}, *json.loads(os.environ["BEAM_LANES"])]
+          for lane in lanes:
+              lane["elixir_release"] = lane["elixir"].split("-otp-", 1)[0]
+          print("beam_matrix=" + json.dumps({"include": list(reversed(lanes))}, separators=(",", ":")))
+          PYTHON
+
   plt:
+    needs: toolchain
     timeout-minutes: 8 # Run 44375964217: slowest green 9s, a cache hit; cold figure: the gate job that built the PLT took 3m38s in run 37479165025; doubled, rounded up. Re-measure on the first cold green run.
     name: Dialyzer PLT (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
     # ubuntu-26.04, as in ci.yml's gate: the PLT is restored there, and the
@@ -36,14 +69,7 @@ jobs:
     runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - elixir: "1.19.5"
-            otp: "28.5.0.3"
-          - elixir: "1.20.2"
-            otp: "28.5.0.3"
-          - elixir: "1.20.3"
-            otp: "29.0.3"
+      matrix: ${{ fromJSON(needs.toolchain.outputs.beam_matrix) }}
 
     env:
       MIX_ENV: test
@@ -61,18 +87,16 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: _build/plts
-          key: plt-${{ runner.os }}-${{ runner.arch }}-otp-${{ matrix.otp }}-elixir-${{ matrix.elixir }}-${{ hashFiles('mix.lock') }}
+          key: plt-${{ runner.os }}-${{ runner.arch }}-otp-${{ matrix.otp }}-elixir-${{ matrix.elixir_release }}-${{ hashFiles('mix.lock') }}
           lookup-only: true
 
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
-        if: steps.lookup.outputs.cache-hit != 'true' && matrix.elixir == '1.20.3'
-        with:
-          install-hex: false
-          version-file: .tool-versions
-          version-type: strict
+      - name: Read runtime versions
+        id: toolchain
+        run: scripts/toolchain.sh .tool-versions >> "$GITHUB_OUTPUT"
 
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
-        if: steps.lookup.outputs.cache-hit != 'true' && matrix.elixir != '1.20.3'
+      - name: Set up BEAM
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        if: steps.lookup.outputs.cache-hit != 'true'
         with:
           install-hex: false
           elixir-version: ${{ matrix.elixir }}
@@ -84,11 +108,7 @@ jobs:
         env:
           EXPECTED_ELIXIR: ${{ matrix.elixir }}
           EXPECTED_OTP: ${{ matrix.otp }}
-        run: |
-          actual_otp=$(elixir -e 'release = to_string(:erlang.system_info(:otp_release)); IO.write(String.trim(File.read!(Path.join([to_string(:code.root_dir()), "releases", release, "OTP_VERSION"]))))')
-          actual_elixir=$(elixir --short-version)
-          test "$actual_elixir" = "$EXPECTED_ELIXIR"
-          test "$actual_otp" = "$EXPECTED_OTP"
+        run: scripts/toolchain.sh --installed "elixir=$EXPECTED_ELIXIR" "erlang=$EXPECTED_OTP"
 
       - name: Install pinned Hex
         if: steps.lookup.outputs.cache-hit != 'true'
@@ -101,7 +121,7 @@ jobs:
           path: _build/plts
           key: ${{ steps.lookup.outputs.cache-primary-key }}
           restore-keys: |
-            plt-${{ runner.os }}-${{ runner.arch }}-otp-${{ matrix.otp }}-elixir-${{ matrix.elixir }}-
+            plt-${{ runner.os }}-${{ runner.arch }}-otp-${{ matrix.otp }}-elixir-${{ matrix.elixir_release }}-
 
       - name: Install deps
         if: steps.lookup.outputs.cache-hit != 'true'

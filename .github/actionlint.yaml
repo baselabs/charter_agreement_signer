@@ -1,0 +1,8 @@
+# actionlint 1.7.12 (the pinned checker in ci.yml) does not yet know the
+# GitHub-hosted ubuntu-26.04 runner label — its baked-in label list predates
+# that image. The quality gate runs there because ML-DSA needs the distro's
+# OpenSSL >= 3.5; see ci.yml for the full rationale. Drop this entry when a
+# pinned actionlint release knows the label natively.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04
