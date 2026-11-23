@@ -58,7 +58,10 @@ defmodule PublishWorkflowTest do
     assert Base.encode16(:crypto.hash(:sha256, script), case: :lower) ==
              "25bbfa023b7f031256428b498fe300fcc460988fea81277072355e4c0d933764"
 
-    assert Bitwise.band(File.stat!(path).mode, 0o777) == 0o755
+    # The committed mode, not the checkout's: a checkout's permission bits follow its umask.
+    args = ["ls-files", "--stage", "--", "scripts/toolchain.sh"]
+    {stage, 0} = System.cmd("git", args, cd: @root)
+    assert String.starts_with?(stage, "100755 "), stage
 
     for path <- Path.wildcard(Path.join(@root, ".github/workflows/*.{yml,yaml}")) do
       workflow = File.read!(path)
