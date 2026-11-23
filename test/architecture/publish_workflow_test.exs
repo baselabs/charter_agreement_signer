@@ -77,7 +77,8 @@ defmodule PublishWorkflowTest do
       end
 
       for [job] <- Regex.scan(~r/^  [\w-]+:\n.*?(?=^  [\w-]+:\n|\z)/ms, workflow),
-          job =~ ~r/uses: (?:erlef\/setup-beam|actions\/setup-node|actions\/setup-go|oven-sh\/setup-bun)@/ do
+          job =~
+            ~r/uses: (?:erlef\/setup-beam|actions\/setup-node|actions\/setup-go|oven-sh\/setup-bun)@/ do
         assert job =~ "run: scripts/toolchain.sh ", path
         assert job =~ "scripts/toolchain.sh --installed ", path
 
