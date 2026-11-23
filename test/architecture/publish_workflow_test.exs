@@ -56,7 +56,7 @@ defmodule PublishWorkflowTest do
     script = File.read!(path)
 
     assert Base.encode16(:crypto.hash(:sha256, script), case: :lower) ==
-             "b29bfeb6ec4ec8f5b7e3ac3c963f04b6d3c73483172e5bd59ea40f20b102f1eb"
+             "25bbfa023b7f031256428b498fe300fcc460988fea81277072355e4c0d933764"
 
     assert Bitwise.band(File.stat!(path).mode, 0o777) == 0o755
 
