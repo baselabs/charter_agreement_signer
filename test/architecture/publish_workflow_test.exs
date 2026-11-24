@@ -184,6 +184,7 @@ defmodule PublishWorkflowTest do
 
     # The docs path is a read-back destination, never an archive to compare.
     assert [plan, served] = Enum.filter(steps, &String.contains?(&1, "hex_release_state.exs"))
+
     plan_command =
       ~s(mix run --no-mix-exs "$GITHUB_WORKSPACE/scripts/hex_release_state.exs" --plan #{package} "$VERSION" "$GITHUB_WORKSPACE/release-assets/#{package_archive}")
 
