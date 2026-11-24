@@ -151,6 +151,7 @@ defmodule PublishWorkflowTest do
     assert artifact =~ "path: release-assets/*"
     assert artifact =~ "if-no-files-found: error"
     assert artifact =~ "retention-days: 7\n"
+    assert workflow =~ "run: bash scripts/build_release_sbom.sh"
     assert workflow =~ "id: plan"
     assert workflow =~ "hex_release_state.exs\" --plan"
     assert workflow =~ "hex_release_state.exs\" --served"
@@ -201,6 +202,13 @@ defmodule PublishWorkflowTest do
     assert provenance =~ ~s|"version" => System.fetch_env!("VERSION")|
     assert provenance =~ ~s|"commit" => System.fetch_env!("GITHUB_SHA")|
 
+    release_step =
+      ~r/actions\/(?:attest[\w-]*|upload-artifact)@|gh attestation\b|run: bash scripts\/build_release_sbom\.sh|hex_release_state\.exs" --plan\b|hex_upload\.exs\b/
+
+    for step <- Enum.take_while(steps, &(&1 != changelog)) do
+      refute step =~ release_step
+    end
+
     {docs_position, _} = :binary.match(publish, "mix docs --warnings-as-errors")
     {provenance_position, _} = :binary.match(publish, "doc/release.json")
     {archive_position, _} = :binary.match(publish, "tar --sort=name")
@@ -212,7 +220,6 @@ defmodule PublishWorkflowTest do
     {changelog_position, _} = :binary.match(publish, changelog)
     {plan_position, _} = :binary.match(publish, plan)
     {upload_position, _} = :binary.match(publish, keyed)
-    {sbom_position, _} = :binary.match(publish, "name: Generate CycloneDX SBOM")
 
     {inspection_position, _} =
       :binary.match(publish, "name: Build and inspect the package and consumer")
@@ -223,10 +230,7 @@ defmodule PublishWorkflowTest do
     assert provenance_position < package_position
     assert package_position < archive_position
     assert archive_position < changelog_position
-    assert changelog_position < sbom_position
-    assert changelog_position < plan_position
     assert plan_position < upload_position
-    assert changelog_position < artifact_position
     assert served_position < checksum_position
     assert checksum_position < artifact_position
     assert String.trim(List.last(steps)) =~ "if: always()"
