@@ -150,6 +150,21 @@ defmodule PublishWorkflowTest do
     assert workflow =~ "hex_release_state.exs\" --plan"
     assert workflow =~ "hex_release_state.exs\" --served"
 
+    changelog_name = "name: Refuse a package whose changelog is not stamped for its version\n"
+    assert [changelog] = Enum.filter(steps, &String.starts_with?(&1, changelog_name))
+    archive = ~S("release-assets/charter_agreement_signer-${VERSION}.tar")
+    assert changelog =~ archive
+
+    normalized =
+      changelog
+      |> String.trim_trailing("\n")
+      |> String.replace("\n      ", "\n")
+      |> String.replace(archive, "path/to/package-archive", global: false)
+
+    # The dedented step and closing fence from infra 6f19bd49, baselabs/docs/ci.md:360–403.
+    assert Base.encode16(:crypto.hash(:sha256, "- " <> normalized <> "\n```\n"), case: :lower) ==
+             "72b342781e036f0587a3708c00db7d4d5d9260ff07503f30ae505870f5c46d1e"
+
     # The docs path is a read-back destination, never an archive to compare.
     assert [plan, served] = Enum.filter(steps, &String.contains?(&1, "hex_release_state.exs"))
     assert plan =~ "--plan"
@@ -174,8 +189,17 @@ defmodule PublishWorkflowTest do
     {served_position, _} = :binary.match(workflow, "id: served")
     {checksum_position, _} = :binary.match(workflow, "name: Record release checksums")
     {artifact_position, _} = :binary.match(workflow, "actions/upload-artifact@")
+    {changelog_position, _} = :binary.match(workflow, changelog)
+    {plan_position, _} = :binary.match(workflow, plan)
+    {upload_position, _} = :binary.match(workflow, keyed)
+    {sbom_position, _} = :binary.match(workflow, "name: Generate CycloneDX SBOM")
+
     assert docs_position < provenance_position
     assert provenance_position < archive_position
+    assert archive_position < changelog_position
+    assert changelog_position < sbom_position
+    assert changelog_position < plan_position
+    assert plan_position < upload_position
     assert served_position < checksum_position
     assert checksum_position < artifact_position
     assert String.trim(List.last(steps)) =~ "if: always()"
