@@ -128,7 +128,13 @@ defmodule PublishWorkflowTest do
     assert workflow =~ "mix local.hex 2.7.0 --force"
     assert workflow =~ "mix docs --warnings-as-errors --formatter html"
 
-    steps = String.split(workflow, ~r/^      - /m) |> tl()
+    publish =
+      workflow
+      |> String.split(~r/^(?=\S|  \S)/m)
+      |> Enum.find(&String.starts_with?(&1, "  publish:\n"))
+
+    assert publish, "expected a publish job"
+    steps = String.split(publish, ~r/^      - /m) |> tl()
     keyed_steps = Enum.filter(steps, &String.contains?(&1, "HEX_API_KEY"))
     assert [keyed] = keyed_steps
     assert keyed =~ "HEX_API_KEY: ${{ secrets.HEX_API_KEY }}"
@@ -155,15 +161,19 @@ defmodule PublishWorkflowTest do
     archive = ~S("release-assets/charter_agreement_signer-${VERSION}.tar")
     assert changelog =~ archive
 
+    export_version = ~S(echo "VERSION=$version" >> "$GITHUB_ENV")
+    assert [version_step] = Enum.filter(steps, &String.contains?(&1, export_version))
+    assert version_step =~ ~S|version=$(sed -n 's/^  @version "\([^"]*\)".*$/\1/p' mix.exs)|
+
     normalized =
       changelog
       |> String.trim_trailing("\n")
       |> String.replace("\n      ", "\n")
       |> String.replace(archive, "path/to/package-archive", global: false)
 
-    # The dedented step and closing fence from infra 6f19bd49, baselabs/docs/ci.md:360–403.
-    assert Base.encode16(:crypto.hash(:sha256, "- " <> normalized <> "\n```\n"), case: :lower) ==
-             "72b342781e036f0587a3708c00db7d4d5d9260ff07503f30ae505870f5c46d1e"
+    # The dedented YAML from infra 6f19bd49, baselabs/docs/ci.md:360–402.
+    assert Base.encode16(:crypto.hash(:sha256, "- " <> normalized <> "\n"), case: :lower) ==
+             "2a912ae3e07700555d8827da491b8875207341808b4a6c1137c07129f0cbfa30"
 
     # The docs path is a read-back destination, never an archive to compare.
     assert [plan, served] = Enum.filter(steps, &String.contains?(&1, "hex_release_state.exs"))
@@ -183,23 +193,32 @@ defmodule PublishWorkflowTest do
     assert provenance =~ ~s|"version" => System.fetch_env!("VERSION")|
     assert provenance =~ ~s|"commit" => System.fetch_env!("GITHUB_SHA")|
 
-    {docs_position, _} = :binary.match(workflow, "mix docs --warnings-as-errors")
-    {provenance_position, _} = :binary.match(workflow, "doc/release.json")
-    {archive_position, _} = :binary.match(workflow, "tar --sort=name")
-    {served_position, _} = :binary.match(workflow, "id: served")
-    {checksum_position, _} = :binary.match(workflow, "name: Record release checksums")
-    {artifact_position, _} = :binary.match(workflow, "actions/upload-artifact@")
-    {changelog_position, _} = :binary.match(workflow, changelog)
-    {plan_position, _} = :binary.match(workflow, plan)
-    {upload_position, _} = :binary.match(workflow, keyed)
-    {sbom_position, _} = :binary.match(workflow, "name: Generate CycloneDX SBOM")
+    {docs_position, _} = :binary.match(publish, "mix docs --warnings-as-errors")
+    {provenance_position, _} = :binary.match(publish, "doc/release.json")
+    {archive_position, _} = :binary.match(publish, "tar --sort=name")
+    {version_position, _} = :binary.match(publish, version_step)
+    {package_position, _} = :binary.match(publish, "mix hex.build --output " <> archive)
+    {served_position, _} = :binary.match(publish, "id: served")
+    {checksum_position, _} = :binary.match(publish, "name: Record release checksums")
+    {artifact_position, _} = :binary.match(publish, "actions/upload-artifact@")
+    {changelog_position, _} = :binary.match(publish, changelog)
+    {plan_position, _} = :binary.match(publish, plan)
+    {upload_position, _} = :binary.match(publish, keyed)
+    {sbom_position, _} = :binary.match(publish, "name: Generate CycloneDX SBOM")
 
+    {inspection_position, _} =
+      :binary.match(publish, "name: Build and inspect the package and consumer")
+
+    assert version_position < docs_position
+    assert inspection_position < package_position
     assert docs_position < provenance_position
-    assert provenance_position < archive_position
+    assert provenance_position < package_position
+    assert package_position < archive_position
     assert archive_position < changelog_position
     assert changelog_position < sbom_position
     assert changelog_position < plan_position
     assert plan_position < upload_position
+    assert changelog_position < artifact_position
     assert served_position < checksum_position
     assert checksum_position < artifact_position
     assert String.trim(List.last(steps)) =~ "if: always()"
