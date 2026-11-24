@@ -51,6 +51,17 @@ defmodule PublishWorkflowTest do
     end
   end
 
+  test "qualification requires workflow syntax and secret scanning" do
+    ci = File.read!(Path.join(@root, ".github/workflows/ci.yml"))
+
+    [_, needs] =
+      Regex.run(~r/^  qualified:\n(?:^    [^\n]*\n)*?^    needs: \[([^\n]+)\]$/m, ci)
+
+    jobs = String.split(needs, ", ")
+    assert "workflow-syntax" in jobs
+    assert "secret-scan" in jobs
+  end
+
   test "CI reads exact runtime versions only through the pinned shared reader" do
     path = Path.join(@root, "scripts/toolchain.sh")
     script = File.read!(path)
