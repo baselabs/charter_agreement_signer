@@ -142,8 +142,7 @@ defmodule PublishWorkflowTest do
     assert length(Regex.scan(~r/HEX_API_KEY/, workflow)) ==
              length(Regex.scan(~r/HEX_API_KEY/, keyed))
 
-    assert keyed =~ "working-directory: release-assets"
-    assert keyed =~ "mix run --no-mix-exs ../scripts/hex_upload.exs"
+    assert keyed =~ ~r/^        working-directory: release-assets$/m
     refute keyed =~ "mix hex.build"
     refute keyed =~ "mix docs"
 
@@ -158,7 +157,9 @@ defmodule PublishWorkflowTest do
 
     changelog_name = "name: Refuse a package whose changelog is not stamped for its version\n"
     assert [changelog] = Enum.filter(steps, &String.starts_with?(&1, changelog_name))
-    archive = ~S("release-assets/charter_agreement_signer-${VERSION}.tar")
+    package = "charter_agreement_signer"
+    package_archive = package <> ~S(-${VERSION}.tar)
+    archive = ~s("release-assets/#{package_archive}")
     assert changelog =~ archive
 
     export_version = ~S(echo "VERSION=$version" >> "$GITHUB_ENV")
@@ -177,7 +178,14 @@ defmodule PublishWorkflowTest do
 
     # The docs path is a read-back destination, never an archive to compare.
     assert [plan, served] = Enum.filter(steps, &String.contains?(&1, "hex_release_state.exs"))
-    assert plan =~ "--plan"
+    plan_command =
+      ~s(mix run --no-mix-exs "$GITHUB_WORKSPACE/scripts/hex_release_state.exs" --plan #{package} "$VERSION" "$GITHUB_WORKSPACE/release-assets/#{package_archive}")
+
+    upload_command =
+      ~s(mix run --no-mix-exs ../scripts/hex_upload.exs "${flags[@]}" #{package} "$VERSION" "#{package_archive}" "#{package}-${VERSION}-docs.tar.gz")
+
+    assert plan_command in shell_lines(plan)
+    assert upload_command in shell_lines(keyed)
     refute plan =~ "-docs.tar.gz"
     refute plan =~ "--commit"
     refute plan =~ "--clone"
@@ -282,5 +290,12 @@ defmodule PublishWorkflowTest do
     assert warmer =~ key
     assert ci =~ "BEAM_MATRIX: ${{ needs.toolchain.outputs.beam_matrix }}"
     assert ci =~ "cover/standard-{lane['elixir_release']}-{lane['otp']}.coverdata"
+  end
+
+  defp shell_lines(step) do
+    step
+    |> String.replace(~r/\\\n +/, "")
+    |> String.split("\n")
+    |> Enum.map(&String.trim/1)
   end
 end
