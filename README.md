@@ -151,8 +151,7 @@ from the committed lockfile. It runs the signer's own tests and requires
 at least 377 tests, as recorded in the pin's `minimum_tests`, all passing. It then requires
 four descriptor interop checks to run and pass: TypeScript signer to CAP
 verification and Elixir signer to the pinned TypeScript verifier, each with
-Ed25519 at revision 2 and ML-DSA-65 at revision 3. The separate verifier
-source pin names verifier 0.7.0. The Elixir suite also runs the
+Ed25519 at revision 2 and ML-DSA-65 at revision 3. The Elixir suite also runs the
 language-neutral [signer case table](priv/conformance/README.md), checking
 callback counts, refusal codes, exact Ed25519 compacts and verified ML-DSA
 successes. The pinned TypeScript suite executes all 124 rows from the
