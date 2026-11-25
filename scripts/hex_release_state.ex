@@ -4,7 +4,7 @@ defmodule HexReleaseState do
   # Only the standalone planner needs the Hex archive's release API.
   @compile {:no_warn_undefined, [Hex.API.Client, :mix_hex_api_release]}
 
-  @pending "held for approval or not yet served: after the owner approves, dispatch publish.yml again on this same commit; it uploads only what is missing; publication refused"
+  @pending "held for approval or not yet served: after the owner approves, dispatch publish.yml again on this same commit to recheck the served state; publication refused"
   @usage "usage: hex_release_state.exs (--plan | --served --commit SHA --clone REPOSITORY --docs-output PATH [--docs-state STATE]) [--organization ORG] NAME VERSION PACKAGE_TAR; publication refused"
 
   def main(argv) do
@@ -250,10 +250,8 @@ defmodule HexReleaseState do
     end
   end
 
-  def docs_state!(opts, release, package, version, checksum) do
-    if opts[:organization], do: raise(@pending)
-    public_docs_state!(release, package, version, checksum)
-  end
+  def docs_state!(_opts, release, package, version, checksum),
+    do: public_docs_state!(release, package, version, checksum)
 
   defp public_docs_state!({:ok, {404, _headers, _body}}, "upload", _version, _checksum),
     do: "upload"

@@ -71,7 +71,9 @@ defmodule HexReleaseStateTest do
     script = File.read!(Path.expand("../../scripts/hex_release_state.ex", __DIR__))
     assert script =~ "docs = docs_state!(opts, release, package, version, checksum)"
     opts = [organization: "example", plan: true]
-    archive_response = {:ok, {200, %{}, "stale archive bytes"}}
+
+    assert script =~
+             "release = if organization, do: :upload_step, else: read_public_release(name, version)"
 
     for package <- ["served", "upload"] do
       assert HexReleaseState.docs_state!(opts, :upload_step, package, @version, nil) == "check"
@@ -79,7 +81,7 @@ defmodule HexReleaseStateTest do
       assert_raise RuntimeError, ~r/held for approval or not yet served/, fn ->
         HexReleaseState.docs_state!(
           [organization: "example", served: true, docs_state: "staged"],
-          archive_response,
+          :upload_step,
           package,
           @version,
           nil

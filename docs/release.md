@@ -38,14 +38,15 @@ A feature-branch push or version tag starts no qualification or publication.
    keyed step receives the publication key. That step only uploads the two
    verified archives, package first, using `mix run --no-mix-exs` from
    `release-assets/`, where no `mix.exs` exists and no project is loaded. The
-   uploader re-reads the served state immediately before each docs POST. For a
-   staged package, it first checks the stage checksum and then confirms the
-   release is still unpublished. A second publisher or an approval between the
-   final read and the POST is the residual race, controlled by custody of the
-   publication key.
+   uploader re-reads the served state before each POST. It skips a matching
+   package and docs that the final read reports as served. For a staged package,
+   it first checks the stage checksum and then confirms the release is still
+   unpublished. The uploader follows no redirects and retries no POSTs. A
+   second publisher or an approval between the final read and the POST is the
+   residual race, controlled by custody of the publication key.
 7. If either upload is held for approval, the owner approves it and the release operator
    dispatches `publish.yml` again on the same commit. It compares the rebuilt
-   package with the served package and uploads only what is missing. Read-back
+   package with the served package. Read-back
    must serve the matching package and a readable docs archive with root
    `index.html` and `release.json`. The record must name this package and version;
    its commit must equal the dispatched commit or an ancestor in the clone. This

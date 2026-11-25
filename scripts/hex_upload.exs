@@ -10,6 +10,8 @@ defmodule HexUpload do
   @compile {:no_warn_undefined,
             [
               Client,
+              Hex.HTTP,
+              Hex.HTTP.SSL,
               Hex.State,
               Hex.Tar,
               Hex.Utils,
@@ -20,6 +22,7 @@ defmodule HexUpload do
               :mix_hex_safe_binary_to_term
             ]}
   @hex_media "application/vnd.hex+erlang"
+  @request_timeout 15_000
 
   def main(argv) do
     if Mix.Project.get() do
@@ -39,50 +42,77 @@ defmodule HexUpload do
   end
 
   defp upload(opts, name, version, package_tar, docs_tar) do
-    Hex.start()
     package = File.read!(package_tar)
     docs = if opts[:docs], do: File.read!(docs_tar)
-    checksum = digest(package)
+    repo = opts[:organization]
+
+    if repo && docs do
+      with_docs_output!(System.get_env("GITHUB_OUTPUT"), fn output ->
+        run_upload(opts, repo, name, version, package, docs, output)
+      end)
+    else
+      run_upload(opts, repo, name, version, package, docs, nil)
+    end
+  end
+
+  def with_docs_output!(path, upload) do
+    with true <- is_binary(path) and path != "",
+         {:ok, %{type: :regular}} <- File.stat(path),
+         {:ok, output} <- File.open(path, [:append, :binary]) do
+      try do
+        upload.(output)
+      after
+        File.close(output)
+      end
+    else
+      _ -> raise "private docs upload requires a writable GITHUB_OUTPUT file; upload refused"
+    end
+  end
+
+  defp run_upload(opts, repo, name, version, package, docs, output) do
+    Hex.start()
     %{metadata: metadata} = Hex.Tar.unpack!({:binary, package}, :memory)
 
     unless metadata["name"] == name and metadata["version"] == version do
       raise "package metadata name or version differs from the requested release; upload refused"
     end
 
-    repo = opts[:organization]
     publish_key = require_key!("HEX_API_KEY")
     read_key = if repo, do: require_key!("HEX_ORG_KEY_PUBLISH_API_READ")
     publish_auth = [key: publish_key]
     read_auth = if repo, do: [key: read_key], else: []
-    secrets = Enum.reject([publish_key, read_key], &is_nil/1)
+    write_config = write_config(repo, publish_auth)
+
+    state = %{
+      repo: repo,
+      name: name,
+      version: version,
+      checksum: digest(package),
+      docs_checksum: if(docs, do: digest(docs)),
+      api_url: write_config.api_url,
+      secrets: Enum.reject([publish_key, read_key], &is_nil/1)
+    }
 
     if repo do
       # Hex hides private packages from outside readers as 404. Establish read
-      # access before a release 404 can authorize posting docs against a stage.
+      # access before a release 404 can authorize a write.
       config = api_config(repo, read_auth)
       request(fn -> :mix_hex_api_package.get(config, name) end) |> confirm_org_read!(name)
     end
 
     package_result =
-      if opts[:package], do: upload_package!(repo, package, publish_auth, secrets), else: :live
+      if opts[:package], do: upload_package!(state, package, read_auth, write_config), else: :live
 
     if docs do
-      state = %{
-        repo: repo,
-        name: name,
-        version: version,
-        checksum: checksum,
-        docs_checksum: digest(docs),
-        api_url: Hex.State.fetch!(:api_url),
-        secrets: secrets
-      }
-
-      result = upload_docs!(state, docs, publish_auth, read_auth, package_result)
+      result = upload_docs!(state, docs, publish_auth, read_auth, write_config, package_result)
       IO.puts("docs=#{result}")
 
-      if repo do
+      if output do
         docs_state = private_docs_state!(result, state, read_auth)
-        File.write!(System.fetch_env!("GITHUB_OUTPUT"), "docs=#{docs_state}\n", [:append])
+
+        unless IO.binwrite(output, "docs=#{docs_state}\n") == :ok do
+          raise "could not record private docs upload state in GITHUB_OUTPUT"
+        end
       end
     end
   end
@@ -98,25 +128,53 @@ defmodule HexUpload do
   def confirm_org_read!(_response, _name),
     do: raise("Hex did not confirm organization package read access; upload refused")
 
-  defp upload_package!(repo, package, auth, secrets) do
-    config = api_config(repo, auth)
+  defp upload_package!(state, package, read_auth, write_config) do
+    release = read_release(state.repo, state.name, state.version, read_auth)
 
-    {_code, _headers, body} =
-      request(fn -> :mix_hex_api_release.publish(config, package, replace: false) end)
-      |> successful!("package", secrets)
-
-    case body do
-      %{"status" => "staged"} ->
-        IO.puts("package=staged")
-        {:staged, body}
-
-      _ ->
-        IO.puts("package=accepted")
+    case package_preflight!(release, state) do
+      :skip ->
+        IO.puts("package=skipped")
         :live
+
+      :upload ->
+        response =
+          request(fn -> :mix_hex_api_release.publish(write_config, package, replace: false) end)
+
+        case response do
+          {:ok, {code, _headers, %{"status" => "staged"} = body}} when code in 200..299 ->
+            IO.puts("package=staged")
+            {:staged, body}
+
+          {:ok, {code, _headers, _body}} when code in 200..299 ->
+            IO.puts("package=accepted")
+            :live
+
+          failure ->
+            release = read_release(state.repo, state.name, state.version, read_auth)
+            reconcile_package!(failure, release, state)
+        end
     end
   end
 
-  defp upload_docs!(state, docs, publish_auth, read_auth, package_result) do
+  def package_preflight!(release, %{version: version, checksum: checksum}) do
+    case served_release!(release, version, checksum) do
+      :missing -> :upload
+      {:served, _} -> :skip
+    end
+  end
+
+  def reconcile_package!(failure, release, state) do
+    case package_preflight!(release, state) do
+      :skip ->
+        IO.puts("package=served")
+        :live
+
+      :upload ->
+        successful!(failure, "package", state.secrets)
+    end
+  end
+
+  defp upload_docs!(state, docs, publish_auth, read_auth, write_config, package_result) do
     %{repo: repo, name: name, version: version} = state
 
     target =
@@ -138,7 +196,7 @@ defmodule HexUpload do
     requests = %{
       read_stage: fn -> read_stage(state, publish_auth) end,
       read_release: fn -> read_release(repo, name, version, read_auth) end,
-      post_docs: fn -> post_docs(repo, name, version, docs, publish_auth) end
+      post_docs: fn -> post_docs(state, docs, write_config) end
     }
 
     state = Map.put(state, :target, target)
@@ -153,7 +211,7 @@ defmodule HexUpload do
   defp run_docs!(steps, state, requests) do
     case next_docs_step!(steps, state) do
       {:request, step, remaining} ->
-        response = request(Map.fetch!(requests, step))
+        response = Map.fetch!(requests, step).()
         run_docs!(remaining, Map.put(state, :response, response), requests)
 
       result ->
@@ -197,7 +255,7 @@ defmodule HexUpload do
   defp private_docs_state!(:skipped, _state, _read_auth), do: "served"
 
   defp private_docs_state!(:accepted, state, read_auth) do
-    response = request(fn -> read_release(state.repo, state.name, state.version, read_auth) end)
+    response = read_release(state.repo, state.name, state.version, read_auth)
 
     case served_release!(response, state.version, state.checksum) do
       {:served, true} -> "served"
@@ -207,29 +265,53 @@ defmodule HexUpload do
 
   defp read_release(repo, name, version, auth) do
     config = api_config(repo, auth)
-    :mix_hex_api_release.get(config, name, version)
+    request(fn -> :mix_hex_api_release.get(config, name, version) end)
   end
 
   defp read_stage(state, auth) do
     config = api_config(state.repo, auth)
-    :mix_hex_api.get(config, stage_path(state, "release"))
+    request(fn -> :mix_hex_api.get(config, stage_path(state, "release")) end)
   end
 
   defp api_config(repo, auth) do
     Client.build_config(repo, auth)
-    |> Map.put(:http_adapter, http_adapter())
     |> Map.update!(:http_headers, &Map.put(&1, "cache-control", "no-cache"))
   end
 
-  # Hex.HTTP wraps :httpc with its own redirect loop. The pinned Hex archive's
-  # vendored transport passes http_options to :httpc without that loop.
+  # Keep Hex's profile and configured timeout (http.ex:119–145), TLS/CA
+  # (ssl.ex:28–60), and proxy setup (http.ex:298–305,520–537). Only writes
+  # bypass Hex.HTTP's redirect loop and disable httpc's Retry-After replay.
+  # https://github.com/hexpm/hex/blob/92cb6a1/lib/hex/http.ex#L119-L145
+  # https://github.com/hexpm/hex/blob/92cb6a1/lib/hex/http.ex#L298-L305
+  # https://github.com/hexpm/hex/blob/92cb6a1/lib/hex/http.ex#L520-L537
+  # https://github.com/hexpm/hex/blob/92cb6a1/lib/hex/http/ssl.ex#L28-L60
   # https://github.com/hexpm/hex/blob/92cb6a1/src/mix_hex_http_httpc.erl#L30-L44
-  # https://github.com/hexpm/hex/blob/92cb6a1/src/mix_hex_http_httpc.erl#L106-L137
-  def http_adapter,
-    do: {:mix_hex_http_httpc, %{http_options: [autoredirect: false, timeout: 15_000]}}
+  defp write_config(repo, auth) do
+    config = Client.build_config(repo, auth)
+    timeout = Hex.State.fetch!(:http_timeout, fn val -> if is_integer(val), do: val * 1000 end)
+    ssl = Hex.HTTP.SSL.ssl_opts(config.api_url)
+    proxy = Hex.HTTP.proxy_config(config.api_url)
+
+    adapter =
+      {:mix_hex_http_httpc,
+       %{
+         profile: Hex.State.fetch!(:httpc_profile),
+         http_options: write_http_options(timeout || @request_timeout, ssl, proxy)
+       }}
+
+    %{
+      config
+      | http_adapter: adapter,
+        http_headers: Map.put(config.http_headers, "connection", "close")
+    }
+  end
+
+  def write_http_options(timeout, ssl, proxy) do
+    [relaxed: true, timeout: timeout, ssl: ssl, autoredirect: false, autoretry: 0] ++ proxy
+  end
 
   defp live_docs!(result, version, checksum) do
-    case served_release!(result, version, checksum) do
+    case served_release!(result, version, checksum, "docs were not posted") do
       {:served, false} -> :upload
       {:served, true} -> :skip
       :missing -> raise "Hex does not serve this package yet; docs were not posted"
@@ -237,34 +319,38 @@ defmodule HexUpload do
   end
 
   defp unpublished!(result, version, checksum) do
-    case served_release!(result, version, checksum) do
+    case served_release!(result, version, checksum, "docs were not posted") do
       :missing -> :ok
       {:served, _} -> raise "Hex already serves this release; staged docs were not posted"
     end
   end
 
-  defp served_release!({:ok, {404, _headers, _body}}, _version, _checksum), do: :missing
+  defp served_release!(result, version, checksum, refusal \\ "upload refused")
+
+  defp served_release!({:ok, {404, _headers, _body}}, _version, _checksum, _refusal),
+    do: :missing
 
   defp served_release!(
          {:ok, {200, _headers, %{"version" => version, "retirement" => nil} = release}},
          version,
-         checksum
+         checksum,
+         refusal
        ) do
     unless release["checksum"] == checksum do
-      raise "Hex serves this release with other package bytes; docs were not posted"
+      raise "Hex serves this release with other package bytes; #{refusal}"
     end
 
     has_docs = release["has_docs"]
 
     unless is_boolean(has_docs) do
-      raise "Hex returned no definite documentation state; docs were not posted"
+      raise "Hex returned no definite documentation state; #{refusal}"
     end
 
     {:served, has_docs}
   end
 
-  defp served_release!(_result, _version, _checksum),
-    do: raise("Could not confirm an unretired Hex release; docs were not posted")
+  defp served_release!(_result, _version, _checksum, refusal),
+    do: raise("Could not confirm an unretired Hex release; #{refusal}")
 
   defp stage_matches?(
          %{
@@ -302,9 +388,7 @@ defmodule HexUpload do
     if repo, do: ["repos", repo | path], else: path
   end
 
-  defp post_docs(repo, name, version, docs, auth) do
-    config = api_config(repo, auth)
-
+  defp post_docs(%{name: name, version: version}, docs, config) do
     path =
       :mix_hex_api.build_repository_path(config, ["packages", name, "releases", version, "docs"])
 
@@ -319,9 +403,10 @@ defmodule HexUpload do
 
     # Keep the wire body for the bare 201. mix_hex_api.post/3 discards it
     # when the response lacks the Hex media type.
-    config
-    |> :mix_hex_http.request(:post, url, headers, {~c"application/octet-stream", docs})
-    |> decode_receipt()
+    request(fn ->
+      :mix_hex_http.request(config, :post, url, headers, {~c"application/octet-stream", docs})
+      |> decode_receipt()
+    end)
   end
 
   defp decode_receipt({:ok, {code, headers, body}} = response) do

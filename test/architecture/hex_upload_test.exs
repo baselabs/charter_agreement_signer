@@ -45,9 +45,6 @@ defmodule HexUploadTest do
   end
 
   test "the production docs upload uses the step order with release GET last before POST" do
-    script = File.read!(Path.expand("../../scripts/hex_upload.exs", __DIR__))
-    assert script =~ "run_docs!(docs_steps(target), state, requests)"
-
     assert HexUpload.docs_steps(:staged) == [
              :read_stage,
              :check_stage,
@@ -63,6 +60,47 @@ defmodule HexUploadTest do
              :post_docs,
              :check_receipt
            ]
+  end
+
+  test "the production dispatcher can invoke only the operation returned by the decision step" do
+    interpreter =
+      quote do
+        case next_docs_step!(steps, state) do
+          {:request, step, remaining} ->
+            response = Map.fetch!(requests, step).()
+            run_docs!(remaining, Map.put(state, :response, response), requests)
+
+          result ->
+            result
+        end
+      end
+
+    assert normalize(body(:run_docs!)) == normalize(interpreter)
+
+    assert {:__block__, _, operations} = normalize(body(:upload_docs!))
+
+    setup =
+      quote do
+        requests = %{
+          read_stage: fn -> read_stage(state, publish_auth) end,
+          read_release: fn -> read_release(repo, name, version, read_auth) end,
+          post_docs: fn -> post_docs(state, docs, write_config) end
+        }
+
+        state = Map.put(state, :target, target)
+        run_docs!(docs_steps(target), state, requests)
+      end
+
+    assert {:__block__, _, expected} = normalize(setup)
+    assert Enum.take(operations, -3) == expected
+
+    {_, calls} =
+      Macro.prewalk(operations, [], fn
+        {:post_docs, _, args} = node, calls when is_list(args) -> {node, [node | calls]}
+        node, calls -> {node, calls}
+      end)
+
+    assert length(calls) == 1
   end
 
   test "a live upload stops before POST unless the package matches and docs are absent" do
@@ -116,14 +154,45 @@ defmodule HexUploadTest do
     end
   end
 
-  test "the docs POST uses Hex's httpc adapter without redirects" do
-    script = File.read!(Path.expand("../../scripts/hex_upload.exs", __DIR__))
-    assert script =~ "|> Map.put(:http_adapter, http_adapter())"
-    assert script =~ "|> :mix_hex_http.request(:post"
+  test "both writes use Hex's httpc options without redirects or retries" do
+    assert has_ast?(
+             body(:run_upload),
+             quote(do: write_config = write_config(repo, publish_auth))
+           )
 
-    assert {:mix_hex_http_httpc, %{http_options: options}} = HexUpload.http_adapter()
+    assert has_ast?(
+             body(:write_config),
+             quote(do: write_http_options(timeout || @request_timeout, ssl, proxy))
+           )
+
+    assert has_ast?(
+             body(:upload_package!),
+             quote(do: :mix_hex_api_release.publish(write_config, package, replace: false))
+           )
+
+    assert has_ast?(
+             body(:post_docs),
+             quote(
+               do:
+                 :mix_hex_http.request(
+                   config,
+                   :post,
+                   url,
+                   headers,
+                   {~c"application/octet-stream", docs}
+                 )
+             )
+           )
+
+    options = HexUpload.write_http_options(42, [verify: :verify_peer], proxy_auth: :fixture)
     assert options[:autoredirect] == false
+    assert options[:autoretry] == 0
+    assert options[:timeout] == 42
+    assert options[:ssl] == [verify: :verify_peer]
+    assert options[:proxy_auth] == :fixture
+  end
 
+  test "redirect responses refuse docs upload" do
     for code <- [301, 302, 303, 307, 308] do
       assert_raise RuntimeError, ~r/docs upload refused \(HTTP #{code}\)/, fn ->
         receipt(:live, {:ok, {code, %{"location" => "https://hex.pm/api/elsewhere"}, ""}})
@@ -183,6 +252,86 @@ defmodule HexUploadTest do
         receipt(:live, {:ok, {201, bad_headers, body}})
       end
     end
+  end
+
+  test "the package preflight skips only an exact served archive" do
+    assert HexUpload.package_preflight!(response(404, nil), state(:live)) == :upload
+    assert HexUpload.package_preflight!(response(200, @release), state(:live)) == :skip
+
+    assert_raise RuntimeError, ~r/other package bytes/, fn ->
+      response(200, Map.put(@release, "checksum", @docs_checksum))
+      |> HexUpload.package_preflight!(state(:live))
+    end
+  end
+
+  test "failed or lost package writes reconcile without hiding the original refusal" do
+    state = state(:live)
+
+    for failure <- [:upload_error, response(409, nil)] do
+      assert HexUpload.reconcile_package!(failure, response(200, @release), state) == :live
+
+      assert_raise RuntimeError, ~r/other package bytes/, fn ->
+        other = response(200, Map.put(@release, "checksum", @docs_checksum))
+        HexUpload.reconcile_package!(failure, other, state)
+      end
+    end
+
+    assert_raise RuntimeError, ~r/package upload refused \(HTTP 409\)/, fn ->
+      HexUpload.reconcile_package!(response(409, nil), response(404, nil), state)
+    end
+
+    assert_raise RuntimeError, ~r/package upload failed/, fn ->
+      HexUpload.reconcile_package!(:upload_error, response(404, nil), state)
+    end
+  end
+
+  test "private docs output must already be writable before the upload can start" do
+    path = Path.join(System.tmp_dir!(), "hex-upload-output-#{System.unique_integer([:positive])}")
+    on_exit(fn -> File.rm(path) end)
+
+    for unavailable <- [nil, "", path, System.tmp_dir!()] do
+      assert_raise RuntimeError, ~r/writable GITHUB_OUTPUT/, fn ->
+        HexUpload.with_docs_output!(unavailable, fn _ -> flunk("upload started") end)
+      end
+    end
+
+    File.write!(path, "existing=value\n")
+    assert :ok = HexUpload.with_docs_output!(path, &IO.binwrite(&1, "docs=served\n"))
+    assert File.read!(path) == "existing=value\ndocs=served\n"
+  end
+
+  defp body(name) do
+    script = Path.expand("../../scripts/hex_upload.exs", __DIR__)
+
+    {:__block__, _, [{:defmodule, _, [_, [do: {:__block__, _, forms}]]}, _]} =
+      Code.string_to_quoted!(File.read!(script), file: script)
+
+    Enum.find_value(forms, fn
+      {:defp, _, [{^name, _, _}, [do: body]]} -> body
+      _ -> nil
+    end)
+  end
+
+  defp has_ast?(ast, target) do
+    target = normalize(target)
+
+    {_, found} =
+      Macro.prewalk(normalize(ast), false, fn node, found -> {node, found or node == target} end)
+
+    found
+  end
+
+  defp normalize(ast) do
+    Macro.prewalk(ast, fn
+      {name, meta, context} when is_atom(name) and is_list(meta) and is_atom(context) ->
+        {name, [], nil}
+
+      {name, meta, args} when is_list(meta) and is_list(args) ->
+        {name, [], args}
+
+      node ->
+        node
+    end)
   end
 
   defp next_request(target, responses) do
