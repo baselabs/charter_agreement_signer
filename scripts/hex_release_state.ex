@@ -1,6 +1,9 @@
 defmodule HexReleaseState do
   @moduledoc false
 
+  # Only the standalone planner needs the Hex archive's release API.
+  @compile {:no_warn_undefined, [Hex.API.Client, :mix_hex_api_release]}
+
   @pending "held for approval or not yet served: after the owner approves, dispatch publish.yml again on this same commit; it uploads only what is missing; publication refused"
   @usage "usage: hex_release_state.exs (--plan | --served --commit SHA --clone REPOSITORY --docs-output PATH) [--organization ORG] NAME VERSION PACKAGE_TAR; publication refused"
 
@@ -12,9 +15,20 @@ defmodule HexReleaseState do
     {opts, name, version, package_tar} = parse!(argv)
     Hex.start()
     Code.ensure_loaded!(Hex.Repo)
-    repo = if opts[:organization], do: "hexpm:" <> opts[:organization], else: "hexpm"
-    package = package_state(repo, name, version, File.read!(package_tar))
-    {docs, archive} = docs_state(repo, name, version)
+    organization = opts[:organization]
+    repo = if organization, do: "hexpm:" <> organization, else: "hexpm"
+    tar = File.read!(package_tar)
+    package = package_state(repo, name, version, tar)
+
+    {docs, archive} =
+      if organization do
+        # The repository credential reads archives only. A missing archive is a
+        # provisional plan; the uploader checks the organization release API.
+        docs_archive(repo, name, version)
+      else
+        checksum = :crypto.hash(:sha256, tar) |> Base.encode16(case: :lower)
+        public_docs(opts, name, version, package, checksum)
+      end
 
     if docs == "served" and package != "served" do
       refuse("#{name} #{version}: docs served while the package is not")
@@ -214,7 +228,51 @@ defmodule HexReleaseState do
     "served"
   end
 
-  defp docs_state(repo, name, version) do
+  defp public_docs(opts, name, version, package, checksum) do
+    result =
+      read(fn ->
+        config =
+          Hex.API.Client.build_config(nil, [])
+          |> Map.update!(:http_headers, &Map.put(&1, "cache-control", "no-cache"))
+
+        :mix_hex_api_release.get(config, name, version)
+      end)
+
+    docs = public_docs_state!(result, package, version, checksum)
+
+    if opts[:served] && docs == "served" do
+      case docs_archive("hexpm", name, version) do
+        {"served", archive} -> {docs, archive}
+        {"upload", nil} -> refuse("Hex reports served docs but the docs archive is unavailable")
+      end
+    else
+      {docs, nil}
+    end
+  end
+
+  def public_docs_state!({:ok, {404, _headers, _body}}, "upload", _version, _checksum),
+    do: "upload"
+
+  def public_docs_state!(
+        {:ok,
+         {200, _headers,
+          %{
+            "version" => version,
+            "checksum" => checksum,
+            "retirement" => nil,
+            "has_docs" => has_docs
+          }}},
+        "served",
+        version,
+        checksum
+      )
+      when is_boolean(has_docs),
+      do: if(has_docs, do: "served", else: "upload")
+
+  def public_docs_state!(_result, _package, _version, _checksum),
+    do: refuse("Hex release API did not confirm the registry package and its docs state")
+
+  defp docs_archive(repo, name, version) do
     case read(fn -> Hex.Repo.get_docs(repo, name, version) end) do
       {:ok, {200, _headers, body}} ->
         {"served", body}

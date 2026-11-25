@@ -33,6 +33,37 @@ defmodule HexReleaseStateTest do
              HexReleaseState.parse!(["--plan", @package, @version, "package.tar"])
   end
 
+  test "public planning requires the release API to report explicit docs state" do
+    checksum = String.duplicate("a", 64)
+    release = %{"version" => @version, "checksum" => checksum, "retirement" => nil}
+
+    assert HexReleaseState.public_docs_state!(
+             {:ok, {404, %{}, nil}},
+             "upload",
+             @version,
+             checksum
+           ) ==
+             "upload"
+
+    for {has_docs, expected} <- [{false, "upload"}, {true, "served"}] do
+      result = {:ok, {200, %{}, Map.put(release, "has_docs", has_docs)}}
+      assert HexReleaseState.public_docs_state!(result, "served", @version, checksum) == expected
+    end
+
+    served = Map.put(release, "has_docs", false)
+
+    for {result, package} <- [
+          {{:ok, {404, %{}, nil}}, "served"},
+          {{:ok, {200, %{}, release}}, "served"},
+          {{:ok, {200, %{}, Map.put(served, "checksum", String.duplicate("b", 64))}}, "served"},
+          {{:ok, {200, %{}, served}}, "upload"}
+        ] do
+      assert_raise RuntimeError, ~r/publication refused/, fn ->
+        HexReleaseState.public_docs_state!(result, package, @version, checksum)
+      end
+    end
+  end
+
   test "served requires a full commit, repository clone and output file", context do
     args = served_args(context)
     assert {opts, @package, @version, "package.tar"} = HexReleaseState.parse!(args)

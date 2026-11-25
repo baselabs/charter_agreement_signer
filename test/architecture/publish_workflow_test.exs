@@ -193,6 +193,9 @@ defmodule PublishWorkflowTest do
 
     assert plan_command in shell_lines(plan)
     assert upload_command in shell_lines(keyed)
+
+    assert ~S|if [ "$PACKAGE_STATE" = upload ]; then flags+=(--package); fi| in shell_lines(keyed)
+    assert ~S|if [ "$DOCS_STATE" = upload ]; then flags+=(--docs); fi| in shell_lines(keyed)
     refute plan =~ "-docs.tar.gz"
     refute plan =~ "--commit"
     refute plan =~ "--clone"
