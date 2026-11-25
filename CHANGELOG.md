@@ -8,6 +8,9 @@ and this project adheres to
 
 ## [Unreleased]
 
+- Document committed descriptor rotation through the existing signing operation
+  when used with a CAP verifier that admits revision 8.
+
 - Accept an optional declared public key identity. Reject an unauthorized
   identity before either handle callback and check the snapshot before
   signing. The shared successor cases cover both refusals, malformed

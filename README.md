@@ -75,6 +75,20 @@ rule is exactly (`"Ed25519"`, `protocol_revision` 2) or (`"ML-DSA-65"`,
 revision-1/2 artifacts keep verifying (cross-revision composition). See
 [docs/upgrading.md](docs/upgrading.md).
 
+## Descriptor rotation
+
+With a CAP verifier that supports revision 8, use `sign_descriptor/3` with
+`"protocol_revision" => 8` for a committed descriptor or its successor. Compute
+the successor's complete active key commitment with CAP's `descriptor_next_key_commitment/2`
+and put it in the current descriptor's `next_key_commitment` field. To sign
+the successor, supply the current descriptor's verified facts in
+`:predecessor` and use a handle for one of its active signing keys.
+
+CAP checks the opening before the handle signs. A failed opening returns
+`descriptor_commitment_mismatch` as an invalid-input code. After signing,
+assemble the unsigned distribution document through CAP and pass it to
+`verify_descriptor_publication/3` with the complete signed history.
+
 ## Key custody
 
 The library never holds a key. A caller passes a `{module, ref}` handle; the
