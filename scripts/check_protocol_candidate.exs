@@ -33,6 +33,14 @@ try do
   {_, contents} = List.keyfind(outer, ~c"contents.tar.gz", 0)
   :ok = :erl_tar.extract({:binary, contents}, [:compressed, {:cwd, String.to_charlist(cap)}])
 
+  %{
+    "package" => "charter_agreement_protocol",
+    "package_version" => version,
+    "verification_semantics_version" => semantics
+  } = cap |> Path.join("priv/release-metadata.json") |> File.read!() |> JSON.decode!()
+
+  requirement = "== #{version}"
+
   for path <- [
         "README.md",
         "CHANGELOG.md",
@@ -77,8 +85,9 @@ try do
 
     replacement =
       "deps: Enum.map(deps(), fn " <>
-        "{:charter_agreement_protocol, req} -> " <>
-        "{:charter_agreement_protocol, req, path: #{inspect(cap)}, override: true}; dep -> dep end)"
+        "{:charter_agreement_protocol, _req} -> " <>
+        "{:charter_agreement_protocol, #{inspect(requirement)}, " <>
+        "path: #{inspect(cap)}, override: true}; dep -> dep end)"
 
     unless source =~ "deps: deps()", do: raise("candidate check: dependency seam missing")
     File.write!(project, String.replace(source, "deps: deps()", replacement))
@@ -109,8 +118,14 @@ try do
       "run",
       "--no-start",
       "-e",
-      "unless to_string(Application.spec(:charter_agreement_protocol, :vsn)) == \"1.0.0\", " <>
-        "do: raise(\"candidate version mismatch\")"
+      """
+      version = to_string(Application.spec(:charter_agreement_protocol, :vsn))
+      semantics = CharterAgreementProtocol.ReleaseIdentity.verification_semantics()
+
+      unless {version, semantics} == #{inspect({version, semantics})} do
+        raise("candidate release identity mismatch")
+      end
+      """
     ],
     cas
   )
@@ -161,7 +176,10 @@ try do
     root
   )
 
-  IO.puts("CAP 1.0.0 archive: signer and lifecycle suites passed; publication_authorized=false")
+  IO.puts(
+    "CAP #{version} archive: semantics=#{semantics} signer and lifecycle suites passed; " <>
+      "publication_authorized=false"
+  )
 after
   File.rm_rf!(scratch)
 end

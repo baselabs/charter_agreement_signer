@@ -205,14 +205,20 @@ defmodule CharterAgreementSigner.PackageCheck do
         File.mkdir_p!(protocol)
         extract_tar!(archive, outer)
         extract_tar!(Path.join(outer, "contents.tar.gz"), protocol)
+
+        %{"package" => "charter_agreement_protocol", "package_version" => version} =
+          protocol |> Path.join("priv/release-metadata.json") |> File.read!() |> JSON.decode!()
+
+        requirement = "== #{version}"
         project = Path.join(package_root, "mix.exs")
         source = File.read!(project)
         unless source =~ "deps: deps()", do: fail!("dependency seam missing")
 
         replacement =
           "deps: Enum.map(deps(), fn " <>
-            "{:charter_agreement_protocol, req} -> " <>
-            "{:charter_agreement_protocol, req, path: #{inspect(protocol)}, override: true}; dep -> dep end)"
+            "{:charter_agreement_protocol, _req} -> " <>
+            "{:charter_agreement_protocol, #{inspect(requirement)}, " <>
+            "path: #{inspect(protocol)}, override: true}; dep -> dep end)"
 
         File.write!(project, String.replace(source, "deps: deps()", replacement))
         IO.puts("package consumer: CAP candidate SHA-256 #{actual}")

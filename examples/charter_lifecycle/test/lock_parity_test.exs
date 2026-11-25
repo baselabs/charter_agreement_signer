@@ -6,11 +6,12 @@ defmodule CharterLifecycle.LockParityTest do
     dependency =
       Enum.find(Mix.Project.config()[:deps], &(elem(&1, 0) == :charter_agreement_protocol))
 
-    assert elem(dependency, 1) == "~> 1.0.0"
-
     if tuple_size(dependency) == 3 and Keyword.has_key?(elem(dependency, 2), :path) do
-      assert to_string(Application.spec(:charter_agreement_protocol, :vsn)) == "1.0.0"
+      version = to_string(Application.spec(:charter_agreement_protocol, :vsn))
+      assert elem(dependency, 1) == "== #{version}"
     else
+      assert elem(dependency, 1) == "~> 1.0.0"
+
       example_lock = File.read!("mix.lock")
       library_lock = File.read!(Path.expand("../../mix.lock", File.cwd!()))
       assert protocol_version(example_lock) == "1.0.0"

@@ -28,7 +28,9 @@ Use `{:charter_agreement_signer, "~> 1.0.0"}`. CAS requires CAP
 emitted bytes and error shapes stay unchanged; malformed nested claims
 return a typed error before custody. The library and lifecycle example lock
 the published CAP 1.0.0 package. Coordinated release checks additionally
-exercise the exact unpacked CAP candidate archive and its SHA-256.
+exercise the SHA-256-verified CAP archive in a disposable project pinned
+to the candidate version. The check compares the loaded version and
+verification semantics with the candidate manifest.
 
 The language-neutral signer corpus now ships under `priv/conformance/`.
 TypeScript conformance checks compare its exact bytes and run against the

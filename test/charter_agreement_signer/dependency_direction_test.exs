@@ -74,8 +74,8 @@ defmodule CharterAgreementSigner.DependencyDirectionTest do
       Enum.find(Mix.Project.config()[:deps], &(elem(&1, 0) == :charter_agreement_protocol))
 
     if tuple_size(dependency) == 3 and Keyword.has_key?(elem(dependency, 2), :path) do
-      assert to_string(Application.spec(:charter_agreement_protocol, :vsn)) ==
-               @protocol_locked_version
+      version = to_string(Application.spec(:charter_agreement_protocol, :vsn))
+      assert elem(dependency, 1) == "== #{version}"
     else
       lock_source = File.read!(Path.join(@repo_root, "mix.lock"))
 
