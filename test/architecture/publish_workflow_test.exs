@@ -131,6 +131,7 @@ defmodule PublishWorkflowTest do
              ~r/workflow_dispatch:\n    inputs:\n      release_commit:\n        description: [^\n]+\n        required: true\n        type: string\n/
 
     assert [release, build, upload, readback] = release_jobs(workflow)
+
     actor_filter =
       ~s|if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)|
 
@@ -215,7 +216,11 @@ defmodule PublishWorkflowTest do
     refute keyed =~ "mix docs"
 
     assert [artifact] =
-             Enum.filter(release_steps(readback), &String.contains?(&1, "actions/upload-artifact@"))
+             Enum.filter(
+               release_steps(readback),
+               &String.contains?(&1, "actions/upload-artifact@")
+             )
+
     assert artifact =~ "name: release-assets\n"
     assert artifact =~ ~s(release-assets/charter_agreement_signer-${{ env.VERSION }}.tar)
     assert artifact =~ ~s(release-assets/charter_agreement_signer-${{ env.VERSION }}-docs.tar.gz)
@@ -344,7 +349,9 @@ defmodule PublishWorkflowTest do
     assert [source] =
              Enum.filter(steps, &String.contains?(&1, "name: Attest the release source commit"))
 
-    assert source =~ "subject-path: release-assets/charter_agreement_signer-${{ env.VERSION }}.tar"
+    assert source =~
+             "subject-path: release-assets/charter_agreement_signer-${{ env.VERSION }}.tar"
+
     assert source =~ ~s|predicate: '{"release_commit":"${{ inputs.release_commit }}"}'|
     assert [_, predicate] = Regex.run(~r/predicate-type: (\S+)/, source)
     assert proof =~ ~s(predicate="#{predicate}")
