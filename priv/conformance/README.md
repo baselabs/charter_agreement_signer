@@ -2,7 +2,7 @@
 
 `signer_cases.json` is the Elixir signer's language-neutral conformance request
 table, shipped in the Hex archive. TypeScript implementations must run the same
-bytes. SHA-256: `3db6f031d6edec92c59e15481fdba884992f95837ea0aefd5bda6b9375c27bb2`.
+bytes. SHA-256: `a4354dfe2bd1477c971e28f4240c4f91f2c72740b0d7b0986b01b819bea13b04`.
 
 The packaged `priv/signer-source.json` and `priv/verifier-source.json` name
 the exact public TypeScript commits checked against this release.
@@ -34,7 +34,9 @@ values are literal malformed contexts or `null`. Context records are:
 Omitted options use the signer's defaults. `algorithm` is a literal JSON
 value. `limits` overrides named fields of default limits. A valid `profile`
 has `algorithms` and inclusive `revisions: [min, max]`; other values remain
-malformed inputs.
+malformed inputs. A `key_identity` option names a table key whose public
+identity is supplied to CAP before the handle is called. The row's usual
+`key` still selects the real handle.
 
 Expected outcomes contain `shape`, `code`, `snapshot_called` and
 `custody_called`. Success is `shape: "ok", code: null`. Nested errors use
@@ -68,7 +70,7 @@ includes both same-kid receipt candidates in a view with two accepted
 revisions. The exact Ed25519 compacts were generated with CAP's canonical
 framing and real seed signatures independently of the signer under test.
 
-The runner requires at least 121 rows, unique ids, and every id in its
+The runner requires exactly 124 rows, unique ids, and every id in its
 explicit required list. It checks that refusals never call custody even
 if a row's expected callback count says otherwise. Fault pairs pin each
 adjacent signer step: options before limits, limits before profile, profile
@@ -115,3 +117,8 @@ its verified acceptances already require the named party descriptor in a
 held chain. An unheld successor in an unaccepted revision fails the earlier
 governing check with `signing_refused`, pinned by
 `termination-unheld-successor`. No synthetic facts bypass that check here.
+
+The three declared-key successor rows prove that CAP refuses a key absent
+from the predecessor before either callback, an authorized key completes
+with one call to each callback, and a different snapshot refuses after one
+identity call and before signing. Both refusals use `signing_key_mismatch`.

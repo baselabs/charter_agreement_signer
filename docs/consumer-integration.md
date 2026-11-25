@@ -96,3 +96,13 @@ supplied view, and equivocation within that view. It does NOT establish
 organizational identity, legal validity, descriptor freshness, or authority
 to transact — those are host policy. Nothing in this chain authorizes
 anything: CAP never authorizes, and neither does its signer.
+
+
+### Refuse an unauthorized public key before calling the handle
+
+Pass `key_identity: {kid, public_key}` when the caller already knows the
+public identity. CAP prepares with that identity before either handle
+callback. An identity absent from the descriptor history returns
+`{:error, {:refused, :signing_key_mismatch}}` without a snapshot or signature
+request. After successful preparation, a different handle snapshot returns
+the same refusal and leaves the signing callback uncalled.

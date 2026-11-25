@@ -130,11 +130,14 @@ defmodule CharterAgreementSigner.SignerCasesTest do
     termination-profile-context-revision
     termination-unheld-successor
     receipt-profile-counterparty
+    successor-declared-key-refused-before-handle
+    successor-declared-key-matches-handle
+    successor-declared-key-differs-from-snapshot
   )
 
   test "the table retains every required case and unique ids" do
     rows = @table["cases"]
-    assert length(rows) >= 121
+    assert length(rows) == 124
     ids = Enum.map(rows, & &1["id"])
     assert Enum.uniq(ids) == ids
     for id <- @required_ids, do: assert(id in ids, "missing required case: #{id}")
@@ -304,6 +307,10 @@ defmodule CharterAgreementSigner.SignerCasesTest do
 
       {"algorithm", value} ->
         {:algorithm, value}
+
+      {"key_identity", name} ->
+        key = Map.fetch!(@table["keys"], name)
+        {:key_identity, {key["kid"], Base.url_decode64!(key["public_key"], padding: false)}}
 
       {"unexpected_option", value} ->
         {:unexpected_option, value}

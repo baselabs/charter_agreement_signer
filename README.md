@@ -37,7 +37,10 @@ the same shared tail:
 | `sign_receipt/4` | effect receipt (`cap+receipt`) | `CAP.verify_receipt/4` |
 
 Every call resolves limits, profile and algorithm before taking one atomic
-`key_identity/1` snapshot. The header kid comes only from that snapshot.
+`key_identity/1` snapshot. When the caller passes
+`key_identity: {kid, public_key}`, CAP checks the declared identity before
+either callback runs. The handle snapshot must then equal that identity
+before the custody callback can run.
 `CAP.prepare_signing/5` checks the public key and context, including R1-R3
 for acceptance and termination, before `sign/2`. Key mismatches return
 `{:error, {:refused, :signing_key_mismatch}}`; contradictory claims return
@@ -152,7 +155,7 @@ Ed25519 at revision 2 and ML-DSA-65 at revision 3. The separate verifier
 source pin names verifier 0.7.0. The Elixir suite also runs the
 language-neutral [signer case table](priv/conformance/README.md), checking
 callback counts, refusal codes, exact Ed25519 compacts and verified ML-DSA
-successes. The pinned TypeScript suite executes all 121 rows from the
+successes. The pinned TypeScript suite executes all 124 rows from the
 same table, checks its source hash and allows no excluded rows.
 
 Supported toolchain, enforced in code before anything compiles: the tested

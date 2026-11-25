@@ -163,7 +163,7 @@ disciplines travel with the port:
    `protocol_revision` 3) — a port that hand-writes revision-1 claims or the
    deprecated `"EdDSA"` name is refused at best and nonconformant at worst.
 3. Gate the port against both shipped corpora: CAP's 541-case verifier
-   corpus and CAS's 121-row `priv/conformance/signer_cases.json`. Follow
+   corpus and CAS's 124-row `priv/conformance/signer_cases.json`. Follow
    [CAP conformance](https://hexdocs.pm/charter_agreement_protocol/conformance.html)
    for byte-identical verifier reports. The signer rows also check callback
    counts, pre-custody refusals, exact Ed25519 compacts and verified ML-DSA

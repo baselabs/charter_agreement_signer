@@ -3,9 +3,10 @@ defmodule CharterAgreementSigner do
   Holder-side companion signer for the Charter Agreement Protocol (CAP).
   The private key never enters this library.
 
-  Every signing path resolves options, takes one atomic `key_identity/1`
-  snapshot, and passes the snapshot public key and caller's context to
-  `CharterAgreementProtocol.prepare_signing/5`. CAP checks claims, context,
+  Every signing path resolves options and uses one atomic `key_identity/1`
+  snapshot. With the optional `:key_identity` tuple `{kid, public_key}`, CAP
+  prepares the signing request before the handle is called. Otherwise CAP
+  prepares with the snapshot identity. CAP checks claims, context,
   limits, profile, the holder's own descriptor key and runtime support
   before the custody callback runs. CAP also owns the R1-R3 refusals.
 
@@ -35,14 +36,16 @@ defmodule CharterAgreementSigner do
   alias CharterAgreementProtocol.{ArtifactSet, Capability.Profile, Error, Limits}
   alias CharterAgreementSigner.Telemetry
 
-  @descriptor_options [:algorithm, :limits, :profile, :predecessor]
-  @signing_options [:algorithm, :limits, :profile]
+  @signing_options [:algorithm, :limits, :profile, :key_identity]
+  @descriptor_options [:predecessor | @signing_options]
 
   @typedoc "A module implementing the custody callbacks and its local reference."
   @type key_handle :: {module(), term()}
 
   @typedoc """
   A map or keyword list with the documented atom keys, each at most once.
+  `:key_identity` supplies a non-empty binary kid and a raw public key as
+  `{kid, public_key}`. A match with the subsequent handle snapshot is required.
   Unknown, repeated or non-atom keys, structs and non-keyword lists return
   `{:error, {:invalid_input, :invalid_type}}`.
   """
@@ -56,8 +59,8 @@ defmodule CharterAgreementSigner do
   * `:signing_failed`: faulting or rejecting sign callback, wrong signature
     length, or failure of the wrong-key guard.
   * `{:refused, :signing_refused}`: CAP's R1-R3 claims or view refusal.
-  * `{:refused, :signing_key_mismatch}`: the snapshot does not match an
-    active key for the kid in the holder's own descriptor context.
+  * `{:refused, :signing_key_mismatch}`: the requested identity does not match an
+    active descriptor key or the handle snapshot differs from the prepared identity.
   * `:algorithm_unsupported_on_substrate`: the runtime cannot verify the
     artifact or a context artifact's required algorithm.
   * `{:invalid_input, code}`: malformed options or another CAP preparation
@@ -92,7 +95,8 @@ defmodule CharterAgreementSigner do
     gives `{:invalid_input, :invalid_profile}`.
   * `:predecessor`: `nil` (genesis default) or `CAP.DescriptorFacts.t()`.
 
-  Options resolve in this order: limits, profile, algorithm, then snapshot.
+  Options resolve in this order: limits, profile, algorithm, then key selection.
+  With `:key_identity`, CAP prepares before the handle snapshot.
 
       {:ok, %{descriptor: compact}} =
         CharterAgreementSigner.sign_descriptor(claims, {MyCustody.Handle, ref},
@@ -180,20 +184,47 @@ defmodule CharterAgreementSigner do
          {:ok, limits} <- resolve_limits(opts),
          {:ok, profile} <- resolve_profile(opts),
          {:ok, algorithm} <- resolve_algorithm(Map.get(opts, :algorithm)),
-         {:ok, {kid, public_key}} <- resolve_key_identity(key_handle),
          context = if(kind == :party_descriptor, do: Map.get(opts, :predecessor), else: context),
-         input = %{
-           "kid" => kid,
-           "claims" => claims,
-           "public_key" => public_key,
-           "algorithm" => algorithm
-         },
-         {:ok, plan} <- mapped(CAP.prepare_signing(kind, input, context, limits, profile)),
+         request = {kind, claims, context, algorithm, limits, profile},
+         {:ok, plan, public_key} <- prepare_with_handle(request, key_handle, opts),
          {:ok, signature} <- sign_via_handle(key_handle, plan.signing_input.message),
          :ok <- verify_signature(plan.signing_input.message, signature, public_key, algorithm),
          {:ok, compact} <- finish(plan, signature) do
       {:ok, %{result_key(kind) => compact}}
     end
+  end
+
+  defp prepare_with_handle(request, handle, %{key_identity: {kid, public_key} = identity})
+       when is_binary(kid) and byte_size(kid) > 0 and is_binary(public_key) do
+    with {:ok, plan} <- prepare(request, identity),
+         {:ok, snapshot} <- resolve_key_identity(handle),
+         :ok <- match_identity(identity, snapshot) do
+      {:ok, plan, public_key}
+    end
+  end
+
+  defp prepare_with_handle(_request, _handle, %{key_identity: _invalid}),
+    do: {:error, {:invalid_input, :invalid_type}}
+
+  defp prepare_with_handle(request, handle, _opts) do
+    with {:ok, {_kid, public_key} = identity} <- resolve_key_identity(handle),
+         {:ok, plan} <- prepare(request, identity) do
+      {:ok, plan, public_key}
+    end
+  end
+
+  defp match_identity(identity, identity), do: :ok
+  defp match_identity(_requested, _snapshot), do: {:error, {:refused, :signing_key_mismatch}}
+
+  defp prepare({kind, claims, context, algorithm, limits, profile}, {kid, public_key}) do
+    input = %{
+      "kid" => kid,
+      "claims" => claims,
+      "public_key" => public_key,
+      "algorithm" => algorithm
+    }
+
+    mapped(CAP.prepare_signing(kind, input, context, limits, profile))
   end
 
   defp known_options(:party_descriptor), do: @descriptor_options

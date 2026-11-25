@@ -28,7 +28,7 @@ run!.(signer, ["ci"])
 run!.(signer, ["install", "--no-save", "--package-lock=false", verifier])
 
 unless File.read!(Path.join(root, "priv/conformance/signer_cases.json")) ==
-         File.read!(Path.join(signer, "test/fixtures/signer_cases.json")) do
+         File.read!(Path.join(signer, "conformance/signer_cases.json")) do
   raise("typescript source check: shared signer corpus differs")
 end
 
