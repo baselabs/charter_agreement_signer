@@ -142,11 +142,11 @@ defmodule HexUpload do
             Release.publish(state.repo, package, publish_auth, fn _ -> :ok end, replace: false)
           end)
 
-        case package_receipt(response, state) do
+        case package_receipt!(response, state) do
           {:ok, result} ->
             result
 
-          :ambiguous ->
+          :reconcile ->
             release = read_release(state.repo, state.name, state.version, read_auth)
             reconcile_package!(response, release, state)
         end
@@ -168,10 +168,10 @@ defmodule HexUpload do
   # The insert Location is relative even for an organization. The release
   # body URL and the staged receipt identify the organization explicitly.
   # https://github.com/hexpm/hexpm/blob/5e638200/lib/hexpm_web/controllers/api/release_controller.ex#L222-L244
-  def package_receipt({:ok, {201, %{"location" => location} = headers, body}}, state) do
+  def package_receipt!({:ok, {201, %{"location" => location} = headers, body}}, state) do
     cond do
       not hex_media?(headers) ->
-        :ambiguous
+        invalid_package_receipt!()
 
       location == stage_url(state, "release") and
           stage_matches?(body, "release", state.checksum, state) ->
@@ -182,11 +182,32 @@ defmodule HexUpload do
         {:ok, :live}
 
       true ->
-        :ambiguous
+        invalid_package_receipt!()
     end
   end
 
-  def package_receipt(_response, _state), do: :ambiguous
+  def package_receipt!({:ok, {status, _, _}}, _state) when status in 200..299,
+    do: invalid_package_receipt!()
+
+  def package_receipt!({:error, reason}, _state)
+      when reason in [:timeout, :socket_closed_remotely],
+      do: :reconcile
+
+  def package_receipt!({:ok, {409, _, _}}, _state), do: :reconcile
+
+  # Hexpm's replace=false refusal and version uniqueness race surface as 422s.
+  # https://github.com/hexpm/hexpm/blob/5e638200/test/hexpm_web/controllers/api/release_controller_test.exs
+  def package_receipt!({:ok, {422, _, %{"errors" => errors}}}, _state)
+      when errors in [
+             %{"inserted_at" => "must include the --replace flag to update an existing release"},
+             %{"version" => "has already been published"}
+           ],
+      do: :reconcile
+
+  def package_receipt!(response, state), do: successful!(response, "package", state.secrets)
+
+  defp invalid_package_receipt!,
+    do: raise("Hex returned an invalid package upload receipt; upload refused")
 
   defp live_package_receipt?(
          %{
@@ -210,7 +231,6 @@ defmodule HexUpload do
 
       :upload ->
         successful!(failure, "package", state.secrets)
-        raise "Hex returned an invalid package upload receipt; no matching release is served"
     end
   end
 
@@ -471,8 +491,7 @@ defmodule HexUpload do
 
   # The pinned Hex client reports an untyped response body as nil.
   # https://github.com/hexpm/hex/blob/92cb6a1/src/mix_hex_api.erl#L113-L128
-  defp docs_receipt!({201, %{"location" => url} = headers, nil}, %{target: :live} = state)
-       when not is_map_key(headers, "content-type") do
+  defp docs_receipt!({201, %{"location" => url}, nil}, %{target: :live} = state) do
     expected = docs_tarball_url(state)
     if url != expected, do: raise("Hex returned an unexpected docs tarball location")
     :accepted

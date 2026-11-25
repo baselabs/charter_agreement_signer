@@ -190,12 +190,17 @@ defmodule HexUploadTest do
     assert receipt(:live, {:ok, {201, %{"location" => public}, nil}}) == :accepted
     assert receipt(:live, {:ok, {201, %{"location" => private}, nil}}, "example") == :accepted
 
+    assert receipt(
+             :live,
+             {:ok, {201, %{"location" => public, "content-type" => "text/html"}, nil}}
+           ) ==
+             :accepted
+
     for response <- [
           {200, %{"location" => public}, nil},
           {201, %{}, ""},
           {201, %{"location" => private}, nil},
           {201, %{"location" => public <> "?unexpected=1"}, nil},
-          {201, %{"location" => public, "content-type" => "text/html"}, nil},
           {201, %{"location" => public}, "<html>"}
         ] do
       assert_raise RuntimeError, fn -> receipt(:live, {:ok, response}) end
@@ -243,10 +248,23 @@ defmodule HexUploadTest do
     end
   end
 
-  test "failed or lost package writes reconcile without hiding the original refusal" do
+  test "only lost package responses and explicit conflicts can reconcile" do
     state = state(:live)
 
-    for failure <- [:upload_error, response(409, nil)] do
+    replace_refusal = %{
+      "inserted_at" => "must include the --replace flag to update an existing release"
+    }
+
+    duplicate = %{"version" => "has already been published"}
+
+    for failure <- [
+          {:error, :timeout},
+          {:error, :socket_closed_remotely},
+          response(409, nil),
+          response(422, %{"errors" => replace_refusal}),
+          response(422, %{"errors" => duplicate})
+        ] do
+      assert HexUpload.package_receipt!(failure, state) == :reconcile
       assert HexUpload.reconcile_package!(failure, response(200, @release), state) == :live
 
       assert_raise RuntimeError, ~r/other package bytes/, fn ->
@@ -260,7 +278,19 @@ defmodule HexUploadTest do
     end
 
     assert_raise RuntimeError, ~r/package upload failed/, fn ->
-      HexUpload.reconcile_package!(:upload_error, response(404, nil), state)
+      HexUpload.reconcile_package!({:error, :timeout}, response(404, nil), state)
+    end
+
+    for failure <- [
+          :upload_error,
+          {:error, :bad_term},
+          response(403, nil),
+          response(422, %{"errors" => %{"version" => "invalid"}}),
+          response(500, nil)
+        ] do
+      assert_raise RuntimeError, ~r/package upload (failed|refused)/, fn ->
+        HexUpload.package_receipt!(failure, state)
+      end
     end
   end
 
@@ -318,23 +348,43 @@ defmodule HexUploadTest do
     headers = %{"content-type" => @media, "location" => path}
     state = state(:live)
 
-    assert HexUpload.package_receipt({:ok, {201, headers, release}}, state) == {:ok, :live}
-    assert HexUpload.package_receipt(staged_receipt(@stage), state) == {:ok, {:staged, @stage}}
+    assert HexUpload.package_receipt!({:ok, {201, headers, release}}, state) == {:ok, :live}
+    assert HexUpload.package_receipt!(staged_receipt(@stage), state) == {:ok, {:staged, @stage}}
+  end
+
+  test "malformed package success stops before reconciliation or docs upload" do
+    path = "/api/packages/#{@name}/releases/#{@version}"
+    release = Map.put(@release, "url", "https://hex.pm" <> path)
+    headers = %{"content-type" => @media, "location" => path}
+    state = state(:live)
 
     for {code, headers, body} <- [
           {200, headers, release},
+          {201, Map.delete(headers, "location"), release},
           {201, headers, nil},
           {201, headers, Map.put(release, "checksum", @docs_checksum)},
           {201, headers, Map.put(release, "url", "https://hex.pm/api/other")},
           {201, Map.put(headers, "location", path <> "/other"), release},
           {201, Map.put(headers, "content-type", "text/html"), release}
         ] do
-      assert HexUpload.package_receipt({:ok, {code, headers, body}}, state) == :ambiguous
+      assert_raise RuntimeError, ~r/invalid package upload receipt/, fn ->
+        HexUpload.package_receipt!({:ok, {code, headers, body}}, state)
+      end
     end
 
-    assert_raise RuntimeError, ~r/invalid package upload receipt/, fn ->
-      HexUpload.reconcile_package!({:ok, {201, headers, nil}}, response(404, nil), state)
-    end
+    assert has_ast?(
+             body(:upload_package!),
+             quote do
+               case package_receipt!(response, state) do
+                 {:ok, result} ->
+                   result
+
+                 :reconcile ->
+                   release = read_release(state.repo, state.name, state.version, read_auth)
+                   reconcile_package!(response, release, state)
+               end
+             end
+           )
   end
 
   defp body(name) do

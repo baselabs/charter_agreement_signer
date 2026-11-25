@@ -46,9 +46,12 @@ A feature-branch push or version tag starts no qualification or publication.
    response. It also retains the key across a redirect from Hex. A second
    publisher or approval after the final read or between attempts is the
    residual race, controlled by custody of the publication key.
-7. If either upload is held for approval, the owner approves it and the release operator
-   dispatches `publish.yml` again with the same `release_commit`. It compares the rebuilt
-   package with the served package. Read-back
+7. After the owner approves a held upload, the release operator dispatches
+   `publish.yml` again with the same `release_commit`. An earlier matching stage
+   may hold only the package. Approving that stage publishes the package alone.
+   The next dispatch checks the served package bytes and uploads the missing
+   docs. If Hex holds the docs for approval too, approve them and dispatch once
+   more with the same `release_commit`. Read-back
    must serve the matching package and a readable docs archive with root
    `index.html` and `release.json`. The record must name this package and version;
    its commit must equal the dispatched commit or an ancestor in the clone. This
