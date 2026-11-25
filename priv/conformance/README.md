@@ -2,7 +2,7 @@
 
 `signer_cases.json` is the Elixir signer's language-neutral conformance request
 table, shipped in the Hex archive. TypeScript implementations must run the same
-bytes. SHA-256: `97256767da0678e738c2a578cd072c566f3b853107eaed1a74b5ee91e96af73d`.
+bytes. SHA-256: `8fe2319b63191b8f2c18677ff358a019a50a232531b2df04c56e06e038a64681`.
 
 The packaged `priv/signer-source.json` and `priv/verifier-source.json` name
 the exact public TypeScript commits checked against this release.
@@ -18,9 +18,10 @@ optional `mixed_order: true` selects real mixed-order signing in `RawKey`. A
 snapshot returns the entry's kid and public key; signing uses its seed.
 Some refusal entries intentionally advertise a different public key.
 
-Each case contains a unique `id`, `kind` (`descriptor`, `acceptance`,
-`termination`, `receipt`), a `key` entry name, JSON `claims`, `context`,
-`options` and `expected`. A string context refers to `contexts`; other JSON
+Each case contains a unique `id`, a `kind` (`descriptor`, `acceptance`,
+`party_replacement`, `termination`, or `receipt`), a `key` entry name,
+JSON `claims`, `context`, `options` and `expected`. A replacement returns a
+marked acceptance compact under the `acceptance` result key. A string context refers to `contexts`; other JSON
 values are literal malformed contexts or `null`. Context records are:
 
 - `set`: raw `revisions`, `descriptors`, `acceptances`, `terminations` arrays.
@@ -61,8 +62,8 @@ passes these retained facts to the real signer, whose CAP preparation
 re-verifies the signatures. Regenerate the fixture on a capable runtime
 with `MIX_ENV=test mix run --no-start scripts/build_mldsa_predecessors.exs`.
 Cases that need a freshly verified ML-DSA chain context still carry the
-suite's `requires_mldsa_substrate` tag. The limited suite also exercises all
-four signing kinds and a context-only substrate refusal.
+suite's `requires_mldsa_substrate` tag. The limited suite exercises all
+five signing kinds and a context-only substrate refusal.
 
 `signer_cases_test.exs` executes each row as a real signing call, traces
 callback counts and independently verifies every success. The table also
@@ -70,7 +71,7 @@ includes both same-kid receipt candidates in a view with two accepted
 revisions. The exact Ed25519 compacts were generated with CAP's canonical
 framing and real seed signatures independently of the signer under test.
 
-The runner requires exactly 125 rows, unique ids, and every id in its
+The runner requires exactly 137 rows, unique ids, and every id in its
 explicit required list. It checks that refusals never call custody even
 if a row's expected callback count says otherwise. Fault pairs pin each
 adjacent signer step: options before limits, limits before profile, profile
@@ -84,8 +85,8 @@ expects `signing_failed` after one custody call. Receipt and termination
 rows also exclude context algorithms and revision numbers. A verified
 ML-DSA chain context requires a capable runtime.
 
-For acceptance and termination, profile rows admit the revision, the
-signing party's own descriptor chain and the new artifact. Excluding only
+For acceptance, party replacement, and termination, the caller profile
+covers the revision, the signing party's descriptor chain, and the new artifact. Excluding only
 the counterparty's descriptor algorithm must still sign. The rest of the
 set is checked under the full profile. Excluding the signing party's own
 chain or the revision rejects before custody. A receipt's profile covers

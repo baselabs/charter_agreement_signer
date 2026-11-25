@@ -173,8 +173,9 @@ verification and Elixir signer to the pinned TypeScript verifier, each with
 Ed25519 at revision 2 and ML-DSA-65 at revision 3. The Elixir suite also runs the
 language-neutral [signer case table](priv/conformance/README.md), checking
 callback counts, refusal codes, exact Ed25519 compacts and verified ML-DSA
-successes. The pinned TypeScript suite executes all 125 rows from the
-same table, checks its source hash and allows no excluded rows.
+successes. Qualification requires the pinned TypeScript suite to execute
+all 137 rows from the same table, check its source hash and allow no
+excluded rows.
 
 Supported toolchain, enforced in code before anything compiles: the tested
 Elixir 1.19.x–1.20.x lines (`~> 1.19`; anything outside the range refuses

@@ -158,12 +158,13 @@ disciplines travel with the port:
 1. The atomic kid+public-key snapshot, and the wrong-key verify-before-return
    guard, are not Elixir conveniences — they are the failure modes the
    custody boundary must not have (silent `{pub_A, sig_B}` successes).
-2. Mint at one of the protocol's two emission identities exactly —
+2. Use the protocol's producer emission pairs. Legacy claims mint with
    (`"Ed25519"`, `protocol_revision` 2) or (`"ML-DSA-65"`,
-   `protocol_revision` 3) — a port that hand-writes revision-1 claims or the
-   deprecated `"EdDSA"` name is refused at best and nonconformant at worst.
-3. Gate the port against both shipped corpora: CAP's 541-case verifier
-   corpus and CAS's 125-row `priv/conformance/signer_cases.json`. Follow
+   `protocol_revision` 3). Revision-8 party descriptors, acceptances, and
+   termination notices may mint with either algorithm. An assignor's
+   replacement uses a marked acceptance.
+3. Gate the port against CAP's verifier corpus and CAS's 137-row
+   `priv/conformance/signer_cases.json`. Follow
    [CAP conformance](https://hexdocs.pm/charter_agreement_protocol/conformance.html)
    for byte-identical verifier reports. The signer rows also check callback
    counts, pre-custody refusals, exact Ed25519 compacts and verified ML-DSA
