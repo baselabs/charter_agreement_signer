@@ -93,17 +93,24 @@ defmodule PublishWorkflowTest do
       for [job] <- Regex.scan(~r/^  [\w-]+:\n.*?(?=^  [\w-]+:\n|\z)/ms, workflow),
           job =~
             ~r/uses: (?:erlef\/setup-beam|actions\/setup-node|actions\/setup-go|oven-sh\/setup-bun)@/ do
-        assert job =~ "run: scripts/toolchain.sh ", path
-        assert job =~ "scripts/toolchain.sh --installed ", path
+        if Path.basename(path) == "publish.yml" and
+             job =~ ~r/\A  (?:upload|read-back):\n/ do
+          assert job =~ "elixir-version: ${{ needs.build.outputs.elixir }}", path
+          assert job =~ "otp-version: ${{ needs.build.outputs.otp }}", path
+          assert job =~ "version-type: strict", path
+        else
+          assert job =~ "run: scripts/toolchain.sh ", path
+          assert job =~ "scripts/toolchain.sh --installed ", path
 
-        for {setup, tool} <- [
-              {"erlef/setup-beam@", "elixir"},
-              {"erlef/setup-beam@", "erlang"},
-              {"actions/setup-node@", "nodejs"},
-              {"actions/setup-go@", "golang"}
-            ],
-            String.contains?(job, setup) do
-          assert job =~ ~s("#{tool}=$), path
+          for {setup, tool} <- [
+                {"erlef/setup-beam@", "elixir"},
+                {"erlef/setup-beam@", "erlang"},
+                {"actions/setup-node@", "nodejs"},
+                {"actions/setup-go@", "golang"}
+              ],
+              String.contains?(job, setup) do
+            assert job =~ ~s("#{tool}=$), path
+          end
         end
 
         for [_, value] <-
@@ -117,6 +124,72 @@ defmodule PublishWorkflowTest do
     end
   end
 
+  test "the qualification job guards the release checkout and workflow-owned scripts" do
+    workflow = File.read!(Path.join(@root, ".github/workflows/publish.yml"))
+
+    assert workflow =~
+             ~r/workflow_dispatch:\n    inputs:\n      release_commit:\n        description: [^\n]+\n        required: true\n        type: string\n/
+
+    assert [release, build, upload, readback] = release_jobs(workflow)
+    actor_filter =
+      ~s|if: contains(fromJSON('["corepay","palermo-git"]'), github.actor) && contains(fromJSON('["corepay","palermo-git"]'), github.triggering_actor)|
+
+    for job <- [release, build, upload, readback] do
+      assert job =~ actor_filter
+    end
+
+    assert release =~ "checks: read"
+    assert release =~ "GH_TOKEN: ${{ github.token }}"
+
+    assert release =~ ~s(.conclusion == "success")
+    assert release =~ "| .head_sha"
+
+    checks = [
+      "refs/heads/$DEFAULT_BRANCH",
+      "^[0-9a-f]{40}$",
+      "/compare/",
+      "check-runs?check_name=qualified",
+      "/contents/mix.exs?ref=$RELEASE_COMMIT",
+      "matching-refs/tags/"
+    ]
+
+    positions =
+      Enum.map(checks, fn marker ->
+        assert {position, _length} = :binary.match(release, marker)
+        position
+      end)
+
+    assert positions == Enum.sort(positions)
+    refute release =~ "actions/checkout"
+    refute release =~ "mix hex.build"
+    assert build =~ "needs: release"
+    assert upload =~ "needs: [release, build]"
+    assert readback =~ "needs: [release, build, upload]"
+    assert upload =~ "environment: publish"
+    assert length(Regex.scan(~r/^    environment:/m, workflow)) == 1
+    refute build =~ "environment:"
+    refute readback =~ "environment:"
+    refute release <> build <> readback =~ "secrets."
+    refute upload =~ "inputs.release_commit"
+    refute upload =~ "scripts/toolchain.sh"
+    refute upload =~ ~r/mix (?:deps|docs|hex\.build)/
+    assert upload =~ "ref: ${{ github.sha }}"
+    assert upload =~ "sha256sum --check --strict SHA256SUMS"
+    assert build =~ "ref: ${{ inputs.release_commit }}"
+    assert readback =~ "ref: ${{ inputs.release_commit }}"
+    assert build =~ "fetch-depth: 0"
+
+    for job <- [build, readback],
+        script <- ["hex_release_state.ex", "hex_release_state.exs"] do
+      assert job =~ ~s(git show "$GITHUB_SHA:scripts/#{script}")
+    end
+
+    assert {checkout, _} = :binary.match(build, "actions/checkout@")
+    assert {scripts, _} = :binary.match(build, "Load release scripts from the workflow revision")
+    assert {archive, _} = :binary.match(build, "mix hex.build")
+    assert checkout < scripts and scripts < archive
+  end
+
   test "publication only uploads verified archives without loading project code under the key" do
     workflow = File.read!(Path.join(@root, ".github/workflows/publish.yml"))
     refute workflow =~ "hex.publish"
@@ -128,13 +201,8 @@ defmodule PublishWorkflowTest do
     assert workflow =~ "mix local.hex 2.7.0 --force"
     assert workflow =~ "mix docs --warnings-as-errors --formatter html"
 
-    publish =
-      workflow
-      |> String.split(~r/^(?=\S|  \S)/m)
-      |> Enum.find(&String.starts_with?(&1, "  publish:\n"))
-
-    assert publish, "expected a publish job"
-    steps = String.split(publish, ~r/^      - /m) |> tl()
+    [_release, build, upload, readback] = release_jobs(workflow)
+    steps = Enum.flat_map([build, upload, readback], &release_steps/1)
     keyed_steps = Enum.filter(steps, &String.contains?(&1, "HEX_API_KEY"))
     assert [keyed] = keyed_steps
     assert keyed =~ "HEX_API_KEY: ${{ secrets.HEX_API_KEY }}"
@@ -142,13 +210,16 @@ defmodule PublishWorkflowTest do
     assert length(Regex.scan(~r/HEX_API_KEY/, workflow)) ==
              length(Regex.scan(~r/HEX_API_KEY/, keyed))
 
-    assert keyed =~ ~r/^        working-directory: release-assets$/m
+    assert keyed =~ "        working-directory: ${{ runner.temp }}\n"
     refute keyed =~ "mix hex.build"
     refute keyed =~ "mix docs"
 
-    assert [artifact] = Enum.filter(steps, &String.contains?(&1, "actions/upload-artifact@"))
+    assert [artifact] =
+             Enum.filter(release_steps(readback), &String.contains?(&1, "actions/upload-artifact@"))
     assert artifact =~ "name: release-assets\n"
-    assert artifact =~ "path: release-assets/*"
+    assert artifact =~ ~s(release-assets/charter_agreement_signer-${{ env.VERSION }}.tar)
+    assert artifact =~ ~s(release-assets/charter_agreement_signer-${{ env.VERSION }}-docs.tar.gz)
+    assert artifact =~ "release-assets/SHA256SUMS"
     assert artifact =~ "if-no-files-found: error"
     assert artifact =~ "retention-days: 7\n"
     assert workflow =~ "run: bash scripts/build_release_sbom.sh"
@@ -168,9 +239,7 @@ defmodule PublishWorkflowTest do
 
     assert length(Regex.scan(invocation, workflow)) == 1
 
-    export_version = ~S(echo "VERSION=$version" >> "$GITHUB_ENV")
-    assert [version_step] = Enum.filter(steps, &String.contains?(&1, export_version))
-    assert version_step =~ ~S|version=$(sed -n 's/^  @version "\([^"]*\)".*$/\1/p' mix.exs)|
+    assert build =~ "VERSION: ${{ needs.release.outputs.version }}"
 
     normalized =
       changelog
@@ -183,13 +252,18 @@ defmodule PublishWorkflowTest do
              "2a912ae3e07700555d8827da491b8875207341808b4a6c1137c07129f0cbfa30"
 
     # The docs path is a read-back destination, never an archive to compare.
-    assert [plan, served] = Enum.filter(steps, &String.contains?(&1, "hex_release_state.exs"))
+    assert [plan, served] =
+             Enum.filter(
+               steps,
+               &(String.contains?(&1, ~s(hex_release_state.exs")) and
+                   String.contains?(&1, "mix run --no-mix-exs"))
+             )
 
     plan_command =
-      ~s(mix run --no-mix-exs "$GITHUB_WORKSPACE/scripts/hex_release_state.exs" --plan #{package} "$VERSION" "$GITHUB_WORKSPACE/release-assets/#{package_archive}")
+      ~s(mix run --no-mix-exs "$RUNNER_TEMP/release-workflow/hex_release_state.exs" --plan #{package} "$VERSION" "$GITHUB_WORKSPACE/release-assets/#{package_archive}")
 
     upload_command =
-      ~s(mix run --no-mix-exs ../scripts/hex_upload.exs "${flags[@]}" #{package} "$VERSION" "#{package_archive}" "#{package}-${VERSION}-docs.tar.gz")
+      ~s(mix run --no-mix-exs "$GITHUB_WORKSPACE/release-workflow/scripts/hex_upload.exs" "${flags[@]}" #{package} "$VERSION" "$GITHUB_WORKSPACE/release-assets/#{package_archive}" "$GITHUB_WORKSPACE/release-assets/#{package}-${VERSION}-docs.tar.gz")
 
     assert plan_command in shell_lines(plan)
     assert upload_command in shell_lines(keyed)
@@ -201,7 +275,7 @@ defmodule PublishWorkflowTest do
     refute plan =~ "--clone"
     refute plan =~ "--docs-output"
     assert served =~ "id: served"
-    assert served =~ ~s(--commit "$GITHUB_SHA" --clone "$GITHUB_WORKSPACE")
+    assert served =~ ~s(--commit "$RELEASE_COMMIT" --clone "$GITHUB_WORKSPACE")
     assert served =~ ~r/--docs-output "\$GITHUB_WORKSPACE\/release-assets\/[^" ]+-docs\.tar\.gz"/
     assert length(Regex.scan(~r/-docs\.tar\.gz/, served)) == 1
 
@@ -209,31 +283,31 @@ defmodule PublishWorkflowTest do
     assert provenance =~ "JSON.encode!"
     assert provenance =~ ~s|"package" => System.fetch_env!("DOCS_PACKAGE")|
     assert provenance =~ ~s|"version" => System.fetch_env!("VERSION")|
-    assert provenance =~ ~s|"commit" => System.fetch_env!("GITHUB_SHA")|
+    assert provenance =~ ~s|"commit" => System.fetch_env!("RELEASE_COMMIT")|
 
     release_step =
-      ~r/actions\/(?:attest[\w-]*|upload-artifact)@|gh attestation\b|run: bash scripts\/build_release_sbom\.sh|hex_release_state\.exs" --plan\b|hex_upload\.exs\b/
+      ~r/actions\/(?:attest[\w-]*|upload-artifact)@|gh attestation\b|run: bash scripts\/build_release_sbom\.sh|hex_release_state\.exs" --plan\b|mix run --no-mix-exs[^\n]*hex_upload\.exs\b/
 
     for step <- Enum.take_while(steps, &(&1 != changelog)) do
       refute step =~ release_step
     end
 
-    {docs_position, _} = :binary.match(publish, "mix docs --warnings-as-errors")
-    {provenance_position, _} = :binary.match(publish, "doc/release.json")
-    {archive_position, _} = :binary.match(publish, "tar --sort=name")
-    {version_position, _} = :binary.match(publish, version_step)
-    {package_position, _} = :binary.match(publish, "mix hex.build --output " <> archive)
-    {served_position, _} = :binary.match(publish, "id: served")
-    {checksum_position, _} = :binary.match(publish, "name: Record release checksums")
-    {artifact_position, _} = :binary.match(publish, "actions/upload-artifact@")
-    {changelog_position, _} = :binary.match(publish, changelog)
-    {plan_position, _} = :binary.match(publish, plan)
-    {upload_position, _} = :binary.match(publish, keyed)
+    {docs_position, _} = :binary.match(workflow, "mix docs --warnings-as-errors")
+    {provenance_position, _} = :binary.match(workflow, "doc/release.json")
+    {archive_position, _} = :binary.match(workflow, "tar --sort=name")
+    {checkout_position, _} = :binary.match(workflow, "ref: ${{ inputs.release_commit }}")
+    {package_position, _} = :binary.match(workflow, "mix hex.build --output " <> archive)
+    {served_position, _} = :binary.match(workflow, "id: served")
+    {checksum_position, _} = :binary.match(workflow, "name: Record release checksums")
+    {artifact_position, _} = :binary.match(workflow, "name: Upload consumer release assets")
+    {changelog_position, _} = :binary.match(workflow, changelog)
+    {plan_position, _} = :binary.match(workflow, plan)
+    {upload_position, _} = :binary.match(workflow, keyed)
 
     {inspection_position, _} =
-      :binary.match(publish, "name: Build and inspect the package and consumer")
+      :binary.match(workflow, "name: Build and inspect the package and consumer")
 
-    assert version_position < docs_position
+    assert checkout_position < docs_position
     assert inspection_position < package_position
     assert docs_position < provenance_position
     assert provenance_position < package_position
@@ -260,12 +334,25 @@ defmodule PublishWorkflowTest do
     assert [proof] = Enum.filter(steps, &String.contains?(&1, "gh attestation verify"))
     assert proof =~ "GH_TOKEN: ${{ github.token }}"
     assert proof =~ "PUBLISHED_COMMIT: ${{ steps.served.outputs.commit }}"
-    assert proof =~ "--repo baselabs/charter_agreement_signer"
+    assert proof =~ ~s(--repo "$GITHUB_REPOSITORY" --signer-workflow "$signer")
+    assert proof =~ "baselabs/charter_agreement_signer/.github/workflows/publish.yml"
+    assert proof =~ ~s(--source-ref "$GITHUB_REF" --predicate-type "$predicate" --format json)
+    assert proof =~ ~s(.verificationResult.statement.predicate.release_commit == $commit)
+    assert proof =~ ~s(jq -e --arg commit "$PUBLISHED_COMMIT")
+    assert proof =~ ~s(test "$PUBLISHED_COMMIT" != "$RELEASE_COMMIT")
+
+    assert [source] =
+             Enum.filter(steps, &String.contains?(&1, "name: Attest the release source commit"))
+
+    assert source =~ "subject-path: release-assets/charter_agreement_signer-${{ env.VERSION }}.tar"
+    assert source =~ ~s|predicate: '{"release_commit":"${{ inputs.release_commit }}"}'|
+    assert [_, predicate] = Regex.run(~r/predicate-type: (\S+)/, source)
+    assert proof =~ ~s(predicate="#{predicate}")
     assert proof =~ ~s(--source-digest "$PUBLISHED_COMMIT")
-    assert proof =~ ~s(if [ "$PUBLISHED_COMMIT" != "$GITHUB_SHA" ]; then)
+    assert proof =~ ~s(if [ "$PUBLISHED_COMMIT" != "$RELEASE_COMMIT" ]; then)
 
     assert proof =~
-             ~s(git diff --quiet "$PUBLISHED_COMMIT" "$GITHUB_SHA" -- mix.exs mix.lock scripts/build_release_sbom.sh; then)
+             ~s(git diff --quiet "$PUBLISHED_COMMIT" "$RELEASE_COMMIT" -- mix.exs mix.lock scripts/build_release_sbom.sh; then)
 
     assert proof =~ "the fix is a new version"
     assert workflow =~ "attestations: write"
@@ -273,7 +360,7 @@ defmodule PublishWorkflowTest do
     {proof_position, _} = :binary.match(workflow, "name: Verify release assets")
     {checksum_position, _} = :binary.match(workflow, "name: Record release checksums")
     {attest_position, _} = :binary.match(workflow, "name: Attest release SBOM")
-    {upload_position, _} = :binary.match(workflow, "name: Upload only the missing")
+    {upload_position, _} = :binary.match(workflow, "name: Apply the verified archive upload plan")
     assert attest_position < upload_position
     assert served_position < proof_position
     assert proof_position < checksum_position
@@ -304,6 +391,13 @@ defmodule PublishWorkflowTest do
     assert ci =~ "BEAM_MATRIX: ${{ needs.toolchain.outputs.beam_matrix }}"
     assert ci =~ "cover/standard-{lane['elixir_release']}-{lane['otp']}.coverdata"
   end
+
+  defp release_jobs(workflow) do
+    [_header | jobs] = String.split(workflow, ~r/^  (?:release|build|upload|read-back):\n/m)
+    jobs
+  end
+
+  defp release_steps(job), do: String.split(job, ~r/^      - /m) |> tl()
 
   defp shell_lines(step) do
     step

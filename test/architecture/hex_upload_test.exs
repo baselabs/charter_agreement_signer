@@ -1,6 +1,9 @@
 # Load the module without running the standalone CLI entry point.
 script = Path.expand("../../scripts/hex_upload.exs", __DIR__)
-{:__block__, _, [module, _entrypoint]} = Code.string_to_quoted!(File.read!(script), file: script)
+
+{:__block__, _, [module, _entrypoint]} =
+  Code.string_to_quoted!(File.read!(script), file: script)
+
 Code.eval_quoted(module, [], file: script)
 
 defmodule HexUploadTest do
@@ -29,6 +32,7 @@ defmodule HexUploadTest do
     "status" => "staged",
     "kind" => "release",
     "checksum" => @checksum,
+    "approval_checksum" => @docs_checksum,
     "url" => "https://hex.pm/api/packages/#{@name}/releases/#{@version}/staged"
   }
 
@@ -55,6 +59,10 @@ defmodule HexUploadTest do
            ]
 
     assert HexUpload.docs_steps(:live) == [
+             :read_stage,
+             :check_stage,
+             :read_docs_stage,
+             :check_docs_stage,
              :read_release,
              :check_release,
              :post_docs,
@@ -82,12 +90,13 @@ defmodule HexUploadTest do
     setup =
       quote do
         requests = %{
-          read_stage: fn -> read_stage(state, publish_auth) end,
+          read_stage: fn -> read_stage(state, "release", publish_auth) end,
+          read_docs_stage: fn -> read_stage(state, "docs", publish_auth) end,
           read_release: fn -> read_release(repo, name, version, read_auth) end,
-          post_docs: fn -> post_docs(state, docs, write_config) end
+          post_docs: fn -> post_docs(state, docs, publish_auth) end
         }
 
-        state = Map.put(state, :target, target)
+        state = Map.merge(state, %{target: target, package_receipt: package_result})
         run_docs!(docs_steps(target), state, requests)
       end
 
@@ -154,50 +163,21 @@ defmodule HexUploadTest do
     end
   end
 
-  test "both writes use Hex's httpc options without redirects or retries" do
-    assert has_ast?(
-             body(:run_upload),
-             quote(do: write_config = write_config(repo, publish_auth))
-           )
-
-    assert has_ast?(
-             body(:write_config),
-             quote(do: write_http_options(timeout || @request_timeout, ssl, proxy))
-           )
-
+  test "the upload paths call Hex's own clients" do
     assert has_ast?(
              body(:upload_package!),
-             quote(do: :mix_hex_api_release.publish(write_config, package, replace: false))
-           )
-
-    assert has_ast?(
-             body(:post_docs),
              quote(
                do:
-                 :mix_hex_http.request(
-                   config,
-                   :post,
-                   url,
-                   headers,
-                   {~c"application/octet-stream", docs}
+                 Release.publish(state.repo, package, publish_auth, fn _ -> :ok end,
+                   replace: false
                  )
              )
            )
 
-    options = HexUpload.write_http_options(42, [verify: :verify_peer], proxy_auth: :fixture)
-    assert options[:autoredirect] == false
-    assert options[:autoretry] == 0
-    assert options[:timeout] == 42
-    assert options[:ssl] == [verify: :verify_peer]
-    assert options[:proxy_auth] == :fixture
-  end
-
-  test "redirect responses refuse docs upload" do
-    for code <- [301, 302, 303, 307, 308] do
-      assert_raise RuntimeError, ~r/docs upload refused \(HTTP #{code}\)/, fn ->
-        receipt(:live, {:ok, {code, %{"location" => "https://hex.pm/api/elsewhere"}, ""}})
-      end
-    end
+    assert has_ast?(
+             body(:post_docs),
+             quote(do: ReleaseDocs.publish(state.repo, state.name, state.version, docs, auth))
+           )
   end
 
   # Hexpm 5e638200 responds with a bare 201 and Location on the live branch,
@@ -207,17 +187,16 @@ defmodule HexUploadTest do
   test "a bare live receipt must name the exact tarball for the target repository" do
     public = "https://repo.hex.pm/docs/release_fixture-1.0.0.tar.gz"
     private = "https://repo.hex.pm/repos/example/docs/release_fixture-1.0.0.tar.gz"
-    assert receipt(:live, {:ok, {201, %{"location" => public}, ""}}) == :accepted
-    assert receipt(:live, {:ok, {201, %{"location" => private}, ""}}, "example") == :accepted
+    assert receipt(:live, {:ok, {201, %{"location" => public}, nil}}) == :accepted
+    assert receipt(:live, {:ok, {201, %{"location" => private}, nil}}, "example") == :accepted
 
     for response <- [
-          {200, %{"location" => public}, ""},
+          {200, %{"location" => public}, nil},
           {201, %{}, ""},
-          {201, %{"location" => private}, ""},
-          {201, %{"location" => public <> "?unexpected=1"}, ""},
-          {201, %{"location" => public, "content-type" => "text/html"}, ""},
-          {201, %{"location" => public}, "<html>"},
-          {201, %{"location" => public}, nil}
+          {201, %{"location" => private}, nil},
+          {201, %{"location" => public <> "?unexpected=1"}, nil},
+          {201, %{"location" => public, "content-type" => "text/html"}, nil},
+          {201, %{"location" => public}, "<html>"}
         ] do
       assert_raise RuntimeError, fn -> receipt(:live, {:ok, response}) end
     end
@@ -255,12 +234,12 @@ defmodule HexUploadTest do
   end
 
   test "the package preflight skips only an exact served archive" do
-    assert HexUpload.package_preflight!(response(404, nil), state(:live)) == :upload
-    assert HexUpload.package_preflight!(response(200, @release), state(:live)) == :skip
+    assert HexUpload.package_preflight!(:missing, response(404, nil), state(:live)) == :upload
+    assert HexUpload.package_preflight!(:missing, response(200, @release), state(:live)) == :skip
 
     assert_raise RuntimeError, ~r/other package bytes/, fn ->
-      response(200, Map.put(@release, "checksum", @docs_checksum))
-      |> HexUpload.package_preflight!(state(:live))
+      other = response(200, Map.put(@release, "checksum", @docs_checksum))
+      HexUpload.package_preflight!(:missing, other, state(:live))
     end
   end
 
@@ -300,13 +279,71 @@ defmodule HexUploadTest do
     assert File.read!(path) == "existing=value\ndocs=served\n"
   end
 
+  test "existing pending stages and their docs are kept" do
+    assert {:__block__, _, operations} = normalize(body(:upload_package!))
+
+    expected =
+      quote do
+        stage = read_stage(state, "release", publish_auth) |> pending_stage!("release", state)
+        release = read_release(state.repo, state.name, state.version, read_auth)
+      end
+
+    assert {:__block__, _, reads} = normalize(expected)
+    assert Enum.take(operations, 2) == reads
+
+    live = state(:live)
+    stage = HexUpload.pending_stage!(response(200, @stage), "release", live)
+    assert stage == :pending
+    assert HexUpload.package_preflight!(stage, response(404, nil), live) == :pending
+    assert next_request(:live, %{read_stage: response(200, @stage)}) == :staged
+
+    changed = Map.put(@stage, "approval_checksum", @checksum)
+    assert next_request(:staged, %{read_stage: response(200, changed)}) == :staged
+
+    {:ok, {201, _, stage}} =
+      staged_receipt(Map.merge(@stage, %{"kind" => "docs", "checksum" => @docs_checksum}))
+
+    assert next_request(:live, %{read_docs_stage: response(200, stage)}) == :staged
+
+    different = response(200, Map.put(@stage, "checksum", @docs_checksum))
+
+    assert_raise RuntimeError, ~r/active stage/, fn ->
+      HexUpload.pending_stage!(different, "release", live)
+    end
+  end
+
+  test "package receipts require the exact created release or stage" do
+    path = "/api/packages/#{@name}/releases/#{@version}"
+    release = Map.put(@release, "url", "https://hex.pm" <> path)
+    headers = %{"content-type" => @media, "location" => path}
+    state = state(:live)
+
+    assert HexUpload.package_receipt({:ok, {201, headers, release}}, state) == {:ok, :live}
+    assert HexUpload.package_receipt(staged_receipt(@stage), state) == {:ok, {:staged, @stage}}
+
+    for {code, headers, body} <- [
+          {200, headers, release},
+          {201, headers, nil},
+          {201, headers, Map.put(release, "checksum", @docs_checksum)},
+          {201, headers, Map.put(release, "url", "https://hex.pm/api/other")},
+          {201, Map.put(headers, "location", path <> "/other"), release},
+          {201, Map.put(headers, "content-type", "text/html"), release}
+        ] do
+      assert HexUpload.package_receipt({:ok, {code, headers, body}}, state) == :ambiguous
+    end
+
+    assert_raise RuntimeError, ~r/invalid package upload receipt/, fn ->
+      HexUpload.reconcile_package!({:ok, {201, headers, nil}}, response(404, nil), state)
+    end
+  end
+
   defp body(name) do
     script = Path.expand("../../scripts/hex_upload.exs", __DIR__)
 
     {:__block__, _, [{:defmodule, _, [_, [do: {:__block__, _, forms}]]}, _]} =
       Code.string_to_quoted!(File.read!(script), file: script)
 
-    Enum.find_value(forms, fn
+    Enum.find_value(Enum.reverse(forms), fn
       {:defp, _, [{^name, _, _}, [do: body]]} -> body
       _ -> nil
     end)
@@ -335,7 +372,10 @@ defmodule HexUploadTest do
   end
 
   defp next_request(target, responses) do
-    follow(HexUpload.docs_steps(target), state(target), responses)
+    reads =
+      Map.merge(%{read_stage: response(404, nil), read_docs_stage: response(404, nil)}, responses)
+
+    follow(HexUpload.docs_steps(target), state(target), reads)
   end
 
   defp follow(steps, state, responses) do
@@ -359,6 +399,7 @@ defmodule HexUploadTest do
   defp state(target) do
     %{
       target: target,
+      package_receipt: {:staged, @stage},
       name: @name,
       version: @version,
       checksum: @checksum,
