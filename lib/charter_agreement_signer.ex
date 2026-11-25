@@ -86,8 +86,8 @@ defmodule CharterAgreementSigner do
   Options are a map or keyword list with each key at most once:
 
   * `:algorithm`: `"Ed25519"` (default, including absent or `nil`) or
-    `"ML-DSA-65"`. Claims must carry protocol revision 2 or 3 respectively.
-    Revision 8 also supports both algorithms for descriptors.
+    `"ML-DSA-65"`. Legacy descriptors use revision 2 or 3 respectively.
+    Revision-8 descriptors can use either algorithm.
     An unsupported algorithm returns `{:error, {:invalid_input, :algorithm_unsupported}}`.
   * `:limits`: `CAP.Limits.t()`, default `CAP.Limits.default()`. Bounds
     apply to every artifact read and to the final compact.
@@ -119,6 +119,7 @@ defmodule CharterAgreementSigner do
   snapshot against the issuing party's active descriptor keys. A bare legacy
   revision skips membership checking because it names no signing key. A bare
   revision-8 charter returns `{:error, {:refused, :signing_refused}}`.
+  Receipt claims use revision 2 for Ed25519 or revision 3 for ML-DSA-65.
 
   Options: `:algorithm`, `:limits`, `:profile`, as in `sign_descriptor/3`.
   The profile applies to the receipt and every context artifact; limits
@@ -163,7 +164,7 @@ defmodule CharterAgreementSigner do
   The claims carry protocol revision 8 and a `replacement_role` matching
   the departing party's role. The assignee and the remaining parties sign
   separately with `sign_acceptance/4`. Each successful call signs once and
-  returns `{:ok, %{acceptance: compact}}`.
+  returns `{:ok, %{acceptance: compact}}`. Use Ed25519 or ML-DSA-65.
   """
   @spec sign_party_replacement(map(), key_handle(), ArtifactSet.t(), opts()) ::
           {:ok, %{acceptance: binary()}} | {:error, sign_error()}

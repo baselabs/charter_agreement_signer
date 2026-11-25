@@ -47,13 +47,13 @@ enforces most of them structurally, and the rest are posture.
    the documented set; do not log inspect terms as though they might carry
    key material (they cannot; the vocabulary is value-free by construction).
 
-9. **Mint at a current emission identity.** Claims you hand to a sign path
-   carry `"protocol_revision" => 2` for the default `Ed25519` emission, or
-   `3` when you select the `ML-DSA-65` emission pair via the `:algorithm`
-   option; CAP 1.0.0's emission rule mints exactly those two pairs, and
-   revision-1 claims are refused during CAP preparation before custody.
-   Retained revision-1 artifacts keep verifying (cross-revision
-   composition); only NEW claims must carry a current pair's revision.
+9. **Choose the artifact's emission pair.** Legacy artifacts, including
+   receipts, use `"protocol_revision" => 2` for the default `Ed25519`, or
+   `3` with `algorithm: "ML-DSA-65"`. With compatible CAP and CAS versions,
+   revision-8 party descriptors, acceptances, and termination notices can
+   use either algorithm and must carry `"protocol_revision" => 8`. This
+   includes the marked assignor acceptance from `sign_party_replacement/4`.
+   Retained revision-1 artifacts can still be verified.
 
 All five entry points accept `:profile` and `:limits`. For acceptance,
 party replacement, and termination, the caller's profile covers the revision, the signing party's

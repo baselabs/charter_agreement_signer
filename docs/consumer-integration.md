@@ -30,10 +30,11 @@ Every artifact was verified through the matching CAP function BEFORE this
 signer returned it — but that is the signer's own discipline, not something
 the counterparty can observe. The counterparty re-verifies from scratch.
 
-Freshly minted artifacts carry one of the protocol's two emission
-identities — (`alg: "Ed25519"`, `protocol_revision` 2), the default, or
-(`alg: "ML-DSA-65"`, `protocol_revision` 3) when the signing host selects
-the ML-DSA-65 emission pair (CAP 0.3+). Retained revision-1 artifacts
+Legacy artifacts, including receipts, use `"Ed25519"` at protocol
+revision 2 by default or `"ML-DSA-65"` at revision 3. With a compatible
+CAP version, revision-8 party descriptors, acceptances (including the
+assignor's marked acceptance), and termination notices can use either
+algorithm with `protocol_revision` 8. Retained revision-1 artifacts
 (`alg: "EdDSA"`) remain verifiable under the full profile on a capable runtime,
 subject to strict encoding rules and published security corrections. Verification composes
 across supported revisions when the retained context, profile and runtime

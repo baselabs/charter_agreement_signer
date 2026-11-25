@@ -149,16 +149,14 @@ A signer in any language produces conformant artifacts by following CAP's
 specification alone: build the exact RFC 7515 signing input (protected
 header `{alg, kid, typ}` + canonical payload), sign it with the chosen
 emission algorithm's key, attach the raw signature at that algorithm's exact
-length. `alg` is the registry's emission name — `"Ed25519"` at
-`protocol_revision` 2, or `"ML-DSA-65"` at `protocol_revision` 3; the
-binding rule rejects `(revision 1, "Ed25519")` and any name below its
-minimum revision, while legacy `"EdDSA"` artifacts remain verifiable. Three
+length. The binding rule rejects `(revision 1, "Ed25519")` and any name below
+its minimum revision. Legacy `"EdDSA"` artifacts remain verifiable. Three
 disciplines travel with the port:
 
 1. The atomic kid+public-key snapshot, and the wrong-key verify-before-return
    guard, are not Elixir conveniences — they are the failure modes the
    custody boundary must not have (silent `{pub_A, sig_B}` successes).
-2. Use the protocol's producer emission pairs. Legacy claims mint with
+2. Use the protocol's producer emission pairs. Legacy claims, including receipts, mint with
    (`"Ed25519"`, `protocol_revision` 2) or (`"ML-DSA-65"`,
    `protocol_revision` 3). Revision-8 party descriptors, acceptances, and
    termination notices may mint with either algorithm. An assignor's

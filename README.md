@@ -69,12 +69,12 @@ Malformed profiles return `{:error, {:invalid_input, :invalid_profile}}`.
   limits: CharterAgreementProtocol.Limits.default())
 ```
 
-Claims you sign mint at the protocol's current revision; CAP 1.0.0's emission
-rule is exactly (`"Ed25519"`, `protocol_revision` 2) or (`"ML-DSA-65"`,
-`protocol_revision` 3), selected by the `:algorithm` option (default
-`"Ed25519"`); claims carry the matching `"protocol_revision"`, and retained
-revision-1/2 artifacts keep verifying (cross-revision composition). See
-[docs/upgrading.md](docs/upgrading.md).
+Legacy artifacts, including receipts, use `"Ed25519"` at protocol revision 2
+or `"ML-DSA-65"` at revision 3. With compatible releases, revision-8 party
+descriptors, acceptances (including marked assignor acceptances), and termination
+notices can use either algorithm with `"protocol_revision" => 8`. The
+`:algorithm` option defaults to `"Ed25519"`. Retained legacy artifacts remain
+verifiable. See [docs/upgrading.md](docs/upgrading.md).
 
 ## Descriptor rotation
 
