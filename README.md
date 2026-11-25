@@ -154,7 +154,7 @@ verification and Elixir signer to the pinned TypeScript verifier, each with
 Ed25519 at revision 2 and ML-DSA-65 at revision 3. The Elixir suite also runs the
 language-neutral [signer case table](priv/conformance/README.md), checking
 callback counts, refusal codes, exact Ed25519 compacts and verified ML-DSA
-successes. The pinned TypeScript suite executes all 124 rows from the
+successes. The pinned TypeScript suite executes all 125 rows from the
 same table, checks its source hash and allows no excluded rows.
 
 Supported toolchain, enforced in code before anything compiles: the tested

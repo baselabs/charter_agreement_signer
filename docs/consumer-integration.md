@@ -102,7 +102,13 @@ anything: CAP never authorizes, and neither does its signer.
 
 Pass `key_identity: {kid, public_key}` when the caller already knows the
 public identity. CAP prepares with that identity before either handle
-callback. An identity absent from the descriptor history returns
+callback. Where the context supplies descriptor membership evidence, an
+identity absent from that history returns
 `{:error, {:refused, :signing_key_mismatch}}` without a snapshot or signature
 request. After successful preparation, a different handle snapshot returns
 the same refusal and leaves the signing callback uncalled.
+
+A bare revision does not name a signing key. For bare-revision receipts,
+CAP checks key shape and runtime support during preparation, then the
+signer compares the declared identity to the handle snapshot before
+signing.

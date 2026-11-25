@@ -10,7 +10,8 @@ and this project adheres to
 
 - Accept an optional declared public key identity. Reject an unauthorized
   identity before either handle callback and check the snapshot before
-  signing. Pin both refusals and a successful successor in the shared table.
+  signing. The shared successor cases cover both refusals, malformed
+  declared identities, and successful signing.
 
 - Read CI runtime defaults and compatibility lanes only through the shared
   toolchain reader, with exact installed-version checks.

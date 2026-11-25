@@ -2,7 +2,7 @@
 
 `signer_cases.json` is the Elixir signer's language-neutral conformance request
 table, shipped in the Hex archive. TypeScript implementations must run the same
-bytes. SHA-256: `a4354dfe2bd1477c971e28f4240c4f91f2c72740b0d7b0986b01b819bea13b04`.
+bytes. SHA-256: `97256767da0678e738c2a578cd072c566f3b853107eaed1a74b5ee91e96af73d`.
 
 The packaged `priv/signer-source.json` and `priv/verifier-source.json` name
 the exact public TypeScript commits checked against this release.
@@ -70,7 +70,7 @@ includes both same-kid receipt candidates in a view with two accepted
 revisions. The exact Ed25519 compacts were generated with CAP's canonical
 framing and real seed signatures independently of the signer under test.
 
-The runner requires exactly 124 rows, unique ids, and every id in its
+The runner requires exactly 125 rows, unique ids, and every id in its
 explicit required list. It checks that refusals never call custody even
 if a row's expected callback count says otherwise. Fault pairs pin each
 adjacent signer step: options before limits, limits before profile, profile
@@ -118,7 +118,10 @@ held chain. An unheld successor in an unaccepted revision fails the earlier
 governing check with `signing_refused`, pinned by
 `termination-unheld-successor`. No synthetic facts bypass that check here.
 
-The three declared-key successor rows prove that CAP refuses a key absent
+The declared-key successor rows prove that CAP refuses a key absent
 from the predecessor before either callback, an authorized key completes
 with one call to each callback, and a different snapshot refuses after one
 identity call and before signing. Both refusals use `signing_key_mismatch`.
+
+An explicit null identity returns `invalid_input` / `invalid_type` before
+either callback.
