@@ -16,6 +16,9 @@ and this project adheres to
 - Read CI runtime defaults and compatibility lanes only through the shared
   toolchain reader, with exact installed-version checks.
 
+- Materialize the pinned TypeScript signer and verifier as detached Git
+  checkouts so both suites can inspect their repository indexes.
+
 - Require served docs provenance in `release.json`, name its commit as the published
   commit, and export the served docs archive after read-back.
 - Verify release assets against the published commit and refuse changed SBOM inputs

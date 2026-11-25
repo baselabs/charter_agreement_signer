@@ -1,6 +1,6 @@
 # Pinned public TypeScript sources for the signer check. Modeled on CAP's
-# scripts/verifier_source.exs. Extract each commit with git archive and check
-# every blob before installing it. Public main reachability and forward-only
+# scripts/verifier_source.exs. Check out each commit and verify every blob
+# before installing it. Public main reachability and forward-only
 # pins are checked even in cached mode, against the last fetched public ref.
 
 defmodule CharterAgreementSigner.TypeScriptSources do
@@ -10,6 +10,7 @@ defmodule CharterAgreementSigner.TypeScriptSources do
   # Fetches into the cache must not start git's detached background maintenance
   # (from git 2.54), which keeps writing into the cache after the command returns.
   @no_maintenance ["-c", "maintenance.auto=false", "-c", "gc.auto=0"]
+  @public_main "refs/remotes/public/main"
   @sources %{
     signer: "https://github.com/baselabs/charter_agreement_signer_typescript.git",
     verifier: "https://github.com/baselabs/charter_agreement_protocol_typescript.git"
@@ -59,9 +60,10 @@ defmodule CharterAgreementSigner.TypeScriptSources do
 
   def current!(kind) do
     %{"commit" => commit} = pin!(kind)
+    target = Path.join(@root, path(kind))
 
-    unless File.dir?(Path.join(@root, path(kind))) and
-             File.read(Path.join(@root, stamp_path(kind))) == {:ok, commit} do
+    unless File.read(Path.join(@root, stamp_path(kind))) == {:ok, commit} and
+             pinned_checkout?(target, commit) do
       raise(
         "typescript source: #{path(kind)} is not built from the pin; run mix typescript.sources"
       )
@@ -80,30 +82,36 @@ defmodule CharterAgreementSigner.TypeScriptSources do
 
   defp materialize!(kind, cached?) do
     %{"repository" => repository, "commit" => commit} = pin!(kind)
-    cache = Path.join(@root, path(kind) <> ".git")
-    ensure_cache!(cache)
+    target = Path.join(@root, path(kind))
+    cache = target <> ".git"
+    staging = target <> ".staging"
+    File.mkdir_p!(Path.dirname(staging))
+    # Reserve the staging path before checking the previous stamp or replacing the checkout.
+    File.mkdir!(staging)
 
-    unless cached? do
-      git!(cache, [
-        "fetch",
-        "--quiet",
-        "--no-tags",
-        repository,
-        "+refs/heads/main:refs/remotes/public/main"
-      ])
+    try do
+      ensure_cache!(cache)
+
+      unless cached? do
+        git!(
+          ["fetch", "--quiet", "--no-tags", repository, "+refs/heads/main:#{@public_main}"],
+          ["--git-dir", cache]
+        )
+      end
+
+      object_present!(cache, commit)
+      reachable!(cache, commit, @public_main, "the pin is not on #{repository} main")
+      forward_only!(kind, cache, commit)
+      checkout!(target, staging, cache, commit)
+    after
+      File.rm_rf!(staging)
     end
 
-    object_present!(cache, commit)
-
-    reachable!(cache, commit, "refs/remotes/public/main", "the pin is not on #{repository} main")
-    forward_only!(kind, cache, commit)
-    extract!(kind, cache, commit)
     IO.puts("typescript source: #{commit} materialized at #{path(kind)}")
   end
 
   defp ensure_cache!(cache) do
     unless File.dir?(cache) do
-      File.mkdir_p!(Path.dirname(cache))
       {_out, 0} = System.cmd("git", ["init", "--quiet", "--bare", cache])
     end
   end
@@ -216,39 +224,37 @@ defmodule CharterAgreementSigner.TypeScriptSources do
     end
   end
 
-  defp extract!(kind, cache, commit) do
-    staging = Path.join(@root, "#{path(kind)}.staging-#{System.unique_integer([:positive])}")
-    archive = staging <> ".tar"
-    File.mkdir_p!(staging)
+  defp checkout!(target, staging, cache, commit) do
+    checkout = Path.join(staging, "checkout")
+    stamp = Path.join(staging, "commit")
 
-    try do
-      git!(cache, ["archive", "--format=tar", "--output", archive, commit])
+    # Keep Git metadata inside the checkout so retirement leaves no cache registration.
+    git!(["clone", "--quiet", "--local", "--no-checkout", "--template=", cache, checkout])
 
-      {stamp, 0} =
-        System.cmd("bash", [
-          "-euo",
-          "pipefail",
-          "-c",
-          "git get-tar-commit-id < \"$1\"",
-          "bash",
-          archive
-        ])
+    git!(
+      ["checkout", "--quiet", "--detach", commit],
+      ["-C", checkout, "-c", "core.autocrlf=false", "-c", "core.hooksPath=/dev/null"]
+    )
 
-      if String.trim(stamp) != commit,
-        do: raise("typescript source: archive commit id differs from the pin")
+    unless pinned_checkout?(checkout, commit),
+      do: raise("typescript source: checkout HEAD differs from the detached pin")
 
-      {_out, 0} = System.cmd("tar", ["-x", "-f", archive, "-C", staging])
-      blobs_match!(cache, commit, staging)
-      File.rm(Path.join(@root, stamp_path(kind)))
-      swap_in!(kind, staging)
-      File.write!(Path.join(@root, stamp_path(kind)), commit)
-    after
-      File.rm(archive)
-      File.rm_rf(staging)
-    end
+    blobs_match!(cache, commit, checkout)
+    File.write!(stamp, commit)
+    swap_in!(target, checkout, stamp)
   end
 
-  defp blobs_match!(cache, commit, staging) do
+  defp pinned_checkout?(checkout, commit) do
+    git_dir = Path.join(checkout, ".git")
+    prefix = ["--git-dir", git_dir, "rev-parse"]
+    opts = [stderr_to_stdout: true]
+
+    File.dir?(git_dir) and
+      System.cmd("git", prefix ++ ["--verify", "HEAD"], opts) == {commit <> "\n", 0} and
+      System.cmd("git", prefix ++ ["--abbrev-ref", "HEAD"], opts) == {"HEAD\n", 0}
+  end
+
+  defp blobs_match!(cache, commit, checkout) do
     {listing, 0} = System.cmd("git", ["--git-dir", cache, "ls-tree", "-r", "-z", commit])
 
     expected =
@@ -260,35 +266,56 @@ defmodule CharterAgreementSigner.TypeScriptSources do
         {path, blob}
       end)
 
-    extracted =
-      staging
-      |> Path.join("**")
-      |> Path.wildcard(match_dot: true)
-      |> Enum.reject(&File.dir?/1)
-      |> Enum.map(&Path.relative_to(&1, staging))
-      |> MapSet.new()
+    files = checkout_files!(checkout, File.ls!(checkout) -- [".git"])
 
-    if extracted != MapSet.new(Map.keys(expected)),
-      do: raise("typescript source: extracted file set differs from the pinned tree")
+    if MapSet.new(files, &Path.relative_to(&1, checkout)) != MapSet.new(Map.keys(expected)),
+      do: raise("typescript source: checkout file set differs from the pinned tree")
 
     Enum.each(expected, fn {path, blob} ->
-      {actual, 0} = System.cmd("git", ["hash-object", "--no-filters", Path.join(staging, path)])
+      {actual, 0} = System.cmd("git", ["hash-object", "--no-filters", Path.join(checkout, path)])
 
       if String.trim(actual) != blob,
         do: raise("typescript source: #{path} does not match its pinned blob")
     end)
   end
 
-  defp swap_in!(kind, staging) do
-    target = Path.join(@root, path(kind))
-    retired = "#{target}.retired-#{System.unique_integer([:positive])}"
-    if File.exists?(target), do: File.rename!(target, retired)
-    File.rename!(staging, target)
-    File.rm_rf!(retired)
+  defp checkout_files!(directory, entries) do
+    Enum.flat_map(entries, fn entry ->
+      path = Path.join(directory, entry)
+
+      case File.lstat!(path).type do
+        :directory -> checkout_files!(path, File.ls!(path))
+        :regular -> [path]
+        _other -> raise("typescript source: unexpected file type at #{path}")
+      end
+    end)
   end
 
-  defp git!(cache, args) do
-    case System.cmd("git", @no_maintenance ++ ["--git-dir", cache | args], stderr_to_stdout: true) do
+  defp swap_in!(target, checkout, stamp) do
+    retired = checkout <> ".retired"
+    stamp_path = target <> ".commit"
+    if File.exists?(target), do: File.rename!(target, retired)
+
+    try do
+      File.rename!(checkout, target)
+
+      case File.rename(stamp, stamp_path) do
+        :ok ->
+          :ok
+
+        {:error, reason} ->
+          File.rename!(target, checkout)
+          raise File.Error, reason: reason, action: "install commit stamp", path: stamp_path
+      end
+    rescue
+      error in File.Error ->
+        if File.exists?(retired), do: File.rename!(retired, target)
+        reraise error, __STACKTRACE__
+    end
+  end
+
+  defp git!(args, prefix \\ []) do
+    case System.cmd("git", @no_maintenance ++ prefix ++ args, stderr_to_stdout: true) do
       {_out, 0} -> :ok
       {out, status} -> raise("typescript source: git #{hd(args)} failed (#{status})\n#{out}")
     end

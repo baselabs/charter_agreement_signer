@@ -140,12 +140,13 @@ The TypeScript repositories and full commit hashes are in
 [`priv/verifier-source.json`](https://github.com/baselabs/charter_agreement_signer/blob/master/priv/verifier-source.json).
 `MIX_ENV=test mix typescript.sources` fetches public `main`, refuses a pin
 outside that branch, refuses a newest pin change that moves backward on the
-first-parent history (so it needs a full git clone), and extracts both
-source trees under `_build/`. `mix typescript.sources --cached` uses the
-last fetched public refs without a network fetch; it still checks
-reachability and forward movement. `mix typescript.sources --check` checks
-the stamps. `mix typescript.check` requires current stamps and builds both
-sources. It runs the pinned verifier's typecheck and test suite, then installs that
+first-parent history (so it needs a full git clone), and installs detached Git
+checkouts under `_build/` after verifying their files against the pinned blobs.
+`mix typescript.sources --cached` uses the last fetched public refs without a
+network fetch and still checks reachability and forward movement.
+`mix typescript.sources --check` checks the stamps and detached HEADs.
+`mix typescript.check` requires both, then builds the pinned sources. It runs
+the pinned verifier's typecheck and test suite, then installs that
 local verifier build into the signer checkout. Other npm dependencies come
 from the committed lockfile. It runs the signer's own tests and requires
 at least 377 tests, as recorded in the pin's `minimum_tests`, all passing. It then requires

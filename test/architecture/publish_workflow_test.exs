@@ -36,12 +36,13 @@ defmodule PublishWorkflowTest do
       end
     end
 
-    for relative <- ["scripts/verifier_source.exs", "scripts/typescript_sources.exs"],
-        path = Path.join(@root, relative),
-        File.exists?(path) do
-      script = File.read!(path)
-      refute script =~ ~s|System.cmd("sh"|, path
-      assert script =~ ~r/System\.cmd\("bash",\s*\[\s*"-euo",\s*"pipefail",\s*"-c"/, path
+    verifier_source = Path.join(@root, "scripts/verifier_source.exs")
+
+    if File.exists?(verifier_source) do
+      script = File.read!(verifier_source)
+      refute script =~ ~s|System.cmd("sh"|, verifier_source
+      strict_bash = ~r/System\.cmd\("bash",\s*\[\s*"-euo",\s*"pipefail",\s*"-c"/
+      assert script =~ strict_bash, verifier_source
     end
 
     for path <- Path.wildcard(Path.join(@root, "scripts/*.sh")) do
@@ -49,6 +50,14 @@ defmodule PublishWorkflowTest do
       assert String.starts_with?(script, "#!/usr/bin/env bash\n"), path
       assert script =~ ~r/^set -euo pipefail$/m, path
     end
+  end
+
+  test "TypeScript source materialization drives Git without a shell or tar" do
+    path = Path.join(@root, "scripts/typescript_sources.exs")
+    script = File.read!(path)
+
+    assert script =~ ~s|System.cmd("git"|
+    refute script =~ ~r/System\.cmd\(\s*"(?:sh|bash|tar)"/
   end
 
   test "qualification requires workflow syntax and secret scanning" do
