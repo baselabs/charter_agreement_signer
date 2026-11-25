@@ -23,8 +23,9 @@ malformed. Only descriptor signing accepts `:predecessor`.
 
 The snapshot check validates only its shape. CAP validates key shape for
 the selected algorithm and checks the holder's own descriptor membership.
-A bare-revision receipt skips membership because a revision does not name
-its signing key; key shape and runtime support still apply.
+A receipt against a bare legacy revision skips membership. Key shape and
+runtime support still apply. Preparing against a bare revision-8 charter
+returns `{:refused, :signing_refused}`.
 
 Every preparation refusal occurs before `sign/2`. Limits cover the whole
 set read, including counterparties' artifacts, and the final compact.

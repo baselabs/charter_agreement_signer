@@ -108,7 +108,7 @@ identity absent from that history returns
 request. After successful preparation, a different handle snapshot returns
 the same refusal and leaves the signing callback uncalled.
 
-A bare revision does not name a signing key. For bare-revision receipts,
-CAP checks key shape and runtime support during preparation, then the
-signer compares the declared identity to the handle snapshot before
-signing.
+For receipts against a bare legacy revision, CAP checks key shape and runtime
+support during preparation. The signer then compares the declared identity
+to the handle snapshot before signing. Revision 8 requires verified chain
+context for receipt signing.

@@ -115,8 +115,9 @@ defmodule CharterAgreementSigner do
 
   Context is `CAP.ChainFacts.t()` or a decoded `CAP.CharterRevision.t()`.
   CAP re-verifies the context before signing. Chain context checks the
-  snapshot against the issuing party's active descriptor keys; a bare
-  revision cannot name a signing key and skips membership checking.
+  snapshot against the issuing party's active descriptor keys. A bare legacy
+  revision skips membership checking because it names no signing key. A bare
+  revision-8 charter returns `{:refused, :signing_refused}`.
 
   Options: `:algorithm`, `:limits`, `:profile`, as in `sign_descriptor/3`.
   The profile applies to the receipt and every context artifact; limits

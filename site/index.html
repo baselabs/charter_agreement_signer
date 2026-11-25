@@ -53,7 +53,7 @@
     <div class="flow" aria-label="The signing flow">
       <div class="actor issuer"><svg class="ic"><use href="#i-seal"/></svg><span>Party</span><small>sign_descriptor/3</small></div>
       <div class="artifact"><svg class="ic"><use href="#i-doc"/></svg><span>charter</span></div>
-      <div class="actor holder"><svg class="ic"><use href="#i-person"/></svg><span>Both parties</span><small>sign_acceptance/4</small></div>
+      <div class="actor holder"><svg class="ic"><use href="#i-person"/></svg><span>Charter parties</span><small>sign_acceptance/4</small></div>
       <div class="artifact"><svg class="ic"><use href="#i-doc"/></svg><span>receipt</span></div>
       <div class="actor verifier"><svg class="ic"><use href="#i-shield"/></svg><span>CAP</span><small>verify_chain</small></div>
     </div>
@@ -69,7 +69,7 @@
   <div class="lifecycle">
 <a class="lstep" href="https://baselabs.github.io/agent_blueprint_protocol/"><span class="lmark"><i>[</i>ABP<i>]</i></span><div><b>Define the agent</b><small>Blueprint Core + Deployment Manifest: identity, bounds that only narrow, evidence commitments, pinned to one release digest</small></div></a>
     <div class="larrow">→</div>
-<span class="lstep now"><span class="lmark"><i>[</i>CAP<i>]</i></span><div><b>Agree the terms</b><small>Charter revisions bind ABP release digests (abp_bindings); every receipt records the action’s deployment digest, signed by both parties</small></div></span>
+<span class="lstep now"><span class="lmark"><i>[</i>CAP<i>]</i></span><div><b>Agree the terms</b><small>Charter revisions bind ABP release digests (abp_bindings); parties sign acceptances under the charter’s rules, and the issuing party signs each receipt with the action’s deployment digest</small></div></span>
     <div class="larrow">→</div>
 <a class="lstep" href="https://baselabs.github.io/bounded_authority_protocol/"><span class="lmark"><i>[</i>BAP<i>]</i></span><div><b>Authorize each request</b><small>Issuer-signed proofs govern each request</small></div></a>
   </div>
@@ -77,14 +77,15 @@
 
 <section id="surface" class="wrap">
   <div class="sec-head"><h2>The signing surface</h2>
-  <p>Four entry points share one tail. Every path ends in a post-sign verification against
+  <p>Each signing function runs post-sign verification against
   the protocol package before the artifact leaves.</p></div>
   <table class="signers">
     <thead><tr><th>Function</th><th>Artifact</th><th>Post-sign verify</th></tr></thead>
     <tbody>
       <tr><td><code>sign_descriptor/3</code></td><td>party descriptor (<code>cap+party</code>): key history, transitions, fork evidence</td><td><code>CAP.verify_descriptor/4</code></td></tr>
-      <tr><td><code>sign_acceptance/4</code></td><td>acceptance (<code>cap+acceptance</code>): bilateral assent to exact bytes</td><td><code>CAP.verify_acceptance/5</code></td></tr>
-      <tr><td><code>sign_termination/4</code></td><td>termination notice (<code>cap+termination</code>): closure at a pure UTC instant</td><td><code>CAP.verify_termination/5</code></td></tr>
+      <tr><td><code>sign_acceptance/4</code></td><td>acceptance (<code>cap+acceptance</code>): one party’s assent to exact bytes</td><td><code>CAP.verify_acceptance/5</code></td></tr>
+      <tr><td><code>sign_party_replacement/4</code></td><td>acceptance (<code>cap+acceptance</code>): a departing party’s assent to a declared replacement</td><td><code>CAP.verify_acceptance/5</code></td></tr>
+      <tr><td><code>sign_termination/4</code></td><td>termination notice (<code>cap+termination</code>): one party’s notice for a stated UTC instant</td><td><code>CAP.verify_termination/5</code></td></tr>
       <tr><td><code>sign_receipt/4</code></td><td>effect receipt (<code>cap+receipt</code>): an action bound to revision coordinates</td><td><code>CAP.verify_receipt/4</code></td></tr>
     </tbody>
   </table>
