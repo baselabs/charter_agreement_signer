@@ -5,7 +5,7 @@ defmodule HexReleaseState do
   @compile {:no_warn_undefined, [Hex.API.Client, :mix_hex_api_release]}
 
   @pending "held for approval or not yet served: after the owner approves, dispatch publish.yml again on this same commit; it uploads only what is missing; publication refused"
-  @usage "usage: hex_release_state.exs (--plan | --served --commit SHA --clone REPOSITORY --docs-output PATH) [--organization ORG] NAME VERSION PACKAGE_TAR; publication refused"
+  @usage "usage: hex_release_state.exs (--plan | --served --commit SHA --clone REPOSITORY --docs-output PATH [--docs-state STATE]) [--organization ORG] NAME VERSION PACKAGE_TAR; publication refused"
 
   def main(argv) do
     if Mix.Project.get() do
@@ -20,21 +20,18 @@ defmodule HexReleaseState do
     tar = File.read!(package_tar)
     package = package_state(repo, name, version, tar)
 
-    {docs, archive} =
-      if organization do
-        # The repository credential reads archives only. A missing archive is a
-        # provisional plan; the uploader checks the organization release API.
-        docs_archive(repo, name, version)
-      else
-        checksum = :crypto.hash(:sha256, tar) |> Base.encode16(case: :lower)
-        public_docs(opts, name, version, package, checksum)
-      end
+    release = if organization, do: :upload_step, else: read_public_release(name, version)
+    checksum = :crypto.hash(:sha256, tar) |> Base.encode16(case: :lower)
+    docs = docs_state!(opts, release, package, version, checksum)
 
-    if docs == "served" and package != "served" do
-      refuse("#{name} #{version}: docs served while the package is not")
+    if opts[:served] do
+      unless package == "served" and docs == "served", do: raise(@pending)
+      archive = read_docs_archive!(repo, name, version)
+      commit = readback_docs!(archive, name, version, opts)
+      write_output("package=#{package}\ndocs=#{docs}\ncommit=#{commit}\n")
+    else
+      write_output("package=#{package}\ndocs=#{docs}\n")
     end
-
-    finish(opts, name, version, package, docs, archive)
   end
 
   def parse!(argv) do
@@ -45,7 +42,8 @@ defmodule HexReleaseState do
              organization: [:string, :keep],
              commit: [:string, :keep],
              clone: [:string, :keep],
-             docs_output: [:string, :keep]
+             docs_output: [:string, :keep],
+             docs_state: [:string, :keep]
            ]
          ) do
       {opts, [name, version, package_tar], []} ->
@@ -110,11 +108,17 @@ defmodule HexReleaseState do
 
     case {opts[:plan], opts[:served]} do
       {true, nil} ->
-        if Enum.any?([:commit, :clone, :docs_output], &Keyword.has_key?(opts, &1)) do
+        if Enum.any?([:commit, :clone, :docs_output, :docs_state], &Keyword.has_key?(opts, &1)) do
           raise @usage
         end
 
       {nil, true} ->
+        case {opts[:organization], opts[:docs_state]} do
+          {nil, nil} -> :ok
+          {org, state} when is_binary(org) and state in ["served", "staged"] -> :ok
+          _ -> refuse("--docs-state must carry the private upload step's served or staged result")
+        end
+
         require_commit!(opts[:commit], "--commit")
         require_paths!(opts)
 
@@ -228,60 +232,55 @@ defmodule HexReleaseState do
     "served"
   end
 
-  defp public_docs(opts, name, version, package, checksum) do
-    result =
-      read(fn ->
-        config =
-          Hex.API.Client.build_config(nil, [])
-          |> Map.update!(:http_headers, &Map.put(&1, "cache-control", "no-cache"))
+  defp read_public_release(name, version) do
+    read(fn ->
+      config =
+        Hex.API.Client.build_config(nil, [])
+        |> Map.update!(:http_headers, &Map.put(&1, "cache-control", "no-cache"))
 
-        :mix_hex_api_release.get(config, name, version)
-      end)
+      :mix_hex_api_release.get(config, name, version)
+    end)
+  end
 
-    docs = public_docs_state!(result, package, version, checksum)
-
-    if opts[:served] && docs == "served" do
-      case docs_archive("hexpm", name, version) do
-        {"served", archive} -> {docs, archive}
-        {"upload", nil} -> refuse("Hex reports served docs but the docs archive is unavailable")
-      end
-    else
-      {docs, nil}
+  def docs_state!(opts, :upload_step, package, _version, _checksum) do
+    case {opts[:plan], opts[:docs_state], package} do
+      {true, nil, _} -> "check"
+      {nil, "served", "served"} -> "served"
+      _ -> raise @pending
     end
   end
 
-  def public_docs_state!({:ok, {404, _headers, _body}}, "upload", _version, _checksum),
+  def docs_state!(opts, release, package, version, checksum) do
+    if opts[:organization], do: raise(@pending)
+    public_docs_state!(release, package, version, checksum)
+  end
+
+  defp public_docs_state!({:ok, {404, _headers, _body}}, "upload", _version, _checksum),
     do: "upload"
 
-  def public_docs_state!(
-        {:ok,
-         {200, _headers,
-          %{
-            "version" => version,
-            "checksum" => checksum,
-            "retirement" => nil,
-            "has_docs" => has_docs
-          }}},
-        "served",
-        version,
-        checksum
-      )
-      when is_boolean(has_docs),
-      do: if(has_docs, do: "served", else: "upload")
+  defp public_docs_state!(
+         {:ok,
+          {200, _headers,
+           %{
+             "version" => version,
+             "checksum" => checksum,
+             "retirement" => nil,
+             "has_docs" => has_docs
+           }}},
+         "served",
+         version,
+         checksum
+       )
+       when is_boolean(has_docs),
+       do: if(has_docs, do: "served", else: "upload")
 
-  def public_docs_state!(_result, _package, _version, _checksum),
+  defp public_docs_state!(_result, _package, _version, _checksum),
     do: refuse("Hex release API did not confirm the registry package and its docs state")
 
-  defp docs_archive(repo, name, version) do
+  defp read_docs_archive!(repo, name, version) do
     case read(fn -> Hex.Repo.get_docs(repo, name, version) end) do
-      {:ok, {200, _headers, body}} ->
-        {"served", body}
-
-      {:ok, {404, _headers, _body}} ->
-        {"upload", nil}
-
-      result ->
-        refuse_read(result, "#{repo} docs #{name} #{version}")
+      {:ok, {200, _headers, archive}} when is_binary(archive) -> archive
+      result -> refuse_read(result, "#{repo} docs #{name} #{version}")
     end
   end
 
@@ -299,18 +298,7 @@ defmodule HexReleaseState do
 
   defp refuse_read(_result, label), do: refuse("#{label}: registry read failed")
 
-  defp finish(opts, name, version, package, docs, archive) do
-    output = "package=#{package}\ndocs=#{docs}\n"
-
-    output =
-      if opts[:plan] do
-        output
-      else
-        unless package == "served" and docs == "served", do: raise(@pending)
-        commit = readback_docs!(archive, name, version, opts)
-        output <> "commit=#{commit}\n"
-      end
-
+  defp write_output(output) do
     File.write!(System.fetch_env!("GITHUB_OUTPUT"), output, [:append])
     IO.write(output)
   end

@@ -37,8 +37,12 @@ A feature-branch push or version tag starts no qualification or publication.
    compared: docs the registry already serves for this version are kept. Only the
    keyed step receives the publication key. That step only uploads the two
    verified archives, package first, using `mix run --no-mix-exs` from
-   `release-assets/`, where no `mix.exs` exists and no project is loaded. It
-   uploads only what is missing and never replaces a package or served docs.
+   `release-assets/`, where no `mix.exs` exists and no project is loaded. The
+   uploader re-reads the served state immediately before each docs POST. For a
+   staged package, it first checks the stage checksum and then confirms the
+   release is still unpublished. A second publisher or an approval between the
+   final read and the POST is the residual race, controlled by custody of the
+   publication key.
 7. If either upload is held for approval, the owner approves it and the release operator
    dispatches `publish.yml` again on the same commit. It compares the rebuilt
    package with the served package and uploads only what is missing. Read-back

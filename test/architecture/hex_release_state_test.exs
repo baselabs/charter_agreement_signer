@@ -37,7 +37,8 @@ defmodule HexReleaseStateTest do
     checksum = String.duplicate("a", 64)
     release = %{"version" => @version, "checksum" => checksum, "retirement" => nil}
 
-    assert HexReleaseState.public_docs_state!(
+    assert HexReleaseState.docs_state!(
+             [plan: true],
              {:ok, {404, %{}, nil}},
              "upload",
              @version,
@@ -47,7 +48,9 @@ defmodule HexReleaseStateTest do
 
     for {has_docs, expected} <- [{false, "upload"}, {true, "served"}] do
       result = {:ok, {200, %{}, Map.put(release, "has_docs", has_docs)}}
-      assert HexReleaseState.public_docs_state!(result, "served", @version, checksum) == expected
+
+      assert HexReleaseState.docs_state!([plan: true], result, "served", @version, checksum) ==
+               expected
     end
 
     served = Map.put(release, "has_docs", false)
@@ -59,9 +62,50 @@ defmodule HexReleaseStateTest do
           {{:ok, {200, %{}, served}}, "upload"}
         ] do
       assert_raise RuntimeError, ~r/publication refused/, fn ->
-        HexReleaseState.public_docs_state!(result, package, @version, checksum)
+        HexReleaseState.docs_state!([plan: true], result, package, @version, checksum)
       end
     end
+  end
+
+  test "private planning delegates docs state to the upload step" do
+    script = File.read!(Path.expand("../../scripts/hex_release_state.ex", __DIR__))
+    assert script =~ "docs = docs_state!(opts, release, package, version, checksum)"
+    opts = [organization: "example", plan: true]
+    archive_response = {:ok, {200, %{}, "stale archive bytes"}}
+
+    for package <- ["served", "upload"] do
+      assert HexReleaseState.docs_state!(opts, :upload_step, package, @version, nil) == "check"
+
+      assert_raise RuntimeError, ~r/held for approval or not yet served/, fn ->
+        HexReleaseState.docs_state!(
+          [organization: "example", served: true, docs_state: "staged"],
+          archive_response,
+          package,
+          @version,
+          nil
+        )
+      end
+    end
+
+    opts = [organization: "example", served: true, docs_state: "served"]
+    assert HexReleaseState.docs_state!(opts, :upload_step, "served", @version, nil) == "served"
+
+    assert_raise RuntimeError, ~r/held for approval or not yet served/, fn ->
+      HexReleaseState.docs_state!(opts, :upload_step, "upload", @version, nil)
+    end
+  end
+
+  test "the private read-back CLI requires the upload result", context do
+    args = served_args(context) ++ ["--organization", "example"]
+
+    assert_raise RuntimeError, ~r/--docs-state/, fn ->
+      HexReleaseState.parse!(args)
+    end
+
+    assert {opts, @package, @version, "package.tar"} =
+             HexReleaseState.parse!(args ++ ["--docs-state", "served"])
+
+    assert opts[:docs_state] == "served"
   end
 
   test "served requires a full commit, repository clone and output file", context do
