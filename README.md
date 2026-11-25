@@ -77,9 +77,13 @@ revision-1/2 artifacts keep verifying (cross-revision composition). See
 
 ## Descriptor rotation
 
-With a CAP verifier that supports revision 8, use `sign_descriptor/3` with
-`"protocol_revision" => 8` for a committed descriptor or its successor. Compute
-the successor's complete active key commitment with CAP's `descriptor_next_key_commitment/2`
+Committed rotation requires CAP 1.1.0 or later with revision 8 support and a
+CAS release that declares a dependency on a compatible CAP version. Published
+CAS 1.0.0 declares CAP `~> 1.0.0`, which excludes CAP 1.1.0.
+
+With compatible releases, use `sign_descriptor/3` with `"protocol_revision" => 8`
+for a committed descriptor or its successor. Compute the successor's complete
+active key commitment with CAP's `descriptor_next_key_commitment/2`
 and put it in the current descriptor's `next_key_commitment` field. To sign
 the successor, supply the current descriptor's verified facts in
 `:predecessor` and use a handle for one of its active signing keys.

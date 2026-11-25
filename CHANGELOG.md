@@ -8,8 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
-- Document committed descriptor rotation through the existing signing operation
-  when used with a CAP verifier that admits revision 8.
+- Document committed descriptor rotation through the existing signing operation.
+  It requires CAP 1.1.0 or later with revision 8 support and a CAS release that
+  declares a dependency on a compatible CAP version. Published CAS 1.0.0
+  declares CAP `~> 1.0.0`, which excludes CAP 1.1.0.
 
 - Accept an optional declared public key identity. Reject an unauthorized
   identity before either handle callback and check the snapshot before

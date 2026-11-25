@@ -46,14 +46,22 @@ defmodule CharterAgreementSigner.DocumentationTest do
     on_exit(fn -> File.rm_rf!(work) end)
     cap = Mix.Project.deps_paths()[:charter_agreement_protocol]
 
+    versions = [
+      charter_agreement_protocol: protocol_version!(),
+      charter_agreement_signer: Mix.Project.config()[:version]
+    ]
+
     setup = """
     Mix.install([
       {:charter_agreement_protocol, path: #{inspect(cap)}, override: true},
       {:charter_agreement_signer, path: #{inspect(@root)}}
     ])
-    for app <- [:charter_agreement_protocol, :charter_agreement_signer] do
-      unless to_string(Application.spec(app, :vsn)) == "1.0.0",
-        do: raise("documentation dependency version drift")
+    for {app, expected} <- #{inspect(versions)} do
+      actual = to_string(Application.spec(app, :vsn))
+
+      unless actual == expected do
+        raise("documentation dependency version drift for \#{app}: expected \#{expected}, got \#{actual}")
+      end
     end
     """
 
@@ -76,6 +84,23 @@ defmodule CharterAgreementSigner.DocumentationTest do
     assert status == 0, output
     refute output =~ "warning:", output
     output
+  end
+
+  defp protocol_version! do
+    dependency =
+      Enum.find(Mix.Project.config()[:deps], &(elem(&1, 0) == :charter_agreement_protocol))
+
+    case dependency do
+      {:charter_agreement_protocol, "== " <> version, opts} ->
+        assert Keyword.has_key?(opts, :path)
+        version
+
+      {:charter_agreement_protocol, _requirement} ->
+        {:hex, :charter_agreement_protocol, version, _, _, _, _, _} =
+          Mix.Dep.Lock.read()[:charter_agreement_protocol]
+
+        version
+    end
   end
 
   defp cells(source) do
