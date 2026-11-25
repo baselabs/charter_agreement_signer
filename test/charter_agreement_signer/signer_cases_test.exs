@@ -17,6 +17,10 @@ defmodule CharterAgreementSigner.SignerCasesTest do
     signing-assignment-incoming-party
     signing-assignment-marker-required
     signing-assignment-marker-unexpected
+    signing-quorum-legacy-hop-without-predecessor
+    signing-mldsa65-quorum-acceptance
+    signing-mldsa65-quorum-termination
+    signing-mldsa65-assignment-assignor
     ed-descriptor-ok
     ed-acceptance-ok
     ed-termination-ok
@@ -146,7 +150,7 @@ defmodule CharterAgreementSigner.SignerCasesTest do
 
   test "the table retains every required case and unique ids" do
     rows = @table["cases"]
-    assert length(rows) == 133
+    assert length(rows) == 137
     ids = Enum.map(rows, & &1["id"])
     assert Enum.uniq(ids) == ids
     for id <- @required_ids, do: assert(id in ids, "missing required case: #{id}")
