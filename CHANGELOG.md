@@ -11,6 +11,8 @@ and this project adheres to
 - Qualify the Hex package and documentation in CI and publish those exact
   archives through the shared release action. Reuse the qualification run
   when retrying publication.
+- Sign revision-8 quorum acceptances and termination notices, and sign the
+  departing party's assignment acceptance with `sign_party_replacement/4`.
 
 - Document committed descriptor rotation through the existing signing operation.
   It requires CAP 1.1.0 or later with revision 8 support and a CAS release that

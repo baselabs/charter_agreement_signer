@@ -9,6 +9,14 @@ defmodule CharterAgreementSigner.SignerCasesTest do
          |> JSON.decode!()
 
   @required_ids ~w(
+    signing-quorum-predecessor-role
+    signing-quorum-unaccepted-predecessor
+    signing-quorum-ineligible-termination-role
+    signing-quorum-termination-second-role
+    signing-assignment-departing-party
+    signing-assignment-incoming-party
+    signing-assignment-marker-required
+    signing-assignment-marker-unexpected
     ed-descriptor-ok
     ed-acceptance-ok
     ed-termination-ok
@@ -138,7 +146,7 @@ defmodule CharterAgreementSigner.SignerCasesTest do
 
   test "the table retains every required case and unique ids" do
     rows = @table["cases"]
-    assert length(rows) == 125
+    assert length(rows) == 133
     ids = Enum.map(rows, & &1["id"])
     assert Enum.uniq(ids) == ids
     for id <- @required_ids, do: assert(id in ids, "missing required case: #{id}")
@@ -231,7 +239,7 @@ defmodule CharterAgreementSigner.SignerCasesTest do
 
       if expected["shape"] == "ok" do
         {:ok, result} = result
-        result_key = String.to_existing_atom(row["kind"])
+        result_key = result_key(row["kind"])
         assert Map.keys(result) == [result_key]
         compact = Map.fetch!(result, result_key)
 
@@ -341,8 +349,14 @@ defmodule CharterAgreementSigner.SignerCasesTest do
   defp sign("acceptance", claims, handle, context, options),
     do: CharterAgreementSigner.sign_acceptance(claims, handle, context, options)
 
+  defp sign("party_replacement", claims, handle, context, options),
+    do: CharterAgreementSigner.sign_party_replacement(claims, handle, context, options)
+
   defp sign("termination", claims, handle, context, options),
     do: CharterAgreementSigner.sign_termination(claims, handle, context, options)
+
+  defp result_key("party_replacement"), do: :acceptance
+  defp result_key(kind), do: String.to_existing_atom(kind)
 
   defp outcome({:ok, _result}), do: %{"shape" => "ok", "code" => nil}
 
@@ -358,7 +372,7 @@ defmodule CharterAgreementSigner.SignerCasesTest do
   defp verify("receipt", compact, context),
     do: CAP.verify_receipt(compact, context, Limits.default())
 
-  defp verify("acceptance", compact, set) do
+  defp verify(kind, compact, set) when kind in ["acceptance", "party_replacement"] do
     acceptances =
       if compact in set.acceptances, do: set.acceptances, else: set.acceptances ++ [compact]
 

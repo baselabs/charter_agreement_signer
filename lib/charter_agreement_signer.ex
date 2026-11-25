@@ -156,6 +156,21 @@ defmodule CharterAgreementSigner do
   end
 
   @doc """
+  Sign the departing party's acceptance of a proposed assignment.
+
+  The claims carry protocol revision 8 and a `replacement_role` matching
+  the departing party's role. The assignee and the remaining parties sign
+  separately with `sign_acceptance/4`. Each call signs once.
+  """
+  @spec sign_party_replacement(map(), key_handle(), ArtifactSet.t(), opts()) ::
+          {:ok, %{acceptance: binary()}} | {:error, sign_error()}
+  def sign_party_replacement(claims, key_handle, set, opts \\ %{}) do
+    Telemetry.sign_span(:acceptance, fn ->
+      sign_common(:party_replacement, claims, key_handle, set, opts)
+    end)
+  end
+
+  @doc """
   Sign a Termination Notice and return `{:ok, %{termination: compact}}`.
 
   CAP verifies `set`, applies its refusals at the notice's `effective_at`,
@@ -231,7 +246,7 @@ defmodule CharterAgreementSigner do
   defp known_options(_kind), do: @signing_options
   defp result_key(:party_descriptor), do: :descriptor
   defp result_key(:receipt), do: :receipt
-  defp result_key(:acceptance), do: :acceptance
+  defp result_key(kind) when kind in [:acceptance, :party_replacement], do: :acceptance
   defp result_key(:termination), do: :termination
 
   defp mapped({:error, %Error{code: code}})
