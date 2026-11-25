@@ -33,6 +33,7 @@ the same shared tail:
 |---|---|---|
 | `sign_descriptor/3` | party descriptor (`typ cap+party`) | `CAP.verify_descriptor/4` |
 | `sign_acceptance/4` | acceptance (`cap+acceptance`) | `CAP.verify_acceptance/5` |
+| `sign_party_replacement/4` | departing party's marked acceptance (`cap+acceptance`) | `CAP.verify_acceptance/5` |
 | `sign_termination/4` | termination notice (`cap+termination`) | `CAP.verify_termination/5` |
 | `sign_receipt/4` | effect receipt (`cap+receipt`) | `CAP.verify_receipt/4` |
 
@@ -51,7 +52,7 @@ A signature from another key returns `:signing_failed`. CAP's finish step
 assembles under the caller's limits and runs the matching public verifier
 with CAP's retained context and profile before a success returns.
 
-All four functions accept `:algorithm`, `:limits` and `:profile` in a map
+All five functions accept `:algorithm`, `:limits` and `:profile` in a map
 or keyword list. Only descriptors accept `:predecessor`. A successor must
 supply verified predecessor facts. For acceptance and termination, the caller's profile covers the revision,
 the signing party's own descriptor chain and the new artifact. CAP checks
@@ -104,7 +105,7 @@ compiles only in the test environment and never ships.
 
 ## Telemetry
 
-The four signing entry points emit a closed, value-free two-event surface,
+The five signing entry points emit a closed, value-free two-event surface,
 `[:charter_agreement_signer, :sign, :start|:stop]`, whose class axis mirrors
 the error vocabulary exactly (a refusal is `:refused`, a post-sign verify
 failure is `:verification_failed`; neither ever wears the `:signing_failed`

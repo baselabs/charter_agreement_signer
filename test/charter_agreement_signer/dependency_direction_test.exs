@@ -120,7 +120,11 @@ defmodule CharterAgreementSigner.DependencyDirectionTest do
     readme = File.read!(Path.join(@repo_root, "README.md"))
     usage_rules = File.read!(Path.join(@repo_root, "usage-rules.md"))
 
-    for function <- ["sign_descriptor", "sign_receipt", "sign_acceptance", "sign_termination"] do
+    functions = ~w(
+      sign_descriptor sign_receipt sign_acceptance sign_party_replacement sign_termination
+    )
+
+    for function <- functions do
       assert readme =~ function, "README.md does not document #{function}/"
       assert usage_rules =~ function, "usage-rules.md does not name #{function}/"
     end

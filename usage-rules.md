@@ -17,8 +17,8 @@ enforces most of them structurally, and the rest are posture.
    `verification_keys` before signing.
 
 3. **The claims carry no private key material.** `sign_descriptor/3`,
-   `sign_acceptance/4`, `sign_termination/4`, and `sign_receipt/4` take
-   claims; descriptor claims include public verification keys. The protected
+   `sign_acceptance/4`, `sign_party_replacement/4`, `sign_termination/4`,
+   and `sign_receipt/4` take claims; descriptor claims include public verification keys. The protected
    header's `kid` always comes from the handle snapshot, with no independent
    caller-supplied header kid. The raw signature must verify against that
    snapshot key; CAP does not establish the real-world identity of its owner.
@@ -55,8 +55,8 @@ enforces most of them structurally, and the rest are posture.
    Retained revision-1 artifacts keep verifying (cross-revision
    composition); only NEW claims must carry a current pair's revision.
 
-All four entry points accept `:profile` and `:limits`. For acceptance and
-termination, the caller's profile covers the revision, the signing party's
+All five entry points accept `:profile` and `:limits`. For acceptance,
+party replacement, and termination, the caller's profile covers the revision, the signing party's
 own descriptor chain and the new artifact. CAP checks the rest of the set
 under the full profile. A receipt's profile covers the whole retained set;
 a descriptor's covers its predecessor history and new artifact. Limits
@@ -64,3 +64,6 @@ bound the whole set read and final compact.
 CAP checks the holder's own descriptor key before custody; a mismatch is
 `{:refused, :signing_key_mismatch}`. CAP owns context derivation and final
 public verification through `prepare_signing/5` and `finish_signing/2`.
+
+Use `sign_party_replacement/4` for the departing party's marked acceptance.
+The other parties call `sign_acceptance/4` separately.
