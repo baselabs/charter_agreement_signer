@@ -1,6 +1,8 @@
 defmodule CharterAgreementSigner.DocumentationTest do
   use ExUnit.Case, async: false
 
+  alias Mix.Dep.Lock
+
   @moduletag timeout: :timer.minutes(10)
   @root Path.expand("..", __DIR__)
 
@@ -97,7 +99,7 @@ defmodule CharterAgreementSigner.DocumentationTest do
 
       {:charter_agreement_protocol, _requirement} ->
         {:hex, :charter_agreement_protocol, version, _, _, _, _, _} =
-          Mix.Dep.Lock.read()[:charter_agreement_protocol]
+          Lock.read()[:charter_agreement_protocol]
 
         version
     end
