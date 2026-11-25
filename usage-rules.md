@@ -62,7 +62,7 @@ under the full profile. A receipt's profile covers the whole retained set;
 a descriptor's covers its predecessor history and new artifact. Limits
 bound the whole set read and final compact.
 CAP checks the holder's own descriptor key before custody; a mismatch is
-`{:refused, :signing_key_mismatch}`. CAP owns context derivation and final
+`{:error, {:refused, :signing_key_mismatch}}`. CAP owns context derivation and final
 public verification through `prepare_signing/5` and `finish_signing/2`.
 
 Use `sign_party_replacement/4` for the departing party's marked acceptance.

@@ -87,12 +87,13 @@ defmodule CharterAgreementSigner do
 
   * `:algorithm`: `"Ed25519"` (default, including absent or `nil`) or
     `"ML-DSA-65"`. Claims must carry protocol revision 2 or 3 respectively.
-    Any other value gives `{:invalid_input, :algorithm_unsupported}`.
+    Revision 8 also supports both algorithms for descriptors.
+    An unsupported algorithm returns `{:error, {:invalid_input, :algorithm_unsupported}}`.
   * `:limits`: `CAP.Limits.t()`, default `CAP.Limits.default()`. Bounds
     apply to every artifact read and to the final compact.
   * `:profile`: `CAP.Capability.Profile.t()`, default `Profile.full()`.
     Applies to the artifact and predecessor history. A malformed profile
-    gives `{:invalid_input, :invalid_profile}`.
+    returns `{:error, {:invalid_input, :invalid_profile}}`.
   * `:predecessor`: `nil` (genesis default) or `CAP.DescriptorFacts.t()`.
 
   Options resolve in this order: limits, profile, algorithm, then key selection.
@@ -117,12 +118,12 @@ defmodule CharterAgreementSigner do
   CAP re-verifies the context before signing. Chain context checks the
   snapshot against the issuing party's active descriptor keys. A bare legacy
   revision skips membership checking because it names no signing key. A bare
-  revision-8 charter returns `{:refused, :signing_refused}`.
+  revision-8 charter returns `{:error, {:refused, :signing_refused}}`.
 
   Options: `:algorithm`, `:limits`, `:profile`, as in `sign_descriptor/3`.
   The profile applies to the receipt and every context artifact; limits
   bound the whole retained set and the final compact. `:predecessor` is
-  descriptor-only. Invalid profile returns `{:invalid_input, :invalid_profile}`.
+  descriptor-only. Invalid profile returns `{:error, {:invalid_input, :invalid_profile}}`.
   """
   @spec sign_receipt(map(), key_handle(), CAP.ChainFacts.t() | CAP.CharterRevision.t(), opts()) ::
           {:ok, %{receipt: binary()}} | {:error, sign_error()}
@@ -138,15 +139,15 @@ defmodule CharterAgreementSigner do
   `set` is the holder's own artifact view, built with `CAP.build_set/4`.
   CAP verifies it, applies the R1-R3 refusals, derives the signing party's
   descriptor chain and claimed revision, and checks the snapshot key
-  before signing. Contradictory claims give `{:refused, :signing_refused}`;
-  a key mismatch gives `{:refused, :signing_key_mismatch}`.
+  before signing. Contradictory claims return `{:error, {:refused, :signing_refused}}`.
+  A key mismatch returns `{:error, {:refused, :signing_key_mismatch}}`.
 
   Options: `:algorithm`, `:limits`, `:profile`, as in `sign_descriptor/3`.
   Limits bound the whole set read and the final compact. The caller's
   profile covers the revision, the signing party's own descriptor chain and
   the new artifact. CAP checks the rest of the set under the full profile.
   `:predecessor` is descriptor-only. Invalid profile returns
-  `{:invalid_input, :invalid_profile}`.
+  `{:error, {:invalid_input, :invalid_profile}}`.
   """
   @spec sign_acceptance(map(), key_handle(), ArtifactSet.t(), opts()) ::
           {:ok, %{acceptance: binary()}} | {:error, sign_error()}
@@ -161,7 +162,8 @@ defmodule CharterAgreementSigner do
 
   The claims carry protocol revision 8 and a `replacement_role` matching
   the departing party's role. The assignee and the remaining parties sign
-  separately with `sign_acceptance/4`. Each call signs once.
+  separately with `sign_acceptance/4`. Each successful call signs once and
+  returns `{:ok, %{acceptance: compact}}`.
   """
   @spec sign_party_replacement(map(), key_handle(), ArtifactSet.t(), opts()) ::
           {:ok, %{acceptance: binary()}} | {:error, sign_error()}
@@ -177,15 +179,15 @@ defmodule CharterAgreementSigner do
   CAP verifies `set`, applies its refusals at the notice's `effective_at`,
   derives the governing revision and signing party's descriptor chain, and
   checks the snapshot key before signing. Contradictory claims give
-  `{:refused, :signing_refused}`; a key mismatch gives
-  `{:refused, :signing_key_mismatch}`.
+  `{:error, {:refused, :signing_refused}}`. A key mismatch returns
+  `{:error, {:refused, :signing_key_mismatch}}`.
 
   Options: `:algorithm`, `:limits`, `:profile`, as in `sign_descriptor/3`.
   Limits bound the whole set read and the final compact. The caller's
   profile covers the revision, the signing party's own descriptor chain and
   the new artifact. CAP checks the rest of the set under the full profile.
   `:predecessor` is descriptor-only. Invalid profile returns
-  `{:invalid_input, :invalid_profile}`.
+  `{:error, {:invalid_input, :invalid_profile}}`.
   """
   @spec sign_termination(map(), key_handle(), ArtifactSet.t(), opts()) ::
           {:ok, %{termination: binary()}} | {:error, sign_error()}

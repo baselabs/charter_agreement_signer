@@ -40,7 +40,7 @@ library and example. All signing paths use CAP's `prepare_signing/5` and
 `finish_signing/2`.
 
 Calls that used to sign and then return `:verification_failed` now reject
-before custody. Update error matches:
+before custody. Match `{:error, reason}` using the following reasons:
 
 - Snapshot kid or bytes absent from the holder's active descriptor keys:
   `{:refused, :signing_key_mismatch}`.
@@ -73,20 +73,21 @@ set (the two negative-zero encodings) and small-order points with
 `:invalid_key_handle`. Valid mixed-order points remain admitted and can sign.
 
 Malformed fields inside caller-built context consistently return
-`{:invalid_input, :invalid_type}` on every signing surface. Update matches
+`{:error, {:invalid_input, :invalid_type}}` on every signing surface. Update matches
 that expected `:receipt_invalid` or `:descriptor_chain_invalid` for these
 field-type errors. Incomplete limits structs and malformed profile fields,
-including improper algorithm lists, return `{:invalid_input, :invalid_limits}`
-or `{:invalid_input, :invalid_profile}` without raising. CAP owns these
+including improper algorithm lists, return `{:error, {:invalid_input, :invalid_limits}}`
+or `{:error, {:invalid_input, :invalid_profile}}` without raising. CAP owns these
 validation rules.
 
 `:verification_failed` now means CAP finish rejected what preparation
 approved after the custody guard passed. The raw wrong-key guard still
-returns `:signing_failed`.
+returns `{:error, :signing_failed}`.
 
 Add `:profile` to calls that need narrowed verification. It is a
 `CAP.Capability.Profile.t()`, defaulting to `Profile.full()`. Malformed
-profiles return `{:invalid_input, :invalid_profile}`. For acceptance and termination, both axes cover the revision, the signing
+profiles return `{:error, {:invalid_input, :invalid_profile}}`. For acceptance
+and termination, both axes cover the revision, the signing
 party's own descriptor chain and the new artifact. CAP checks the rest of
 the set under the full profile, so a counterparty descriptor outside the
 caller's profile can still sign. The runtime must still verify every
@@ -133,8 +134,8 @@ profile, then algorithm, then the key snapshot. A call with bad options or
 limits and a bad key handle returns the options or limits error, where it
 used to return `:invalid_key_handle`.
 
-A short snapshot key plus bad claims now returns `{:invalid_input,
-:signing_input_invalid}` instead of `:invalid_key_handle`. The snapshot
+A short snapshot key plus bad claims now returns
+`{:error, {:invalid_input, :signing_input_invalid}}`. The snapshot
 checks binary shape only; CAP builds claims before checking the selected
 algorithm's key length. Update matches that relied on key length taking
 precedence over bad claims.
@@ -248,7 +249,7 @@ alg-name bundle; 0.2.1 is docs-only. One migration item:
   (`"Ed25519"`, `protocol_revision` 2); the protected header's alg name is
   the fully-specified RFC 9864 spelling, and the binding rule runs at the
   producer's provisional decode. Claims carrying `"protocol_revision" => 1`
-  (or omitting it) are refused as `{:invalid_input, :signing_input_invalid}`
+  (or omitting it) return `{:error, {:invalid_input, :signing_input_invalid}}`
   BEFORE the key is used. Set `"protocol_revision" => 2` on every claims map
   you hand to `sign_descriptor/3`, `sign_acceptance/4`,
   `sign_termination/4`, or `sign_receipt/4`.

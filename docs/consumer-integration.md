@@ -15,8 +15,9 @@ and this library does not invent one.
 
 ## 1. What the signer produces
 
-Each entry point returns `{:ok, %{kind => compact}}` — one attached
-compact-JWS binary per artifact:
+Each successful call returns one attached compact JWS in a result map.
+`sign_party_replacement/4` returns `{:ok, %{acceptance: compact}}`
+with the departing party's marked acceptance.
 
 | Artifact | Compact `typ` | Verify with |
 |---|---|---|

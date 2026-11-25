@@ -48,7 +48,7 @@ for acceptance and termination, before `sign/2`. Key mismatches return
 `{:error, {:refused, :signing_refused}}`.
 
 The wrong-key guard remains between custody and `CAP.finish_signing/2`.
-A signature from another key returns `:signing_failed`. CAP's finish step
+A signature from another key returns `{:error, :signing_failed}`. CAP's finish step
 assembles under the caller's limits and runs the matching public verifier
 with CAP's retained context and profile before a success returns.
 

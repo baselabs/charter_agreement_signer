@@ -17,20 +17,20 @@ one of these reasons. This reference covers signer 1.0.0 with CAP 1.0.0.
 Option checks run before the snapshot: normalize options, resolve limits,
 profile, then algorithm. An absent or `nil` algorithm selects `"Ed25519"`;
 anything outside `"Ed25519"` and `"ML-DSA-65"` returns
-`{:invalid_input, :algorithm_unsupported}`. A malformed profile returns
-`{:invalid_input, :invalid_profile}`. Explicit `nil` limits or profile are
+`{:error, {:invalid_input, :algorithm_unsupported}}`. A malformed profile returns
+`{:error, {:invalid_input, :invalid_profile}}`. Explicit `nil` limits or profile are
 malformed. Only descriptor signing accepts `:predecessor`.
 
 The snapshot check validates only its shape. CAP validates key shape for
 the selected algorithm and checks the holder's own descriptor membership.
 A receipt against a bare legacy revision skips membership. Key shape and
 runtime support still apply. Preparing against a bare revision-8 charter
-returns `{:refused, :signing_refused}`.
+returns `{:error, {:refused, :signing_refused}}`.
 
 Every preparation refusal occurs before `sign/2`. Limits cover the whole
 set read, including counterparties' artifacts, and the final compact.
 Malformed context types and malformed fields inside retained facts return
-`{:invalid_input, :invalid_type}`.
+`{:error, {:invalid_input, :invalid_type}}`.
 
 CAP maps `:signing_refused` and `:signing_key_mismatch` to the refusal
 shape, `:signing_key_invalid` to `:invalid_key_handle`, and substrate errors
