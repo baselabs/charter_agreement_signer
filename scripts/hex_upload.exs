@@ -101,15 +101,19 @@ defmodule HexUpload do
       end
 
     if docs do
-      result = upload_docs!(state, docs, publish_auth, read_auth, package_result)
-      IO.puts("docs=#{result}")
+      finish_docs_upload!(state, docs, publish_auth, read_auth, package_result, output)
+    end
+  end
 
-      if output do
-        docs_state = private_docs_state!(result, state, read_auth)
+  defp finish_docs_upload!(state, docs, publish_auth, read_auth, package_result, output) do
+    result = upload_docs!(state, docs, publish_auth, read_auth, package_result)
+    IO.puts("docs=#{result}")
 
-        unless IO.binwrite(output, "docs=#{docs_state}\n") == :ok do
-          raise "could not record private docs upload state in GITHUB_OUTPUT"
-        end
+    if output do
+      docs_state = private_docs_state!(result, state, read_auth)
+
+      unless IO.binwrite(output, "docs=#{docs_state}\n") == :ok do
+        raise "could not record private docs upload state in GITHUB_OUTPUT"
       end
     end
   end
@@ -137,19 +141,23 @@ defmodule HexUpload do
         :live
 
       :upload ->
-        response =
-          request(fn ->
-            Release.publish(state.repo, package, publish_auth, fn _ -> :ok end, replace: false)
-          end)
+        post_package!(state, package, read_auth, publish_auth)
+    end
+  end
 
-        case package_receipt!(response, state) do
-          {:ok, result} ->
-            result
+  defp post_package!(state, package, read_auth, publish_auth) do
+    response =
+      request(fn ->
+        Release.publish(state.repo, package, publish_auth, fn _ -> :ok end, replace: false)
+      end)
 
-          :reconcile ->
-            release = read_release(state.repo, state.name, state.version, read_auth)
-            reconcile_package!(response, release, state)
-        end
+    case package_receipt!(response, state) do
+      {:ok, result} ->
+        result
+
+      :reconcile ->
+        release = read_release(state.repo, state.name, state.version, read_auth)
+        reconcile_package!(response, release, state)
     end
   end
 

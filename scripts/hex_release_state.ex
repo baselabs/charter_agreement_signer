@@ -1,8 +1,10 @@
 defmodule HexReleaseState do
   @moduledoc false
 
+  alias Hex.API.Client
+
   # Only the standalone planner needs the Hex archive's release API.
-  @compile {:no_warn_undefined, [Hex.API.Client, :mix_hex_api_release]}
+  @compile {:no_warn_undefined, [Client, :mix_hex_api_release]}
 
   @pending "held for approval or not yet served: after the owner approves, dispatch publish.yml again on this same commit to recheck the served state; publication refused"
   @usage "usage: hex_release_state.exs (--plan | --served --commit SHA --clone REPOSITORY --docs-output PATH [--docs-state STATE]) [--organization ORG] NAME VERSION PACKAGE_TAR; publication refused"
@@ -113,17 +115,20 @@ defmodule HexReleaseState do
         end
 
       {nil, true} ->
-        case {opts[:organization], opts[:docs_state]} do
-          {nil, nil} -> :ok
-          {org, state} when is_binary(org) and state in ["served", "staged"] -> :ok
-          _ -> refuse("--docs-state must carry the private upload step's served or staged result")
-        end
-
+        require_docs_state!(opts)
         require_commit!(opts[:commit], "--commit")
         require_paths!(opts)
 
       _ ->
         raise @usage
+    end
+  end
+
+  defp require_docs_state!(opts) do
+    case {opts[:organization], opts[:docs_state]} do
+      {nil, nil} -> :ok
+      {org, state} when is_binary(org) and state in ["served", "staged"] -> :ok
+      _ -> refuse("--docs-state must carry the private upload step's served or staged result")
     end
   end
 
@@ -235,7 +240,7 @@ defmodule HexReleaseState do
   defp read_public_release(name, version) do
     read(fn ->
       config =
-        Hex.API.Client.build_config(nil, [])
+        Client.build_config(nil, [])
         |> Map.update!(:http_headers, &Map.put(&1, "cache-control", "no-cache"))
 
       :mix_hex_api_release.get(config, name, version)

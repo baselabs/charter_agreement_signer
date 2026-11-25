@@ -165,7 +165,7 @@ defmodule HexUploadTest do
 
   test "the upload paths call Hex's own clients" do
     assert has_ast?(
-             body(:upload_package!),
+             body(:post_package!),
              quote(
                do:
                  Release.publish(state.repo, package, publish_auth, fn _ -> :ok end,
@@ -310,16 +310,19 @@ defmodule HexUploadTest do
   end
 
   test "existing pending stages and their docs are kept" do
-    assert {:__block__, _, operations} = normalize(body(:upload_package!))
-
     expected =
       quote do
         stage = read_stage(state, "release", publish_auth) |> pending_stage!("release", state)
         release = read_release(state.repo, state.name, state.version, read_auth)
+
+        case package_preflight!(stage, release, state) do
+          :pending -> :pending
+          :skip -> :live
+          :upload -> post_package!(state, package, read_auth, publish_auth)
+        end
       end
 
-    assert {:__block__, _, reads} = normalize(expected)
-    assert Enum.take(operations, 2) == reads
+    assert normalize(body(:upload_package!)) == normalize(expected)
 
     live = state(:live)
     stage = HexUpload.pending_stage!(response(200, @stage), "release", live)
@@ -373,7 +376,7 @@ defmodule HexUploadTest do
     end
 
     assert has_ast?(
-             body(:upload_package!),
+             body(:post_package!),
              quote do
                case package_receipt!(response, state) do
                  {:ok, result} ->
