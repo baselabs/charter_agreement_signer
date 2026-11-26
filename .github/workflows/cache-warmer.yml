@@ -110,9 +110,14 @@ jobs:
           EXPECTED_OTP: ${{ matrix.otp }}
         run: scripts/toolchain.sh --installed "elixir=$EXPECTED_ELIXIR" "erlang=$EXPECTED_OTP"
 
-      - name: Install pinned Hex
+      - name: Install the Hex client pinned by the release action
         if: steps.lookup.outputs.cache-hit != 'true'
-        run: mix local.hex 2.6.0 --force
+        working-directory: ${{ runner.temp }}
+        run: |
+          version="$(curl -fsSL 'https://raw.githubusercontent.com/baselabs/.github/3bfbb84692a65b4d2c03dc3b7932353026fe6943/.github/actions/hex-publish/hex-version')"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test ! -e mix.exs
+          mix local.hex "$version" --force
 
       - name: Restore the nearest PLT
         if: steps.lookup.outputs.cache-hit != 'true'
