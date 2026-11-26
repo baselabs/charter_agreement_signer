@@ -261,7 +261,7 @@ defmodule PublishWorkflowTest do
       |> String.replace("\n      ", "\n")
       |> String.replace(archive, "path/to/package-archive", global: false)
 
-    # The dedented YAML from infra 6f19bd49, baselabs/docs/ci.md:360–402.
+    # The shared changelog check step, dedented, with the archive path normalized.
     assert Base.encode16(:crypto.hash(:sha256, "- " <> normalized <> "\n"), case: :lower) ==
              "2a912ae3e07700555d8827da491b8875207341808b4a6c1137c07129f0cbfa30"
 
