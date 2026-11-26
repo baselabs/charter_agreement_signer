@@ -77,8 +77,8 @@ defmodule CharterAgreementSigner.PackagedSigning do
   end
 
   # Before CAP publication, resolve its exact reviewed archive in the
-  # disposable package copy. Census and Hex dependency metadata were checked
-  # against the unmodified CAS archive before applying this build override.
+  # disposable package copy. The shared action's qualify operation checks
+  # the file census and Hex dependency metadata in CI.
   defp bind_protocol_candidate!(package_root, scratch_root) do
     case System.argv() do
       [] ->

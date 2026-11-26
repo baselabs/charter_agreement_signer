@@ -475,7 +475,7 @@ jobs:
   hex-qualification:
     name: Qualify Hex archives
     runs-on: ubuntu-26.04
-    timeout-minutes: 20
+    timeout-minutes: 90 # no green run yet
     permissions:
       contents: read
     steps:
@@ -500,7 +500,7 @@ jobs:
       - name: Install the Hex client pinned by the release action
         working-directory: ${{ runner.temp }}
         run: |
-          version="$(curl --disable --fail --silent --show-error 'https://raw.githubusercontent.com/baselabs/.github/3bfbb84692a65b4d2c03dc3b7932353026fe6943/.github/actions/hex-publish/hex-version')"
+          version="$(curl -fsSL 'https://raw.githubusercontent.com/baselabs/.github/3bfbb84692a65b4d2c03dc3b7932353026fe6943/.github/actions/hex-publish/hex-version')"
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           test ! -e mix.exs
           mix local.hex "$version" --force

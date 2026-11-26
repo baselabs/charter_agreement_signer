@@ -137,6 +137,7 @@ defmodule PublishWorkflowTest do
     qualified = Map.fetch!(jobs, "qualified")
 
     assert qualified =~ ~r/^    needs: \[[^\n]*\bhex-qualification\b[^\n]*\]$/m
+    assert qualify =~ "timeout-minutes: 90 # no green run yet"
     assert qualify =~ "uses: #{@action}"
     assert qualify =~ @hex_version
     assert qualify =~ "operation: qualify"
@@ -147,11 +148,7 @@ defmodule PublishWorkflowTest do
     declaration = Path.join(@root, ".github/hex-packages.json") |> File.read!() |> JSON.decode!()
 
     assert %{
-             "charter_agreement_signer" => %{
-               "app" => "charter_agreement_signer",
-               "directory" => ".",
-               "aliases" => ["baselabs/charter_agreement_signer"]
-             }
+             "charter_agreement_signer" => %{"app" => "charter_agreement_signer", "directory" => "."}
            } = declaration
   end
 

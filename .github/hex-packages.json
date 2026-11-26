@@ -40,9 +40,6 @@
         "requirement": "~> 1.4",
         "repository": "hexpm"
       }
-    },
-    "aliases": [
-      "baselabs/charter_agreement_signer"
-    ]
+    }
   }
 }
