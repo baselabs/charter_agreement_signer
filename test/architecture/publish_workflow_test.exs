@@ -148,7 +148,10 @@ defmodule PublishWorkflowTest do
     declaration = Path.join(@root, ".github/hex-packages.json") |> File.read!() |> JSON.decode!()
 
     assert %{
-             "charter_agreement_signer" => %{"app" => "charter_agreement_signer", "directory" => "."}
+             "charter_agreement_signer" => %{
+               "app" => "charter_agreement_signer",
+               "directory" => "."
+             }
            } = declaration
   end
 
