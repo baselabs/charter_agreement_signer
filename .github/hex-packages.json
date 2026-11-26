@@ -1,0 +1,48 @@
+{
+  "charter_agreement_signer": {
+    "directory": ".",
+    "app": "charter_agreement_signer",
+    "files": [
+      ".formatter.exs",
+      "CHANGELOG.md",
+      "CODE_OF_CONDUCT.md",
+      "CONTRIBUTING.md",
+      "LICENSE",
+      "NOTICE",
+      "README.md",
+      "SECURITY.md",
+      "docs/consumer-integration.md",
+      "docs/errors.md",
+      "docs/getting-started.md",
+      "docs/recipes.md",
+      "docs/security.md",
+      "docs/telemetry.md",
+      "docs/upgrading.md",
+      "lib/charter_agreement_signer.ex",
+      "lib/charter_agreement_signer/telemetry.ex",
+      "mix.exs",
+      "priv/conformance/README.md",
+      "priv/conformance/signer_cases.json",
+      "priv/signer-source.json",
+      "priv/verifier-source.json",
+      "usage-rules.md"
+    ],
+    "requirements": {
+      "charter_agreement_protocol": {
+        "app": "charter_agreement_protocol",
+        "optional": false,
+        "requirement": "~> 1.0.0",
+        "repository": "hexpm"
+      },
+      "telemetry": {
+        "app": "telemetry",
+        "optional": false,
+        "requirement": "~> 1.4",
+        "repository": "hexpm"
+      }
+    },
+    "aliases": [
+      "baselabs/charter_agreement_signer"
+    ]
+  }
+}

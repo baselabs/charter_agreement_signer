@@ -1,7 +1,7 @@
 # Generated project locks
 
 `mix.lock` commits the production dependency graph for both the unpacked package
-and its generated smoke consumer in `scripts/check_package.exs`. Update it with
+and its generated smoke consumer in `scripts/check_packaged_signing.exs`. Update it with
 the root production locks; `deps.get --check-locked` refuses new resolution in
 either generated project.
 

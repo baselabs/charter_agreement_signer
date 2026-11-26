@@ -1,14 +1,11 @@
 # Upgrading
 
-For all releases, follow [the maintainers' release process](https://github.com/baselabs/charter_agreement_signer/blob/master/docs/release.md).
-Qualification runs only for landing candidates; the release operator dispatches `publish.yml`,
-uploads only the two verified archives with no project loaded under the key,
-reads back matching bytes, then creates the version tag and GitHub release
-`v<version>` from `release-assets`. Consumers verify that release's assets. A held
-release is finished by dispatching again on the same commit after approval;
-only missing uploads run. Differing bytes, retired versions and names absent
-from the registry are refused. Historical workflow descriptions below do not
-authorize publication or tag pushes.
+Follow the [release process](https://github.com/baselabs/charter_agreement_signer/blob/master/docs/release.md).
+CI qualifies the Hex archives for the landing candidate. The release operator dispatches `publish.yml` for the qualified
+`release_commit` and reuses the original `qualification_run` after any required
+approval. Read-back verifies both served archives before the workflow exports the
+`release-assets` artifact. The release operator tags the commit named by the
+served docs and attaches those assets to the GitHub release.
 
 Per-version notes, newest first. This page also states the versioning policy
 that governs how the library evolves alongside the protocol package.

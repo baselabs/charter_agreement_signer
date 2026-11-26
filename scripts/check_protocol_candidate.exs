@@ -164,7 +164,7 @@ try do
       "--no-start",
       "--no-deps-check",
       "--no-compile",
-      "scripts/check_package.exs",
+      "scripts/check_packaged_signing.exs",
       archive,
       expected_sha256
     ],

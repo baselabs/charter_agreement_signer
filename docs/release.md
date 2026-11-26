@@ -7,79 +7,36 @@ A feature-branch push or version tag starts no qualification or publication.
    publication date. Keep the root, lifecycle and generated-consumer fixture locks
    aligned with the intended dependency graph. Protocol dependencies must already
    be published before the signer is published.
-2. Run covering tests on the maintainers' build box, never on a workstation. A
-   configured private checkout routes them there with the maintainers' remote-run
-   tooling.
-
-   Public repositories have no build-box checkout; their builds and tests run only
-   in qualification CI at landing. Never fall back to workstation compilation.
-   Qualification includes both dependency audits for the library and lifecycle
-   example, the supported runtime matrix, the real capability-limited lane,
-   merged coverage, package inspection and reproducibility. Never simulate missing
-   crypto support. Qualification also checks the pinned TypeScript sources.
-3. Submit the full reviewed commit through the maintainers' landing tool.
-   It pushes a landing candidate and moves the default branch only after every
-   job passes and `qualified` is green. Do not push the default branch or a tag.
-4. Send the release operator one message with the repository, full default-branch commit,
-   version, what goes out and the successful `qualified` run. The maintainers do
-   not hold a registry publication key or dispatch a publication workflow.
-5. The release operator obtains approval and dispatches `publish.yml` on the default branch with the full qualified SHA as `release_commit`.
-   The workflow refuses any other ref and an existing version tag. It installs
-   the exact runtime and locked dependencies without a cache, builds docs and
-   inspects the package. It builds the package and docs archives once
-   into `release-assets/`. After the docs build and before packing, root
-   `release.json` records exactly `package`, `version` and `commit`, with the run's
-   `release_commit` as commit.
-6. The registry check refuses a package name the registry lacks: a first
-   publication is the owner's decision. It also refuses a retired version or
-   differing served package bytes. The package is the release; docs are a
-   rendering of it, and an ExDoc build is not byte-stable, so docs bytes are never
-   compared: docs the registry already serves for this version are kept. Only the
-   keyed step receives the publication key. That step only uploads the two
-   verified archives, package first, using `mix run --no-mix-exs` from
-   the runner's temporary directory, with absolute paths to the verified
-   archives. The uploader re-reads the served state before each POST. It skips a matching
-   package and docs that the final read reports as served. For a staged package,
-   it first checks the stage checksum and then confirms the release is still
-   unpublished. The uploader preserves a matching pending stage with its docs.
-   Hex's client can resend an in-flight upload if the connection drops before the
-   response. It also retains the key across a redirect from Hex. A second
-   publisher or approval after the final read or between attempts is the
-   residual race, controlled by custody of the publication key.
-7. After the owner approves a held upload, the release operator dispatches
-   `publish.yml` again with the same `release_commit`. An earlier matching stage
-   may hold only the package. Approving that stage publishes the package alone.
-   The next dispatch checks the served package bytes and uploads the missing
-   docs. If Hex holds the docs for approval too, approve them and dispatch once
-   more with the same `release_commit`. Read-back
-   must serve the matching package and a readable docs archive with root
-   `index.html` and `release.json`. The record must name this package and version;
-   its commit must equal the dispatched commit or an ancestor in the clone. This
-   is the published commit. Missing or invalid provenance is refused.
-   `release.json` is the uploader's record, not an attestation or protection
-   against a forged claim. Read-back replaces the built docs archive with the
-   served docs, then records `SHA256SUMS` and exports `release-assets`.
-8. After read-back, the release operator tags `v<version>` on the published commit named by the
-   served docs' `release.json`, compares the artifact's package archive with the
-   registry's bytes, and creates the GitHub release `v<version>` from
-   `release-assets`. Consumers verify the archives and
-   checksums downloaded from that GitHub release. No workflow creates a release
-   or creates or pushes a tag.
+2. Run qualification in CI. It checks the supported runtime matrix, capability-limited
+   lane, merged coverage, dependency audits, TypeScript sources, signing from the
+   packaged archive and package reproducibility. CI also builds the package and
+   HTML documentation with locked dependencies, stamps `release.json` and retains
+   the two archives and their manifest for seven days.
+3. Land the commit after `qualified` succeeds and obtain publication authorization.
+   Dispatch `publish.yml` on the default branch using the full qualified SHA as
+   `release_commit`.
+4. The upload job verifies the exact qualification run and archives. It requires
+   the package to exist and checks the version tag, stamped changelog, registry
+   state and OTP application version collisions. The `publish` environment
+   authorizes the shared action to exchange its workload identity for a short-lived,
+   package-scoped token when an archive needs uploading.
+5. After approval for a held release or docs upload, dispatch again with the same
+   `release_commit` and pass the original CI run ID as `qualification_run`.
+   Read-back verifies both served archives against that qualification and requires
+   `release.json` to identify the dispatched commit. The workflow then generates the
+   SBOM from the verified commit and exports it with both archives and `SHA256SUMS`
+   in `release-assets`.
+6. The release operator compares the package archive with Hex's checksum and
+   creates the version tag and GitHub release on the commit named by the served
+   docs. Consumers verify the downloaded assets with `SHA256SUMS`.
 
 ### Release source attestation
 
-The build signs the package archive digest with a predicate containing the
-qualified `release_commit`. The GitHub signing certificate identifies the
-default-branch workflow revision. Read-back verifies the archive digest and the
-identity of `publish.yml`, then requires the signed commit to match the served
-docs. An ancestor built by the earlier publish workflow can use its original
-GitHub provenance attestation, which recorded the checkout commit in the
-certificate. For an ancestor, read-back also requires unchanged SBOM inputs
-(`mix.exs`, `mix.lock` and `scripts/build_release_sbom.sh`).
-
-The workflow also signs the CycloneDX SBOM for the package. The generator version
-is locked and excludes system dependencies. Consumers can verify the source
-commit against the release tag.
+After verifying the served archives, the workflow signs the package archive
+digest with a predicate containing the commit from `release.json`. It verifies
+the signed commit against the served record and attests the CycloneDX SBOM
+against the same package digest. The runner's own provenance describes the
+default-branch workflow revision.
 
 ```sh
 published_commit=$(gh api \

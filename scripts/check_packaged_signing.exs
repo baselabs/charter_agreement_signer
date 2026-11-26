@@ -1,55 +1,7 @@
-# Package boundary check — proves the SHIPPED Hex artifact works, not the
-# source tree (adapted from the BARA sibling's scripts/check_package.exs,
-# read first-hand, which adapted the BAP sibling's before it).
-#
-# 1. `mix hex.build` the exact archive a consumer downloads.
-# 2. Unpack it (two tar layers, via :erl_tar — Hex.Tar is not loadable in a
-#    project's `mix run` context on this hex version).
-# 3. Exact-set census of the payload against the expected file list — catches
-#    BOTH a stale `files:` allowlist (missing) and an accidental inclusion
-#    (unexpected).
-# 4. Pin the outer metadata (name/version/requirements read from the LIVE
-#    project config, so the gate never drifts on a bump).
-# 5. Compile the unpacked package in :prod.
-# 6. Compile a minimal consumer against the UNPACKED package (path dep) and
-#    run a sign_descriptor -> CAP.verify_descriptor smoke (positive +
-#    wrong-key negative) — the consumer implements its own key handle,
-#    because the package ships none.
-#
-# Everything runs under a mktemp scratch root, removed in after — re-runnable
-# clean, no tree residue.
+# Exercise signing from the unpacked release archive through a real consumer.
 
-defmodule CharterAgreementSigner.PackageCheck do
+defmodule CharterAgreementSigner.PackagedSigning do
   @moduledoc false
-
-  # The exact payload census (what contents.tar.gz must carry — the
-  # consumer's actual file set). Keep in lockstep with mix.exs `files:`; the
-  # exact-set check reds in BOTH directions the moment either side drifts.
-  @expected_files MapSet.new([
-                    ".formatter.exs",
-                    "CHANGELOG.md",
-                    "CODE_OF_CONDUCT.md",
-                    "CONTRIBUTING.md",
-                    "LICENSE",
-                    "NOTICE",
-                    "README.md",
-                    "SECURITY.md",
-                    "usage-rules.md",
-                    "docs/consumer-integration.md",
-                    "docs/errors.md",
-                    "docs/getting-started.md",
-                    "docs/recipes.md",
-                    "docs/security.md",
-                    "docs/telemetry.md",
-                    "docs/upgrading.md",
-                    "lib/charter_agreement_signer.ex",
-                    "lib/charter_agreement_signer/telemetry.ex",
-                    "priv/signer-source.json",
-                    "priv/verifier-source.json",
-                    "priv/conformance/README.md",
-                    "priv/conformance/signer_cases.json",
-                    "mix.exs"
-                  ])
 
   # The consumer smoke's pinned key seeds.
   @holder_seed <<1::256>>
@@ -58,9 +10,7 @@ defmodule CharterAgreementSigner.PackageCheck do
 
   def run! do
     source_root = Path.expand("..", __DIR__)
-    config = Mix.Project.config()
-    version = config[:version]
-    requirements = prod_requirements!(config)
+    version = Mix.Project.config()[:version]
 
     scratch_root = unique_tmp_root!()
 
@@ -78,13 +28,12 @@ defmodule CharterAgreementSigner.PackageCheck do
       extract_tar!(archive_path, outer_root)
       extract_tar!(Path.join(outer_root, "contents.tar.gz"), package_root)
 
-      check_exact_files!(package_root)
-      check_metadata!(Path.join(outer_root, "metadata.config"), version, requirements)
+      check_build_metadata!(Path.join(outer_root, "metadata.config"))
       bind_protocol_candidate!(package_root, scratch_root)
       compile_package!(package_root)
       compile_consumer!(consumer_root, package_root)
 
-      IO.puts("package archive boundary passed")
+      IO.puts("packaged signing smoke passed")
     after
       best_effort_rm_rf!(scratch_root)
     end
@@ -113,80 +62,19 @@ defmodule CharterAgreementSigner.PackageCheck do
     end
   end
 
-  ## checks
+  defp check_build_metadata!(path) do
+    case :file.consult(String.to_charlist(path)) do
+      {:ok, terms} ->
+        metadata = Map.new(terms)
 
-  defp check_exact_files!(package_root) do
-    actual = package_root |> walk_regular_files([]) |> MapSet.new()
+        unless metadata["build_tools"] == ["mix"] and metadata["licenses"] == ["Apache-2.0"] do
+          fail!("package must declare Mix as its build tool and the expected license")
+        end
 
-    unless actual == @expected_files do
-      missing = @expected_files |> MapSet.difference(actual) |> Enum.sort()
-      unexpected = actual |> MapSet.difference(@expected_files) |> Enum.sort()
-
-      fail!(
-        "package file census mismatch; missing=#{inspect(missing)} " <>
-          "unexpected=#{inspect(unexpected)}"
-      )
+      {:error, reason} ->
+        fail!("cannot read Hex metadata: #{inspect(reason)}")
     end
   end
-
-  # A plain recursive File.ls! walk, never Path.wildcard: a wildcard skips
-  # dotfiles by default, so a dotfile in the archive would escape the census.
-  defp walk_regular_files(dir, prefix) do
-    dir
-    |> File.ls!()
-    |> Enum.flat_map(fn entry ->
-      path = Path.join(dir, entry)
-
-      if File.dir?(path),
-        do: walk_regular_files(path, prefix ++ [entry]),
-        else: [Path.join(prefix ++ [entry])]
-    end)
-  end
-
-  defp check_metadata!(path, version, requirements) do
-    metadata =
-      case :file.consult(String.to_charlist(path)) do
-        {:ok, terms} -> Map.new(terms)
-        {:error, reason} -> fail!("cannot read Hex metadata: #{inspect(reason)}")
-      end
-
-    expected = %{
-      "app" => "charter_agreement_signer",
-      "build_tools" => ["mix"],
-      "licenses" => ["Apache-2.0"],
-      "name" => "charter_agreement_signer",
-      # Derived from the LIVE project config's prod deps (no `only:`), in
-      # declaration order — the pin covers exactly what ships, whatever the
-      # runtime dep set grows to.
-      "requirements" => requirements,
-      "version" => version
-    }
-
-    Enum.each(expected, fn {key, expected_value} ->
-      actual_value = metadata |> Map.get(key) |> decode_metadata()
-
-      unless normalize_metadata(key, actual_value) == normalize_metadata(key, expected_value) do
-        fail!(
-          "Hex metadata #{key} must be #{inspect(expected_value)}, " <>
-            "got #{inspect(actual_value)}"
-        )
-      end
-    end)
-  end
-
-  # Each requirement is a key/value list whose field order carries no meaning:
-  # Hex 2.5.2 writes the fields sorted by key (deterministic tarballs, hex_core
-  # 0.20.0), earlier releases in insertion order. Requirement order and every
-  # field value stay exact.
-  defp normalize_metadata("requirements", requirements) when is_list(requirements),
-    do: Enum.map(requirements, &Enum.sort/1)
-
-  defp normalize_metadata(_key, value), do: value
-
-  defp decode_metadata(value) when is_binary(value), do: value
-  defp decode_metadata(value) when is_list(value), do: Enum.map(value, &decode_metadata/1)
-  defp decode_metadata({left, right}), do: {decode_metadata(left), decode_metadata(right)}
-  defp decode_metadata(value), do: value
 
   # Before CAP publication, resolve its exact reviewed archive in the
   # disposable package copy. Census and Hex dependency metadata were checked
@@ -389,64 +277,6 @@ defmodule CharterAgreementSigner.PackageCheck do
     """
   end
 
-  ## plumbing
-
-  # The runtime-dep NAME allowlist — the supply-chain half of the pin: adding a
-  # runtime dependency to mix.exs reds the census here (an intentional addition
-  # updates this set in the same commit). Requirement VALUES stay live-derived
-  # so version bumps never drift.
-  @runtime_dep_allowlist MapSet.new([:charter_agreement_protocol, :telemetry])
-
-  defp prod_requirements!(config) do
-    config
-    |> Keyword.fetch!(:deps)
-    |> Enum.filter(fn
-      {_name, _requirement, opts} when is_list(opts) ->
-        not Keyword.has_key?(opts, :only)
-
-      {_name, _requirement} ->
-        true
-
-      _ ->
-        false
-    end)
-    |> Enum.map(fn
-      {name, requirement} when is_binary(requirement) ->
-        assert_runtime_dep_allowed!(name)
-        requirement_entry(name, requirement, false)
-
-      {name, requirement, opts} when is_binary(requirement) and is_list(opts) ->
-        assert_runtime_dep_allowed!(name)
-        requirement_entry(name, requirement, Keyword.get(opts, :optional, false))
-
-      _ ->
-        fail!(
-          "mix.exs must declare runtime deps in a form the package check recognizes " <>
-            "(2-tuple or 3-tuple with a binary requirement)"
-        )
-    end)
-  end
-
-  defp assert_runtime_dep_allowed!(name) do
-    unless MapSet.member?(@runtime_dep_allowlist, name) do
-      fail!(
-        "unexpected runtime dependency #{inspect(name)} — the shipped artifact's " <>
-          "dependency set is a deliberate, reviewed surface; extend " <>
-          "@runtime_dep_allowlist in the same commit that adds the dep"
-      )
-    end
-  end
-
-  defp requirement_entry(name, requirement, optional?) do
-    [
-      {"name", to_string(name)},
-      {"app", to_string(name)},
-      {"optional", optional?},
-      {"requirement", requirement},
-      {"repository", "hexpm"}
-    ]
-  end
-
   defp extract_tar!(archive, target) do
     case :erl_tar.extract(String.to_charlist(archive), [
            :compressed,
@@ -490,7 +320,7 @@ defmodule CharterAgreementSigner.PackageCheck do
     end
   end
 
-  defp fail!(message), do: raise("package check failed: #{message}")
+  defp fail!(message), do: raise("packaged signing smoke failed: #{message}")
 end
 
-CharterAgreementSigner.PackageCheck.run!()
+CharterAgreementSigner.PackagedSigning.run!()

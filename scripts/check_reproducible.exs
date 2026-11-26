@@ -144,7 +144,7 @@ defmodule CharterAgreementSigner.ReproducibleCheck do
   end
 
   # Hex source archives do not need fetched dependencies; consumer compilation
-  # is covered by check_package.exs, with the real selected protocol.
+  # is covered by check_packaged_signing.exs with the real selected protocol.
   defp run_mix!(arguments, directory) do
     case System.cmd("mix", arguments,
            cd: directory,

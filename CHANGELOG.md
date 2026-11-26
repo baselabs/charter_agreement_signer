@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+- Qualify the Hex package and documentation in CI and publish those exact
+  archives through the shared release action. Reuse the qualification run
+  when retrying publication.
+
 - Document committed descriptor rotation through the existing signing operation.
   It requires CAP 1.1.0 or later with revision 8 support and a CAS release that
   declares a dependency on a compatible CAP version. Published CAS 1.0.0
@@ -24,10 +28,8 @@ and this project adheres to
 - Materialize the pinned TypeScript signer and verifier as detached Git
   checkouts so both suites can inspect their repository indexes.
 
-- Require served docs provenance in `release.json`, name its commit as the published
-  commit, and export the served docs archive after read-back.
-- Verify release assets against the published commit and refuse changed SBOM inputs
-  when completing publication from an ancestor.
+- Generate the SBOM and verify the release source attestation after registry
+  read-back.
 
 - Qualify landing candidates once, enforce exact runtimes and locked dependencies,
   and audit the lifecycle example with both advisory feeds.

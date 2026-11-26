@@ -75,13 +75,11 @@ defmodule CharterAgreementSigner.MixProject do
         "hex.audit",
         "deps.audit",
         "run --no-start scripts/check_deps_current.exs",
-        # The shipped-artifact gate: builds the exact Hex archive, proves its
-        # census/metadata, and compiles + smoke-runs a consumer against the
-        # UNPACKED package (scripts/check_package.exs; scratch-cleaned).
         # Public source pins and the TypeScript signer's own test suite.
         "typescript.sources",
         "typescript.check",
-        "run --no-start scripts/check_package.exs",
+        # Exercise signing through a consumer of the unpacked package.
+        "run --no-start scripts/check_packaged_signing.exs",
         # Two cache-isolated builds of the exact archive must agree byte for
         # byte (the release reproducibility gate).
         "run --no-start scripts/check_reproducible.exs",
@@ -176,6 +174,7 @@ defmodule CharterAgreementSigner.MixProject do
 
   defp docs do
     [
+      formatters: ["html"],
       main: "readme",
       source_ref: "v#{@version}",
       source_url: @source_url,
