@@ -1,7 +1,7 @@
 defmodule CharterAgreementSigner.MixProject do
   use Mix.Project
 
-  @version "1.0.0"
+  @version "1.1.0"
   @source_url "https://github.com/baselabs/charter_agreement_signer"
 
   def project do
@@ -123,7 +123,7 @@ defmodule CharterAgreementSigner.MixProject do
   # CAP owns the protocol checks; telemetry is the value-free span seam.
   defp deps do
     [
-      {:charter_agreement_protocol, "~> 1.0.0"},
+      {:charter_agreement_protocol, "~> 1.1.0"},
       {:telemetry, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},

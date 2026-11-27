@@ -2,7 +2,7 @@
 
 Errors are closed and value-free. They contain no key material, message
 bytes or claims content. Public functions return `{:error, reason}` with
-one of these reasons. This reference covers signer 1.0.0 with CAP 1.0.0.
+one of these reasons. This reference covers signer 1.1.0 with CAP 1.1.0.
 
 | Reason | Meaning | Caller action |
 |---|---|---|
@@ -10,6 +10,7 @@ one of these reasons. This reference covers signer 1.0.0 with CAP 1.0.0.
 | `:signing_failed` | The custody callback rejected, crashed, returned an invalid signature shape or length, or signed with a key different from the snapshot. | Check custody and rotation handling. |
 | `{:refused, :signing_refused}` | CAP's R1-R3 checks found contradictory claims, equivocation, missing ancestry coverage, or a termination inconsistent with the governing view. | Correct the claims or retained view. |
 | `{:refused, :signing_key_mismatch}` | No active descriptor key matches the snapshot kid, public key bytes and selected key algorithm in the holder's own context. | Align the handle with the descriptor for the signing role. |
+| `{:refused, :signer_outside_scope}` | The pinned descriptor's scope excludes the key for the role and artifact kind. Applies to acceptance, assignment acceptance, termination and receipt signing. | Select a key the pinned descriptor scopes for that role and kind. |
 | `:algorithm_unsupported_on_substrate` | The runtime cannot verify the artifact or a context artifact's required algorithm. | Use a runtime that supports the required algorithm. |
 | `{:invalid_input, code}` | Options or CAP's pre-sign checks rejected input. Codes include `:invalid_type`, `:invalid_limits`, `:invalid_profile`, `:algorithm_unsupported`, `:algorithm_outside_profile`, `:revision_outside_profile`, `:signing_input_invalid`, `:limit_exceeded`, `:descriptor_chain_invalid`, `:acceptance_claims_mismatch`, `:termination_claims_mismatch` and `:receipt_claims_mismatch`. Other CAP preparation codes pass through in this shape. | Correct the input according to CAP's error reference. |
 | `:verification_failed` | CAP's finish step rejected what its pre-sign step approved, after the signature passed the wrong-key guard. | Report the reproducible CAP contract failure. |
@@ -33,7 +34,9 @@ Malformed context types and malformed fields inside retained facts return
 `{:error, {:invalid_input, :invalid_type}}`.
 
 CAP maps `:signing_refused` and `:signing_key_mismatch` to the refusal
-shape, `:signing_key_invalid` to `:invalid_key_handle`, and substrate errors
+shape. CAP's scope-specific refusal maps to `:signer_outside_scope`; a
+predecessor scope failure maps to the invalid-input code `:descriptor_chain_invalid`.
+CAP's `:signing_key_invalid` maps to `:invalid_key_handle`, and substrate errors map
 to the top-level substrate reason. Every other preparation error is
 `{:invalid_input, code}`. Every finish error is `:verification_failed`.
 

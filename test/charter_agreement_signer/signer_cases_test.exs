@@ -2,7 +2,18 @@ defmodule CharterAgreementSigner.SignerCasesTest do
   use ExUnit.Case, async: false
 
   alias CharterAgreementProtocol, as: CAP
-  alias CharterAgreementProtocol.{Capability.Profile, Limits}
+  alias CharterAgreementProtocol.{Capability.Profile, Error, Limits}
+
+  alias CharterAgreementSigner, as: Signer
+
+  alias CharterAgreementSigner.{
+    AcceptanceFixture,
+    CharterRevisionFixture,
+    DescriptorFixture,
+    ReceiptFixture,
+    TerminationFixture
+  }
+
   alias CharterAgreementSigner.Keys.{RawKey, RawMLDSA65}
 
   @table File.read!(Path.expand("../../priv/conformance/signer_cases.json", __DIR__))
@@ -206,6 +217,116 @@ defmodule CharterAgreementSigner.SignerCasesTest do
     end)
   end
 
+  test "descriptor scope gates custody and pins acceptance and termination evidence" do
+    scope = scoped_charter()
+    limits = Limits.default()
+
+    for {kind, claims, context} <- [
+          {"acceptance", scope.acceptance, scope.set},
+          {"termination", scope.termination, scope.set},
+          {"receipt", scope.receipt, scope.chain}
+        ] do
+      assert {:error, {:refused, :signer_outside_scope}} =
+               sign(kind, claims, scope.outside, context, %{})
+    end
+
+    assert {:ok, predecessor} = CAP.verify_descriptor(scope.issuer.compact, nil, limits)
+
+    successor =
+      Map.merge(scope.issuer.claims, %{
+        "descriptor_number" => 2,
+        "party_id" => scope.issuer.digest,
+        "prev_descriptor_digest" => scope.issuer.digest,
+        "effective_from" => "2026-08-26T10:00:00Z"
+      })
+
+    assert {:error, {:invalid_input, :descriptor_chain_invalid}} =
+             Signer.sign_descriptor(successor, scope.outside, predecessor: predecessor)
+
+    {_, {kid, public, _private}} = scope.outside
+
+    assert {:error, {:refused, :signer_outside_scope}} =
+             Signer.sign_receipt(scope.receipt, :unused, scope.chain,
+               key_identity: {kid, public}
+             )
+
+    assert {:call_count, 0} = :erlang.trace_info({RawKey, :sign, 2}, :call_count)
+    thumbprint = scope.thumbprint
+
+    assert {:ok, %{descriptor: descriptor}} =
+             Signer.sign_descriptor(successor, scope.allowed, predecessor: predecessor)
+
+    assert {:ok, %{descriptor_number: 2}} = CAP.verify_descriptor(descriptor, predecessor, limits)
+
+    assert {:ok, %{acceptance: acceptance}} =
+             Signer.sign_acceptance(scope.acceptance, scope.allowed, scope.set)
+
+    assert {:ok, %{termination: termination}} =
+             Signer.sign_termination(scope.termination, scope.allowed, scope.set)
+
+    assert {:ok, revision} = CAP.decode_charter_revision(scope.revision.bytes, limits)
+    assert {:ok, history} = CAP.verify_descriptor_chain([scope.issuer.compact], limits)
+
+    assert {:ok, %{scope_status: :matched, signer_thumbprint: ^thumbprint}} =
+             CAP.verify_acceptance(acceptance, revision, history, limits)
+
+    assert {:ok, %{scope_status: :matched, signer_thumbprint: ^thumbprint}} =
+             CAP.verify_termination(termination, revision, history, limits)
+  end
+
+  test "a signed scoped receipt carries its match into portable inspection evidence" do
+    scope = scoped_charter()
+    limits = Limits.default()
+    grant = scope.receipt["grant"]["grant_digest"]
+
+    assert {:ok, %{receipt: receipt}} =
+             Signer.sign_receipt(scope.receipt, scope.allowed, scope.chain)
+
+    assert {:call_count, 1} = :erlang.trace_info({RawKey, :sign, 2}, :call_count)
+    assert {:ok, inspection} = CAP.inspect_receipt(receipt, scope.set, grant, limits)
+    assert inspection.claims == scope.receipt
+    assert inspection.provenance.scope_status == "matched"
+    assert inspection.provenance.signer_thumbprint == scope.thumbprint
+    assert inspection.provenance.revision_status == "verified"
+    assert inspection.grant.status == "matches"
+    assert inspection.agreement.status == "matches"
+
+    %{protected_segment: protected, payload_segment: payload, signature_segment: signature} =
+      inspection.signed
+
+    assert Enum.join([protected, payload, signature], ".") == receipt
+
+    assert {:ok, %{grant: %{status: "not_verified", reason: "grant_reference_missing"}}} =
+             CAP.inspect_receipt(receipt, scope.set, nil, limits)
+
+    assert {:ok, %{grant: %{status: "differs"}, agreement: %{status: "matches"}}} =
+             CAP.inspect_receipt(receipt, scope.set, scope.revision.digest, limits)
+
+    assert {:ok, %{termination: notice}} =
+             Signer.sign_termination(scope.termination, scope.allowed, scope.set)
+
+    assert {:ok, closed} =
+             CAP.build_set(
+               scope.set.revisions,
+               scope.set.acceptances,
+               [notice],
+               scope.set.descriptors
+             )
+
+    assert {:ok, %{grant: %{status: "matches"}, agreement: %{reason: "no_governing_revision"}}} =
+             CAP.inspect_receipt(receipt, closed, grant, limits)
+
+    assert {:error, %Error{code: :digest_encoding_invalid}} =
+             CAP.inspect_receipt(receipt, scope.set, "invalid", limits)
+
+    <<first, rest::binary>> = signature
+    changed = if first == ?A, do: ?B, else: ?A
+    tampered = Enum.join([protected, payload, <<changed, rest::binary>>], ".")
+
+    assert {:error, %Error{code: :signature_invalid}} =
+             CAP.inspect_receipt(tampered, scope.set, grant, limits)
+  end
+
   for row <- @table["cases"] do
     @row row
 
@@ -369,6 +490,123 @@ defmodule CharterAgreementSigner.SignerCasesTest do
 
   defp outcome({:error, code}),
     do: %{"shape" => Atom.to_string(code), "code" => Atom.to_string(code)}
+
+  defp scoped_charter do
+    issuer_key = RawKey.generate("issuer", <<21::256>>)
+    outside_key = RawKey.generate("outside", <<22::256>>)
+    peer_key = RawKey.generate("acceptor", <<23::256>>)
+    declaration = DescriptorFixture.key(issuer_key)
+    outside = DescriptorFixture.key(outside_key)
+    assert {:ok, thumbprint} = CAP.signer_thumbprint(declaration)
+    assert {:ok, outside_thumbprint} = CAP.signer_thumbprint(outside)
+
+    issuer =
+      scoped_descriptor(issuer_key, %{
+        "verification_keys" => [declaration, outside],
+        "signing_scopes" => [
+          %{
+            "role" => "acceptor",
+            "signers" => [
+              %{"key_thumbprint" => outside_thumbprint, "artifact_kinds" => ["receipt"]}
+            ]
+          },
+          %{
+            "role" => "issuer",
+            "signers" => [
+              %{
+                "key_thumbprint" => thumbprint,
+                "artifact_kinds" => ~w(acceptance descriptor receipt termination)
+              }
+            ]
+          }
+        ]
+      })
+
+    peer = scoped_descriptor(peer_key, %{})
+    roles = ~w(acceptor issuer)
+
+    parties =
+      for {role, descriptor} <- Enum.zip(roles, [peer, issuer]) do
+        %{
+          "role" => role,
+          "participation" => "acceptor",
+          "party_descriptor_digest" => descriptor.digest
+        }
+      end
+
+    revision =
+      CharterRevisionFixture.genesis(
+        claims: %{
+          "protocol_revision" => 8,
+          "parties" => parties,
+          "acceptance_quorum" => %{"roles" => roles, "threshold" => 2},
+          "termination_rules" => %{
+            "reason_codes" => ["mutual"],
+            "quorum" => %{"roles" => ["issuer"], "threshold" => 1}
+          }
+        }
+      )
+
+    descriptors = [issuer.compact, peer.compact]
+    revisions = [revision.bytes]
+    {:ok, pending} = CAP.build_set(revisions, [], [], descriptors)
+    protocol = %{"protocol_revision" => 8}
+    acceptance = AcceptanceFixture.claims(revision, issuer, "issuer", protocol)
+    peer_acceptance = AcceptanceFixture.claims(revision, peer, "acceptor", protocol)
+
+    acceptances = [
+      fixture_vote(acceptance, issuer_key, pending),
+      fixture_vote(peer_acceptance, peer_key, pending)
+    ]
+
+    {:ok, set} = CAP.build_set(revisions, acceptances, [], descriptors)
+    {:ok, chain} = CAP.verify_chain(revisions, acceptances, descriptors, [], Limits.default())
+    assert chain.accepted_revision_digests == [revision.digest]
+
+    %{
+      issuer: issuer,
+      allowed: {RawKey, issuer_key},
+      outside: {RawKey, outside_key},
+      thumbprint: thumbprint,
+      revision: revision,
+      set: set,
+      chain: chain,
+      acceptance: acceptance,
+      termination:
+        TerminationFixture.claims(revision, issuer, "issuer", %{
+          "protocol_revision" => 8,
+          "effective_at" => "2026-08-25T13:15:00Z"
+        }),
+      receipt:
+        ReceiptFixture.claims(revision, %{
+          "protocol_revision" => 2,
+          "occurred_at" => "2026-08-25T13:30:00Z",
+          "recorded_at" => "2026-08-25T13:30:01Z"
+        })
+    }
+  end
+
+  defp scoped_descriptor({kid, _public, private} = key, claims) do
+    DescriptorFixture.genesis(
+      key: {DescriptorFixture.key(key), private},
+      claims: Map.put(claims, "protocol_revision", 8),
+      protected: %{"alg" => "Ed25519", "typ" => "cap+party", "kid" => kid}
+    )
+  end
+
+  defp fixture_vote(claims, {kid, public, private}, set) do
+    input = %{
+      "claims" => claims,
+      "kid" => kid,
+      "public_key" => public,
+      "algorithm" => "Ed25519"
+    }
+
+    {:ok, plan} = CAP.prepare_signing(:acceptance, input, set, Limits.default(), Profile.full())
+    signature = :crypto.sign(:eddsa, :none, plan.signing_input.message, [private, :ed25519])
+    {:ok, compact} = CAP.finish_signing(plan, signature)
+    compact
+  end
 
   defp verify("descriptor", compact, predecessor),
     do: CAP.verify_descriptor(compact, predecessor, Limits.default())

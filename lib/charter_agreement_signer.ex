@@ -7,8 +7,8 @@ defmodule CharterAgreementSigner do
   snapshot. With the optional `:key_identity` tuple `{kid, public_key}`, CAP
   prepares the signing request before the handle is called. Otherwise CAP
   prepares with the snapshot identity. CAP checks claims, context,
-  limits, profile, the holder's own descriptor key and runtime support
-  before the custody callback runs. CAP also owns the R1-R3 refusals.
+  limits, profile, the holder's own descriptor key, signer scope and runtime
+  support before the custody callback runs. CAP also owns the R1-R3 refusals.
 
   The handle signs `plan.signing_input.message`. This library checks the
   signature against the snapshot public key, then calls
@@ -61,6 +61,8 @@ defmodule CharterAgreementSigner do
   * `{:refused, :signing_refused}`: CAP's R1-R3 claims or view refusal.
   * `{:refused, :signing_key_mismatch}`: the requested identity does not match an
     active descriptor key or the handle snapshot differs from the prepared identity.
+  * `{:refused, :signer_outside_scope}`: the key is outside the pinned
+    descriptor's scope for an acceptance, termination or receipt.
   * `:algorithm_unsupported_on_substrate`: the runtime cannot verify the
     artifact or a context artifact's required algorithm.
   * `{:invalid_input, code}`: malformed options or another CAP preparation
@@ -73,7 +75,7 @@ defmodule CharterAgreementSigner do
           | :signing_failed
           | :verification_failed
           | :algorithm_unsupported_on_substrate
-          | {:refused, :signing_refused | :signing_key_mismatch}
+          | {:refused, :signing_refused | :signing_key_mismatch | :signer_outside_scope}
           | {:invalid_input, atom()}
 
   @doc """
@@ -82,6 +84,8 @@ defmodule CharterAgreementSigner do
   A successor requires `:predecessor`, the prior descriptor's verified
   `CAP.DescriptorFacts`. Missing or incorrect predecessor facts reject
   before `sign/2`. The header kid comes only from the atomic snapshot.
+  If the predecessor declares scopes, the key needs the `descriptor` kind
+  under a role there. An outside key returns `{:invalid_input, :descriptor_chain_invalid}`.
 
   Options are a map or keyword list with each key at most once:
 
@@ -116,10 +120,13 @@ defmodule CharterAgreementSigner do
 
   Context is `CAP.ChainFacts.t()` or a decoded `CAP.CharterRevision.t()`.
   CAP re-verifies the context before signing. Chain context checks the
-  snapshot against the issuing party's active descriptor keys. A bare legacy
-  revision skips membership checking because it names no signing key. A bare
-  revision-8 charter returns `{:error, {:refused, :signing_refused}}`.
+  snapshot against the issuing party's active descriptor keys and receipt scope.
+  A bare legacy revision skips membership checking because it names no signing key.
+  A bare revision-8 charter returns `{:error, {:refused, :signing_refused}}`.
   Receipt claims use revision 2 for Ed25519 or revision 3 for ML-DSA-65.
+
+  Call `CharterAgreementProtocol.inspect_receipt/4` with the resulting compact,
+  the raw retained set, an optional tagged grant digest and the signing limits.
 
   Options: `:algorithm`, `:limits`, `:profile`, as in `sign_descriptor/3`.
   The profile applies to the receipt and every context artifact; limits
@@ -140,7 +147,8 @@ defmodule CharterAgreementSigner do
   `set` is the holder's own artifact view, built with `CAP.build_set/4`.
   CAP verifies it, applies the R1-R3 refusals, derives the signing party's
   descriptor chain and claimed revision, and checks the snapshot key
-  before signing. Contradictory claims return `{:error, {:refused, :signing_refused}}`.
+  and acceptance scope before signing. Contradictory claims return
+  `{:error, {:refused, :signing_refused}}`.
   A key mismatch returns `{:error, {:refused, :signing_key_mismatch}}`.
 
   Options: `:algorithm`, `:limits`, `:profile`, as in `sign_descriptor/3`.
@@ -163,7 +171,8 @@ defmodule CharterAgreementSigner do
 
   The claims carry protocol revision 8 and a `replacement_role` matching
   the departing party's role. The assignee and the remaining parties sign
-  separately with `sign_acceptance/4`. Each successful call signs once and
+  separately with `sign_acceptance/4`. CAP checks the departing party's
+  pinned descriptor for the acceptance scope. Each successful call signs once and
   returns `{:ok, %{acceptance: compact}}`. Use Ed25519 or ML-DSA-65.
   """
   @spec sign_party_replacement(map(), key_handle(), ArtifactSet.t(), opts()) ::
@@ -179,8 +188,8 @@ defmodule CharterAgreementSigner do
 
   CAP verifies `set`, applies its refusals at the notice's `effective_at`,
   derives the governing revision and signing party's descriptor chain, and
-  checks the snapshot key before signing. Contradictory claims give
-  `{:error, {:refused, :signing_refused}}`. A key mismatch returns
+  checks the snapshot key and termination scope before signing. Contradictory
+  claims give `{:error, {:refused, :signing_refused}}`. A key mismatch returns
   `{:error, {:refused, :signing_key_mismatch}}`.
 
   Options: `:algorithm`, `:limits`, `:profile`, as in `sign_descriptor/3`.
@@ -252,6 +261,9 @@ defmodule CharterAgreementSigner do
   defp result_key(:receipt), do: :receipt
   defp result_key(kind) when kind in [:acceptance, :party_replacement], do: :acceptance
   defp result_key(:termination), do: :termination
+
+  defp mapped({:error, %Error{code: :signing_refused, subject: ["signing_input", "scope"]}}),
+    do: {:error, {:refused, :signer_outside_scope}}
 
   defp mapped({:error, %Error{code: code}})
        when code in [:signing_refused, :signing_key_mismatch],

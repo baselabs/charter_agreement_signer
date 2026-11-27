@@ -20,8 +20,8 @@ defmodule CharterAgreementSigner.Telemetry do
   along), `:invalid_key_handle`, `:signing_failed`, `:verification_failed`,
   `:refused` and `:unsupported_substrate`. `:unsupported_substrate` classifies
   `:algorithm_unsupported_on_substrate`, and `:refused` also classifies a
-  `{:refused, :signing_key_mismatch}` outcome. Both outcomes can be returned
-  by the signing functions before custody runs.
+  `{:refused, :signing_key_mismatch}` or `{:refused, :signer_outside_scope}`
+  outcome. These checks run before custody.
   An operator reading `:signing_failed` is being told "custody
   misconfiguration or a wrong-key race"; a refusal storm or a post-sign verify
   failure is a DIFFERENT operational condition and must not wear that label.
@@ -150,7 +150,7 @@ defmodule CharterAgreementSigner.Telemetry do
   defp classify({:error, :algorithm_unsupported_on_substrate}), do: :unsupported_substrate
 
   defp classify({:error, {:refused, code}})
-       when code in [:signing_refused, :signing_key_mismatch],
+       when code in [:signing_refused, :signing_key_mismatch, :signer_outside_scope],
        do: :refused
 
   defp classify(_off_spec), do: :signing_failed

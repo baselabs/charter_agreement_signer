@@ -54,8 +54,8 @@ call and no custody call. CAP re-verifies the predecessor's signed lineage
 before checking successor linkage, so even the wrong predecessor returns
 the substrate error there.
 
-`test/fixtures/mldsa_predecessors.etf` (repository-only) retains the public predecessor facts returned by
-CAP 4469403 on a capable runtime. It contains no private keys. The runner
+`test/fixtures/mldsa_predecessors.etf` (repository-only) retains the public
+predecessor facts in CAP 1.1's struct format. It contains no private keys. The runner
 checks its lineage against the table and, on a capable runtime, compares
 the entire facts record with fresh public verification. The limited runtime
 passes these retained facts to the real signer, whose CAP preparation
@@ -70,6 +70,8 @@ callback counts and independently verifies every success. The table also
 includes both same-kid receipt candidates in a view with two accepted
 revisions. The exact Ed25519 compacts were generated with CAP's canonical
 framing and real seed signatures independently of the signer under test.
+The runner also exercises an active key outside the pinned descriptor scope,
+matched vote evidence, and receipt inspection against retained artifacts.
 
 The runner requires exactly 137 rows, unique ids, and every id in its
 explicit required list. It checks that refusals never call custody even

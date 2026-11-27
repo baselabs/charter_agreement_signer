@@ -57,8 +57,8 @@ defmodule CharterAgreementSigner.DependencyDirectionTest do
 
   # Keep resolution within the tested patch line. The archive candidate check exercises the
   # unpublished release through a path override in a disposable copy.
-  @protocol_requirement "~> 1.0.0"
-  @protocol_locked_version "1.0.0"
+  @protocol_requirement "~> 1.1.0"
+  @protocol_locked_version "1.1.0"
 
   test "the protocol dependency is double-pinned to the tested release line" do
     mix_source = File.read!(Path.join(@repo_root, "mix.exs"))

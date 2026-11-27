@@ -314,6 +314,18 @@ defmodule CharterAgreementSigner.TelemetryTest do
            ] = events
   end
 
+  test "an out-of-scope key is classified as a refusal" do
+    outcome = {:error, {:refused, :signer_outside_scope}}
+
+    {result, events} =
+      capture_events(fn -> Telemetry.sign_span(:receipt, fn -> outcome end) end)
+
+    assert result == outcome
+
+    assert [{_start, _, _}, {@prefix ++ [:stop], _, %{object: :receipt, result_class: :refused}}] =
+             events
+  end
+
   test "the closed axes are exactly the four objects and seven classes" do
     assert Telemetry.objects() == [:descriptor, :receipt, :acceptance, :termination]
 

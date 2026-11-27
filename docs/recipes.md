@@ -143,6 +143,23 @@ end
 
 Full walkthrough: [consumer-integration.md](consumer-integration.md).
 
+## Recipe: inspect a signed receipt
+
+Retain the raw revision, acceptance, termination and descriptor bytes used to
+build the signing view. Build the artifact set with `CAP.build_set/4`, then use
+its arrays to obtain `CAP.ChainFacts` with `CAP.verify_chain/5`. Pass those facts
+to `CharterAgreementSigner.sign_receipt/4` with the holder's custody handle.
+
+Pass the returned compact, the raw artifact set, the tagged grant digest from
+your own retained reference (or `nil`), and the same limits to
+`CAP.inspect_receipt/4`. Use the five-argument form for a restricted profile.
+Inspection returns CAP's typed error when verification fails. A successful
+inspection contains independent `grant` and `agreement` comparisons. Read
+`provenance.scope_status` and `provenance.signer_thumbprint` for the issuer's
+scope evidence. You can encode the whole record with `JSON.encode!/1` and
+reconstruct the receipt by joining its three signed segments with periods.
+Handle the exported inspection as receipt evidence.
+
 ## Porting note: a non-Elixir signer
 
 A signer in any language produces conformant artifacts by following CAP's

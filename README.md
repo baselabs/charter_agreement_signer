@@ -17,7 +17,7 @@ signing span.
 ```elixir
 def deps do
   [
-    {:charter_agreement_signer, "~> 1.0.0"}
+    {:charter_agreement_signer, "~> 1.1.0"}
   ]
 end
 ```
@@ -70,7 +70,7 @@ Malformed profiles return `{:error, {:invalid_input, :invalid_profile}}`.
 ```
 
 Legacy artifacts, including receipts, use `"Ed25519"` at protocol revision 2
-or `"ML-DSA-65"` at revision 3. With compatible releases, revision-8 party
+or `"ML-DSA-65"` at revision 3. Revision-8 party
 descriptors, acceptances (including marked assignor acceptances), and termination
 notices can use either algorithm with `"protocol_revision" => 8`. The
 `:algorithm` option defaults to `"Ed25519"`. Retained legacy artifacts remain
@@ -78,11 +78,7 @@ verifiable. See [docs/upgrading.md](docs/upgrading.md).
 
 ## Descriptor rotation
 
-Committed rotation requires CAP 1.1.0 or later with revision 8 support and a
-CAS release that declares a dependency on a compatible CAP version. Published
-CAS 1.0.0 declares CAP `~> 1.0.0`, which excludes CAP 1.1.0.
-
-With compatible releases, use `sign_descriptor/3` with `"protocol_revision" => 8`
+Use `sign_descriptor/3` with `"protocol_revision" => 8`
 for a committed descriptor or its successor. Compute the successor's complete
 active key commitment with CAP's `descriptor_next_key_commitment/2`
 and put it in the current descriptor's `next_key_commitment` field. To sign
@@ -93,6 +89,21 @@ CAP checks the opening before the handle signs. A failed opening returns
 `descriptor_commitment_mismatch` as an invalid-input code. After signing,
 assemble the unsigned distribution document through CAP and pass it to
 `verify_descriptor_publication/3` with the complete signed history.
+
+## Signer scopes and receipt inspection
+
+A revision-8 descriptor can declare `signing_scopes` by role, active key
+thumbprint, and artifact kind. CAP checks the relevant pinned descriptor
+before custody signs. Acceptance, assignment acceptance, termination and
+receipt signing return `{:error, {:refused, :signer_outside_scope}}` if the
+selected key falls outside that scope. A successor signed by a key outside
+the predecessor's descriptor scope returns
+`{:error, {:invalid_input, :descriptor_chain_invalid}}`.
+
+Keep the signed receipt and raw chain artifacts. CAP's
+`inspect_receipt/4` returns the signed segments, claims, signature provenance
+including scope, and separate grant and governing revision comparisons.
+See the [receipt inspection recipe](docs/recipes.md#recipe-inspect-a-signed-receipt).
 
 ## Key custody
 
@@ -197,7 +208,7 @@ not evaluate charter terms or authorize operations.
 
 ## Protocol dependency
 
-Signer 1.0.0 requires CAP `~> 1.0.0` from Hex, with the library and example locks updated after CAP publication. CAP owns pre-sign checks, context
+Signer 1.1.0 requires CAP `~> 1.1.0` from Hex. CAP owns pre-sign checks, context
 derivation and final verification. CAP 0.5.0's distinct-party checks also apply: re-verify views
 stored under CAP 0.4.x. [docs/upgrading.md](docs/upgrading.md) lists the
 changed outcomes and migration requirements.

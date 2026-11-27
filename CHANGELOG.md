@@ -8,16 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+- Use CAP 1.1.0. Enforce revision-8 scopes before custody, surface
+  `signer_outside_scope` for scoped acceptance, termination and receipt
+  refusals, and document inspection of signed receipts with CAP.
 - Qualify the Hex package and documentation in CI and publish those exact
   archives through the shared release action. Reuse the qualification run
   when retrying publication.
 - Sign revision-8 quorum acceptances and termination notices, and sign the
   departing party's assignment acceptance with `sign_party_replacement/4`.
 
-- Document committed descriptor rotation through the existing signing operation.
-  It requires CAP 1.1.0 or later with revision 8 support and a CAS release that
-  declares a dependency on a compatible CAP version. Published CAS 1.0.0
-  declares CAP `~> 1.0.0`, which excludes CAP 1.1.0.
+- Document revision-8 committed descriptor rotation through the existing
+  signing operation.
 
 - Accept an optional declared public key identity. Reject an unauthorized
   identity before either handle callback and check the snapshot before

@@ -8,11 +8,11 @@ session. No database or custody service is required for this demo.
 
 ```elixir
 def deps do
-  [{:charter_agreement_signer, "~> 1.0.0"}]
+  [{:charter_agreement_signer, "~> 1.1.0"}]
 end
 ```
 
-Run `mix deps.get`, then `iex -S mix`. Signer 1.0.x requires CAP `~> 1.0.0`.
+Run `mix deps.get`, then `iex -S mix`. Signer 1.1.x requires CAP `~> 1.1.0`.
 Elixir `~> 1.19` on OTP 28 or 29 is required; this Ed25519 example does not
 need ML-DSA support. See the README for the tested toolchains.
 

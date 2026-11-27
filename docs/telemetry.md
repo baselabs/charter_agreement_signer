@@ -1,6 +1,6 @@
 # Sign telemetry
 
-Signer 1.0.0 emits a closed, value-free telemetry surface for its four signing
+Signer 1.1.0 emits a closed, value-free telemetry surface for its four signing
 entry points (`sign_descriptor/3`, `sign_receipt/4`, `sign_acceptance/4`,
 `sign_termination/4`). The library does NOT attach a handler; a fresh
 application sees nothing until it attaches one.
@@ -37,7 +37,7 @@ The result-class axis covers these closed span outcomes:
 | `:invalid_key_handle` | `{:error, :invalid_key_handle}` | caller wiring: malformed handle, faulting identity callback or invalid snapshot key |
 | `:signing_failed` | `{:error, :signing_failed}` | custody misconfiguration or a wrong-key race; the highest-priority signal this surface offers |
 | `:verification_failed` | `{:error, :verification_failed}` | CAP finish rejected what preparation approved after the custody guard passed |
-| `:refused` | `{:error, {:refused, code}}` | claims contradict the supplied view (`signing_refused`) or the snapshot key does not match (`signing_key_mismatch`) |
+| `:refused` | `{:error, {:refused, code}}` | claims contradict the supplied view (`signing_refused`), the snapshot key does not match (`signing_key_mismatch`), or the key falls outside its descriptor scope (`signer_outside_scope`) |
 | `:unsupported_substrate` | `{:error, :algorithm_unsupported_on_substrate}` | the runtime cannot verify the required algorithm |
 
 The axes are the single source of truth (`CharterAgreementSigner.Telemetry.objects/0`
