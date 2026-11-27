@@ -2,7 +2,7 @@ defmodule PublishWorkflowTest do
   use ExUnit.Case, async: true
 
   @root Path.expand("../..", __DIR__)
-  @action_sha "3bfbb84692a65b4d2c03dc3b7932353026fe6943"
+  @action_sha "654fcd0ef63daf8e3f79dfeb4ca900adffd0d4e2"
   @action "baselabs/.github/.github/actions/hex-publish@" <> @action_sha
   @hex_version "/#{@action_sha}/.github/actions/hex-publish/hex-version"
   @actor ~s|contains(fromJSON('["corepay","palermo-git"]'), github.actor)|
