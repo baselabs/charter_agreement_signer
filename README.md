@@ -201,3 +201,8 @@ stored under CAP 0.4.x. [docs/upgrading.md](docs/upgrading.md) lists the
 changed outcomes and migration requirements.
 
 Release preparation and publication follow [the maintainers' release process](https://github.com/baselabs/charter_agreement_signer/blob/master/docs/release.md).
+
+## License
+
+Apache-2.0, maintained by BaseLabs Holdings LLC. See LICENSE and NOTICE, and IPR.md
+for contributions.

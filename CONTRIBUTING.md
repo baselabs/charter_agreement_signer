@@ -54,6 +54,10 @@ add -A` (process state and tool directories must never ride in a commit).
 Single tree on `master`; no feature branches unless the maintainer asks.
 Never `git stash`.
 
+Contributions are licensed under Apache-2.0, as section 5 of the license describes, and
+every commit carries a Developer Certificate of Origin sign-off (`git commit -s`). See
+IPR.md.
+
 ## Tests and gates
 
 - New behavior ships red-first: write the test, watch it fail for the

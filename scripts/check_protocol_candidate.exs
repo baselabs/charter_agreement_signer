@@ -47,6 +47,7 @@ try do
         "CONTRIBUTING.md",
         "SECURITY.md",
         "CODE_OF_CONDUCT.md",
+        "IPR.md",
         "LICENSE",
         "NOTICE",
         "usage-rules.md",
