@@ -11,7 +11,6 @@ charter_agreement_signer-*.tar
 /.elixir_ls/
 /.lexical/
 /.serena/
-/graphify-out/
 .env
 .env.*
 .DS_Store
