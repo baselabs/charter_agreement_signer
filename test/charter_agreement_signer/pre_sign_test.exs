@@ -98,6 +98,7 @@ defmodule CharterAgreementSigner.PreSignTest do
           CharterAgreementSigner.sign_descriptor(claims, handle),
           CharterAgreementSigner.sign_receipt(claims, handle, revision),
           CharterAgreementSigner.sign_acceptance(claims, handle, set),
+          CharterAgreementSigner.sign_party_replacement(claims, handle, set),
           CharterAgreementSigner.sign_termination(claims, handle, set)
         ] do
       assert result == {:error, {:invalid_input, :signing_input_invalid}}
