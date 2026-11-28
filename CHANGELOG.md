@@ -8,6 +8,10 @@ and this project adheres to
 
 ## [Unreleased]
 
+- Generate the release SBOM without pruning OTP applications from the code
+  path, and generate it in landing CI so release tooling is checked before
+  publication.
+
 ## [1.4.0] — 2026-11-28
 
 The signer goes from 1.0.0 to 1.4.0, skipping the 1.1, 1.2 and 1.3 release lines.

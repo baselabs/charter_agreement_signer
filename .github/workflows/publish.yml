@@ -194,7 +194,13 @@ jobs:
         run: mix deps.get --check-locked
 
       - name: Generate CycloneDX SBOM
-        run: bash scripts/build_release_sbom.sh
+        # mix.exs and mix.lock come from the release commit; the generator
+        # command comes from this workflow's commit.
+        run: |
+          script="$RUNNER_TEMP/build_release_sbom.sh"
+          git show "$GITHUB_WORKFLOW_SHA:scripts/build_release_sbom.sh" > "$script"
+          bash "$script"
+          rm -f -- "$script"
 
       - name: Record the SBOM checksum
         working-directory: release-assets
