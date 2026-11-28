@@ -76,21 +76,17 @@ attestations for the exact package archive. Before exporting assets, the workflo
 verifies the package attestation against the published commit. When that commit
 is an ancestor, it requires unchanged SBOM inputs (`mix.exs`, `mix.lock` and
 `scripts/build_release_sbom.sh`); a difference requires a new version. System
-dependencies are excluded and the generator version is locked. To verify it:
+dependencies are excluded and the generator version is locked. Download the
+release assets and check their digests.
 
 ```sh
-# Download all assets from the GitHub release for the version being verified.
 gh release download "v<version>" --repo baselabs/charter_agreement_signer
 sha256sum -c SHA256SUMS
-
-# Verify against the commit named by the release tag.
-published_commit=$(gh api \
-  "repos/baselabs/charter_agreement_signer/commits/v<version>" -q .sha)
-gh attestation verify "charter_agreement_signer-<version>.tar" \
-  --repo baselabs/charter_agreement_signer --source-digest "$published_commit"
-
-# Compare its SHA-256 with the archive checksum on hex.pm's version page.
 ```
+
+Compare the package archive's SHA-256 with the checksum on its Hex version page.
+Verify the commit named by the tag using the
+[release source attestation](docs/release.md#release-source-attestation).
 
 Qualification runs the reproducibility gate on the CI runner: two
 cache-isolated builds of the exact archive must agree byte for byte.

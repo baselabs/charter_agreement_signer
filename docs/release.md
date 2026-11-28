@@ -37,12 +37,18 @@ digest with a predicate containing the commit from `release.json`. It verifies
 the signed commit against the served record and attests the CycloneDX SBOM
 against the same package digest. The runner's own provenance describes the
 default-branch workflow revision.
+Download the bundle first because GitHub's attestation API does not filter on
+custom predicate types.
 
 ```sh
 published_commit=$(gh api \
   "repos/baselabs/charter_agreement_signer/commits/v<version>" -q .sha)
-gh attestation verify "charter_agreement_signer-<version>.tar" \
+archive="charter_agreement_signer-<version>.tar"
+digest=$(sha256sum < "$archive")
+gh attestation download "$archive" --repo baselabs/charter_agreement_signer &&
+gh attestation verify "$archive" \
   --repo baselabs/charter_agreement_signer \
+  --bundle "sha256:${digest%% *}.jsonl" \
   --signer-workflow baselabs/charter_agreement_signer/.github/workflows/publish.yml \
   --source-ref refs/heads/master \
   --predicate-type 'https://github.com/baselabs/charter_agreement_signer/blob/master/docs/release.md#release-source-attestation' \
