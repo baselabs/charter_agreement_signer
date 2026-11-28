@@ -9,7 +9,7 @@ defmodule CharterAgreementSignerTest do
   use ExUnit.Case, async: false
 
   alias CharterAgreementProtocol, as: CAP
-  alias CharterAgreementProtocol.{ArtifactSet, Limits}
+  alias CharterAgreementProtocol.{ArtifactSet, Error, Limits}
   alias CharterAgreementSigner.Keys.{RawKey, RawMLDSA65}
 
   alias CharterAgreementSigner.{
@@ -249,7 +249,7 @@ defmodule CharterAgreementSignerTest do
     refute_signed()
   end
 
-  test "an unheld successor descriptor rejects acceptance before signing" do
+  test "successor acceptance checks the accepted predecessor before descriptor history" do
     setup = ChainFixture.base()
     second_handle = RawKey.generate("issuer-key-002", <<3::256>>)
     third_handle = RawKey.generate("issuer-key-003", <<4::256>>)
@@ -301,20 +301,28 @@ defmodule CharterAgreementSignerTest do
     {:ok, set} = ArtifactSet.build(revisions, [], [], descriptors)
     claims = ChainFixture.mint(AcceptanceFixture.claims(revision, third, "issuer"))
     handle = {RawKey, third_handle}
+    input = %{"kid" => elem(third_handle, 0), "claims" => claims}
 
-    assert {:ok, _input} =
-             CAP.acceptance_signing_input(
-               %{"kid" => elem(third_handle, 0), "claims" => claims},
-               set
-             )
+    assert {:error, %Error{code: :signing_refused, subject: ["signing_input", "claims"]}} =
+             CAP.acceptance_signing_input(input, set)
 
-    assert {:error, {:invalid_input, :acceptance_claims_mismatch}} =
+    assert {:error, {:refused, :signing_refused}} =
              CharterAgreementSigner.sign_acceptance(claims, handle, set)
 
     refute_signed()
 
+    acceptances = ChainFixture.dual_acceptances(setup.genesis, setup)
+    {:ok, unheld} = ArtifactSet.build(revisions, acceptances, [], descriptors)
+
+    assert {:ok, _input} = CAP.acceptance_signing_input(input, unheld)
+
+    assert {:error, {:invalid_input, :acceptance_claims_mismatch}} =
+             CharterAgreementSigner.sign_acceptance(claims, handle, unheld)
+
+    refute_signed()
+
     # Holding descriptor 3 makes the same request succeed.
-    {:ok, complete} = ArtifactSet.build(revisions, [], [], descriptors ++ [third.compact])
+    {:ok, complete} = ArtifactSet.build(revisions, acceptances, [], descriptors ++ [third.compact])
 
     assert {:ok, %{acceptance: _compact}} =
              CharterAgreementSigner.sign_acceptance(claims, handle, complete)

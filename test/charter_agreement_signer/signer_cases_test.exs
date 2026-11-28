@@ -246,9 +246,7 @@ defmodule CharterAgreementSigner.SignerCasesTest do
     {_, {kid, public, _private}} = scope.outside
 
     assert {:error, {:refused, :signer_outside_scope}} =
-             Signer.sign_receipt(scope.receipt, :unused, scope.chain,
-               key_identity: {kid, public}
-             )
+             Signer.sign_receipt(scope.receipt, :unused, scope.chain, key_identity: {kid, public})
 
     assert {:call_count, 0} = :erlang.trace_info({RawKey, :sign, 2}, :call_count)
     thumbprint = scope.thumbprint
