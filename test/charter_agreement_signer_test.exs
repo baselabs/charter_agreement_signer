@@ -322,7 +322,8 @@ defmodule CharterAgreementSignerTest do
     refute_signed()
 
     # Holding descriptor 3 makes the same request succeed.
-    {:ok, complete} = ArtifactSet.build(revisions, acceptances, [], descriptors ++ [third.compact])
+    {:ok, complete} =
+      ArtifactSet.build(revisions, acceptances, [], descriptors ++ [third.compact])
 
     assert {:ok, %{acceptance: _compact}} =
              CharterAgreementSigner.sign_acceptance(claims, handle, complete)

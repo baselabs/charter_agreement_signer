@@ -62,5 +62,5 @@ exports the archives, checksums and CycloneDX SBOM as `release-assets`.
 After matching read-back, the release operator creates the GitHub release `v<version>` from
 those assets. Download the assets and check their digests against `SHA256SUMS`.
 Use `gh attestation verify` for SLSA build provenance and the CycloneDX SBOM
-attestation. Follow the [release source attestation instructions](release.md#release-source-attestation)
+attestation. Follow the [release source attestation instructions](https://github.com/baselabs/charter_agreement_signer/blob/master/docs/release.md#release-source-attestation)
 to verify the commit named by the tag.

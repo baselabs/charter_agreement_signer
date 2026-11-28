@@ -228,15 +228,15 @@ defmodule PublishWorkflowTest do
     assert assets =~ "sbom-path: release-assets/release.cdx.json"
 
     assert assets =~ ~S"""
-              digest=$(sha256sum < "$archive")
-              bundle="$RUNNER_TEMP/sha256:${digest%% *}.jsonl"
-              trap 'rm -f -- "$bundle"' EXIT
-              (cd "$RUNNER_TEMP" && gh attestation download "$archive" --repo "$GITHUB_REPOSITORY")
-              gh attestation verify "$archive" --repo "$GITHUB_REPOSITORY" --bundle "$bundle" \
-                --signer-workflow "$signer" --source-ref "$GITHUB_REF" --predicate-type "$predicate" --format json |
-                jq -e --arg commit "$PUBLISHED_COMMIT" \
-                  'any(.[]; .verificationResult.statement.predicate.release_commit == $commit)' >/dev/null
-    """
+                     digest=$(sha256sum < "$archive")
+                     bundle="$RUNNER_TEMP/sha256:${digest%% *}.jsonl"
+                     trap 'rm -f -- "$bundle"' EXIT
+                     (cd "$RUNNER_TEMP" && gh attestation download "$archive" --repo "$GITHUB_REPOSITORY")
+                     gh attestation verify "$archive" --repo "$GITHUB_REPOSITORY" --bundle "$bundle" \
+                       --signer-workflow "$signer" --source-ref "$GITHUB_REF" --predicate-type "$predicate" --format json |
+                       jq -e --arg commit "$PUBLISHED_COMMIT" \
+                         'any(.[]; .verificationResult.statement.predicate.release_commit == $commit)' >/dev/null
+           """
   end
 
   test "only the default-branch warmer writes qualification caches" do

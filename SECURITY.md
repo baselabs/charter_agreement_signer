@@ -86,7 +86,7 @@ sha256sum -c SHA256SUMS
 
 Compare the package archive's SHA-256 with the checksum on its Hex version page.
 Verify the commit named by the tag using the
-[release source attestation](docs/release.md#release-source-attestation).
+[release source attestation](https://github.com/baselabs/charter_agreement_signer/blob/master/docs/release.md#release-source-attestation).
 
 Qualification runs the reproducibility gate on the CI runner: two
 cache-isolated builds of the exact archive must agree byte for byte.
