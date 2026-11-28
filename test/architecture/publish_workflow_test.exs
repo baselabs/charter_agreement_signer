@@ -214,14 +214,19 @@ defmodule PublishWorkflowTest do
     assert assets =~ "PUBLISHED_COMMIT: ${{ steps.served.outputs.commit }}"
     assert assets =~ ~S|test "$(git rev-parse HEAD)" = "$PUBLISHED_COMMIT"|
     assert assets =~ "run: mix deps.get --check-locked"
-    assert assets =~ "run: bash scripts/build_release_sbom.sh"
+    assert assets =~ ~S|git show "$GITHUB_WORKFLOW_SHA:scripts/build_release_sbom.sh" > "$script"|
+    assert assets =~ ~S|bash "$script"|
     assert assets =~ "sha256sum -- release.cdx.json >> SHA256SUMS"
     assert assets =~ "release-assets/release.cdx.json"
 
     script = File.read!(Path.join(@root, "scripts/build_release_sbom.sh"))
-    assert script =~ "mix sbom.cyclonedx --only prod"
+    assert script =~ "mix do compile --no-prune-code-paths + sbom.cyclonedx --only prod"
     assert script =~ "--exclude-system-dependencies"
     assert script =~ "--classification library --schema 1.6 --format json"
+
+    ci = File.read!(Path.join(@root, ".github/workflows/ci.yml"))
+    %{"hex-qualification" => qualification} = workflow_jobs(ci)
+    assert qualification =~ "bash scripts/build_release_sbom.sh"
 
     assert read_back =~ "attestations: write"
     assert assets =~ ~s|predicate: '{"release_commit":"${{ steps.served.outputs.commit }}"}'|
