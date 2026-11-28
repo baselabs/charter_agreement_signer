@@ -8,6 +8,8 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-11-28
+
 The signer goes from 1.0.0 to 1.4.0, skipping the 1.1, 1.2 and 1.3 release lines.
 
 - Use CAP 1.3.0. Enforce revision-8 scopes before custody, surface
@@ -473,7 +475,9 @@ algorithm-aware signing for CAP's revision-3 ML-DSA registry act:
   wall, shipped-artifact package census + consumer smoke, and the
   release-candidate reproducibility gate (`mix ci` mirrors CI step-for-step).
 
-[Unreleased]: https://github.com/baselabs/charter_agreement_signer/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/baselabs/charter_agreement_signer/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v1.4.0
+[1.0.0]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v1.0.0
 [0.5.0]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.5.0
 [0.4.1]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.4.1
 [0.4.0]: https://github.com/baselabs/charter_agreement_signer/releases/tag/v0.4.0
