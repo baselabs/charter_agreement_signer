@@ -18,9 +18,11 @@ Additive error codes and telemetry values are documented with each release.
 CAP's verification semantics and corpus identities remain separate from
 package versions; record them when upgrading.
 
-## 1.0.0 to 1.1.0
+## 1.0.0 to 1.4.0
 
-Use `{:charter_agreement_signer, "~> 1.1.0"}` with CAP `~> 1.1.0`.
+This package skips the 1.1, 1.2 and 1.3 release lines.
+
+Use `{:charter_agreement_signer, "~> 1.4.0"}` with CAP `~> 1.3`.
 Reverify retained chain artifacts under the new CAP release before signing.
 An active key outside the signing role and artifact kind now returns
 `{:error, {:refused, :signer_outside_scope}}` for acceptance, termination and

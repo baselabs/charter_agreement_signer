@@ -1,4 +1,4 @@
 %{
-  "charter_agreement_protocol": {:hex, :charter_agreement_protocol, "1.1.0", "66f96c465a2f96f453e95fe3a88889b73b8172d39eec57e967a276e6d95d233c", [:mix], [], "hexpm", "ed5387c1f9c1fd075e09c28420f27a2c6b8cff8d317e92449482d749383ad3bf"},
+  "charter_agreement_protocol": {:hex, :charter_agreement_protocol, "1.3.0", nil, [:mix], [], "hexpm", nil},
   "telemetry": {:hex, :telemetry, "1.4.3", "d0333fa869361e6833d6ff8e806ff4d8553fe1332fcce0af86c7381951a1dc2f", [:rebar3], [], "hexpm", "17a63581cf2e832a238287f5fe6811e8ca1f333249f1376ad653164a3c4770d4"},
 }

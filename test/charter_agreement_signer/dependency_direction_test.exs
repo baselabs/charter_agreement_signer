@@ -55,20 +55,19 @@ defmodule CharterAgreementSigner.DependencyDirectionTest do
 
   defp telemetry_module?(path), do: Path.basename(path) == "telemetry.ex"
 
-  # Keep resolution within the tested patch line. The archive candidate check exercises the
-  # unpublished release through a path override in a disposable copy.
-  @protocol_requirement "~> 1.1.0"
-  @protocol_locked_version "1.1.0"
+  # The requirement defines the supported series and the lock fixes the release tested in CI.
+  # The archive candidate check exercises the unpublished release through a path override.
+  @protocol_requirement "~> 1.3"
+  @protocol_locked_version "1.3.0"
 
   test "the protocol dependency is double-pinned to the tested release line" do
     mix_source = File.read!(Path.join(@repo_root, "mix.exs"))
 
     assert mix_source =~ "{:charter_agreement_protocol, \"#{@protocol_requirement}\"}",
-           "the CAP requirement must be exactly \"#{@protocol_requirement}\"; a two-part " <>
-             "\"~> 0.2\" admits every future pre-1.0 CAP that no gate has tested"
+           "the CAP requirement must be exactly \"#{@protocol_requirement}\""
 
     refute mix_source =~ "{:charter_agreement_protocol, \"~> 0.2\"},",
-           "the two-part pin must not appear alongside the three-part form"
+           "the obsolete CAP requirement must not be declared"
 
     dependency =
       Enum.find(Mix.Project.config()[:deps], &(elem(&1, 0) == :charter_agreement_protocol))
@@ -81,8 +80,7 @@ defmodule CharterAgreementSigner.DependencyDirectionTest do
 
       assert lock_source =~
                ~r/"charter_agreement_protocol":\s*\{:hex,\s*:charter_agreement_protocol,\s*"#{@protocol_locked_version}"/,
-             "the locked CAP version must be exactly #{@protocol_locked_version}; the " <>
-               "requirement vouches for no span the lock has not tested"
+             "the locked CAP version must be exactly #{@protocol_locked_version}"
     end
   end
 

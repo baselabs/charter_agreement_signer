@@ -10,12 +10,12 @@ defmodule CharterLifecycle.LockParityTest do
       version = to_string(Application.spec(:charter_agreement_protocol, :vsn))
       assert elem(dependency, 1) == "== #{version}"
     else
-      assert elem(dependency, 1) == "~> 1.1.0"
+      assert elem(dependency, 1) == "~> 1.3"
 
       example_lock = File.read!("mix.lock")
       library_lock = File.read!(Path.expand("../../mix.lock", File.cwd!()))
-      assert protocol_version(example_lock) == "1.1.0"
-      assert protocol_version(library_lock) == "1.1.0"
+      assert protocol_version(example_lock) == "1.3.0"
+      assert protocol_version(library_lock) == "1.3.0"
     end
   end
 

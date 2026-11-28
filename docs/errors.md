@@ -2,7 +2,7 @@
 
 Errors are closed and value-free. They contain no key material, message
 bytes or claims content. Public functions return `{:error, reason}` with
-one of these reasons. This reference covers signer 1.1.0 with CAP 1.1.0.
+one of these reasons. This reference covers signer 1.4.0 with CAP 1.3.0.
 
 | Reason | Meaning | Caller action |
 |---|---|---|

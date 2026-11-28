@@ -17,7 +17,7 @@ signing span.
 ```elixir
 def deps do
   [
-    {:charter_agreement_signer, "~> 1.1.0"}
+    {:charter_agreement_signer, "~> 1.4.0"}
   ]
 end
 ```
@@ -208,7 +208,7 @@ not evaluate charter terms or authorize operations.
 
 ## Protocol dependency
 
-Signer 1.1.0 requires CAP `~> 1.1.0` from Hex. CAP owns pre-sign checks, context
+Signer 1.4.0 requires CAP `~> 1.3` from Hex. CAP owns pre-sign checks, context
 derivation and final verification. CAP 0.5.0's distinct-party checks also apply: re-verify views
 stored under CAP 0.4.x. [docs/upgrading.md](docs/upgrading.md) lists the
 changed outcomes and migration requirements.

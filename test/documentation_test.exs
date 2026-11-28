@@ -8,7 +8,7 @@ defmodule CharterAgreementSigner.DocumentationTest do
 
   test "the quickstart runs with real Ed25519 signatures and the wrong-key refusal" do
     [install | blocks] = cells(File.read!(Path.join(@root, "docs/getting-started.md")))
-    assert install =~ ~s({:charter_agreement_signer, "~> 1.1.0"})
+    assert install =~ ~s({:charter_agreement_signer, "~> 1.4.0"})
     assert_roundtrip!(run!(blocks))
   end
 
@@ -18,8 +18,8 @@ defmodule CharterAgreementSigner.DocumentationTest do
     [setup | blocks] = cells(source)
     assert String.starts_with?(source, "# Charter signing round-trip\n")
     assert intro =~ setup
-    assert setup =~ ~s({:charter_agreement_protocol, "~> 1.1.0"})
-    assert setup =~ ~s({:charter_agreement_signer, "~> 1.1.0"})
+    assert setup =~ ~s({:charter_agreement_protocol, "~> 1.3"})
+    assert setup =~ ~s({:charter_agreement_signer, "~> 1.4.0"})
     assert_roundtrip!(run!(blocks))
   end
 

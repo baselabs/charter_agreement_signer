@@ -55,7 +55,7 @@ before checking successor linkage, so even the wrong predecessor returns
 the substrate error there.
 
 `test/fixtures/mldsa_predecessors.etf` (repository-only) retains the public
-predecessor facts in CAP 1.1's struct format. It contains no private keys. The runner
+predecessor facts in CAP 1.3's struct format. It contains no private keys. The runner
 checks its lineage against the table and, on a capable runtime, compares
 the entire facts record with fresh public verification. The limited runtime
 passes these retained facts to the real signer, whose CAP preparation

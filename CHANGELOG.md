@@ -8,7 +8,9 @@ and this project adheres to
 
 ## [Unreleased]
 
-- Use CAP 1.1.0. Enforce revision-8 scopes before custody, surface
+The signer goes from 1.0.0 to 1.4.0, skipping the 1.1, 1.2 and 1.3 release lines.
+
+- Use CAP 1.3.0. Enforce revision-8 scopes before custody, surface
   `signer_outside_scope` for scoped acceptance, termination and receipt
   refusals, and document inspection of signed receipts with CAP.
 - Qualify the Hex package and documentation in CI and publish those exact

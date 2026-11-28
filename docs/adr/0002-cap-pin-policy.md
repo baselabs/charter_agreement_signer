@@ -14,7 +14,8 @@ historical pre-1.0 rationale below remains a record of that decision. We
 retain the tested patch-line requirement and lock-parity gates. Verification
 semantics and corpus identities remain separate from package semver.
 
-Signer 1.1.0 requires `~> 1.1.0` and locks CAP 1.1.0 in both projects.
+Signer 1.4.0 requires CAP `~> 1.3`, which admits CAP 1.3.0 and later 1.x
+releases. The library and example lock exactly CAP 1.3.0 for qualification.
 
 Amended 2026-10-14: use `~> 0.6.0` from Hex, locked to CAP 0.6.0 in
 both projects. This replaces the prior source-checkout arrangement. The
